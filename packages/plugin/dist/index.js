@@ -64780,7 +64780,8 @@ var rpcMethods = [
   "acp.session.respond_permission",
   "acp.session.cancel",
   "acp.session.set_mode",
-  "plugin.route.call"
+  "plugin.route.call",
+  "host.restart"
 ];
 var errorCodes = [
   // Protocol / Version
@@ -64909,6 +64910,10 @@ var hostRegistrationCodeRequestSchema = external_exports.object({
 var registerOwnedRoleRequestSchema = external_exports.object({
   v: external_exports.literal(PROTOCOL_VERSION),
   device: accountDeviceDescriptorSchema
+}).strict();
+var linkOwnedRolesRequestSchema = external_exports.object({
+  v: external_exports.literal(PROTOCOL_VERSION),
+  counterpartAccessToken: authTokenSchema
 }).strict();
 var deviceRefreshRequestSchema = external_exports.object({
   deviceId: deviceIdSchema,
@@ -71068,7 +71073,8 @@ function remoteHostFeatures(clientVersion) {
     cursor: false,
     antigravity: false,
     opencode: false,
-    pluginRoute: false
+    pluginRoute: false,
+    hostRestart: false
   };
 }
 async function probeRemoteHostFeatures(client, clientVersion) {
@@ -71120,7 +71126,8 @@ async function probeRemoteHostFeatures(client, clientVersion) {
     ...hermes ? { hermes: true } : {},
     ...capabilities.has("agent.acp.antigravity.model-load.v1") ? { acpModelLoadsSession: true } : {},
     ...workspaceTypes === void 0 ? {} : { workspaceTypes },
-    pluginRoute: capabilities.has("plugin.route.v1")
+    pluginRoute: capabilities.has("plugin.route.v1"),
+    hostRestart: capabilities.has("host.restart.v1")
   };
 }
 
@@ -79571,6 +79578,12 @@ var ClientControl = class {
         if (typeof value.targetDeviceId !== "string") throw new ClientModeError("INVALID_MESSAGE", "A Host is required.");
         return ok(await this.context.listRemoteWorkspaces(value.targetDeviceId, signal));
       }
+      if (endpoint === "host.restart") {
+        const value = record3(payload);
+        if (typeof value.targetDeviceId !== "string") throw new ClientModeError("INVALID_MESSAGE", "A Host is required.");
+        await this.context.restartRemoteHost(value.targetDeviceId, signal);
+        return ok({ accepted: true });
+      }
       if (endpoint === "codex.workspaces.list") {
         const value = record3(payload);
         if (typeof value.targetDeviceId !== "string") throw new ClientModeError("INVALID_MESSAGE", "A Host is required.");
@@ -85817,6 +85830,18 @@ var HostServerApi = class {
     this.credentials = await this.credentialsPromise;
     return this.credentials;
   }
+  async linkOwnedRole(counterpartAccessToken) {
+    const stored = await this.store.load(this.baseUrl, this.requireIdentity().deviceId);
+    if (this.hostOnly || !stored || stored.pairingRestricted || stored.refreshTokenExpiresAt <= Date.now() + 3e4) return;
+    try {
+      await this.request("/api/v1/devices/link-owned-roles", {
+        method: "POST",
+        body: JSON.stringify({ v: 1, counterpartAccessToken })
+      });
+    } catch (error62) {
+      if (!(error62 instanceof ServerApiError) || error62.status !== 404) throw error62;
+    }
+  }
   async refreshCredentials(rejectedAccessToken = this.credentials?.accessToken) {
     const identity3 = this.requireIdentity();
     this.credentials = await this.withRefreshLock(async () => {
@@ -87787,6 +87812,7 @@ var ClientModeRuntime = class {
       },
       listRemoteDirectory: (...args) => owner.listRemoteDirectory(...args),
       listRemoteWorkspaces: (...args) => owner.listRemoteWorkspaces(...args),
+      restartRemoteHost: (...args) => owner.restartRemoteHost(...args),
       listCodexWorkspaces: (...args) => owner.listCodexWorkspaces(...args),
       openRemoteWorkspace: (...args) => owner.openRemoteWorkspace(...args),
       openCodexWorkspace: (...args) => owner.openCodexWorkspace(...args),
@@ -87900,8 +87926,9 @@ var ClientModeRuntime = class {
     });
     if (this.config.hostControl?.enabled !== false && this.host !== void 0 && this.server.hasStoredAuthorization !== void 0) {
       try {
-        if (await this.server.hasStoredAuthorization() && (this.host.hasStoredAuthorization === void 0 || !await this.host.hasStoredAuthorization())) {
-          await this.authorizeHostByDefault();
+        if (await this.server.hasStoredAuthorization()) {
+          if (this.host.hasStoredAuthorization === void 0 || !await this.host.hasStoredAuthorization()) await this.authorizeHostByDefault();
+          else await this.linkDeviceRoles();
         }
       } catch (error62) {
         this.logger.warn("automatic Host authorization failed", { code: safeErrorCode(error62) });
@@ -87914,8 +87941,10 @@ var ClientModeRuntime = class {
       if (this.config.hostControl?.enabled === false) return;
       const status2 = this.host.hostStatus();
       if (!status2.accountRequired) {
-        if (status2.authorized) return;
-        if (this.host.hasStoredAuthorization !== void 0 && await this.host.hasStoredAuthorization()) return;
+        if (status2.authorized || this.host.hasStoredAuthorization !== void 0 && await this.host.hasStoredAuthorization()) {
+          await this.linkDeviceRoles();
+          return;
+        }
       }
       const credentials = await this.server.authenticate(this.requireIdentity());
       try {
@@ -87927,6 +87956,15 @@ var ClientModeRuntime = class {
       }
     } catch (error62) {
       this.logger.warn("automatic Host authorization failed", { code: safeErrorCode(error62) });
+    }
+  }
+  async linkDeviceRoles() {
+    if (!this.host?.linkOwnedRole || this.host.hostStatus().pairingHostOnly) return;
+    try {
+      const credentials = await this.server.authenticate(this.requireIdentity());
+      await this.host.linkOwnedRole(credentials.accessToken);
+    } catch (error62) {
+      this.logger.warn("device role association failed", { code: safeErrorCode(error62) });
     }
   }
   registerControl(connection, webServer) {
@@ -88160,6 +88198,22 @@ var ClientModeRuntime = class {
   async listRemoteWorkspaces(targetDeviceId, signal) {
     const remote = await this.ensureConnected(targetDeviceId, signal);
     return readRemoteWorkspaceBaseline(new RemoteTypertGateway2(remote.client), signal);
+  }
+  /**
+   * Ask a Host to restart itself through its own platform supervisor. The
+   * Host answers before it goes away, so a successful call means "accepted",
+   * not "back online"; callers re-read presence afterwards. A restart is a
+   * one-off control RPC on a temporary carrier like tool discovery, never the
+   * UI selection carrier: the Host stops right after the ack, and a UI
+   * carrier dying with it must not read as a lost link in the workbench.
+   */
+  async restartRemoteHost(targetDeviceId, signal) {
+    await this.withToolRemote(targetDeviceId, signal ?? this.remoteLifetime.signal, async (remote, activeSignal) => {
+      if (!remote.features.hostRestart) {
+        throw new ClientModeError("RESTART_UNSUPPORTED", "This Host cannot restart itself from Remote.");
+      }
+      await remote.client.rpc("host.restart", {}, activeSignal);
+    });
   }
   /** Read-only Agent discovery owns a temporary carrier, never the UI selection. */
   async discoverToolWorkspaces(targetDeviceId, signal) {
@@ -88834,6 +88888,7 @@ var trustedPeersSchema = external_exports.object({
   // Discovery can persist multiple pages; reading must accept every record we write.
   peers: external_exports.array(trustedPeerSchema)
 }).strict();
+var UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 var STORAGE_CONFLICT_MESSAGE = "Remote storage ownership could not be verified; nothing was moved. Inspect the legacy directory manually.";
 var STORAGE_CONFLICT_ENTRY_PATTERN = /^(?:device\.json|device\.key|trusted-peers\.json|server-credentials\.json|host-pairing\.json|pairing-host-only\.json)(?:\.bak(?:-[0-9]+)?|\.old|\.orig|~|\.swp)$/;
 var IdentityInvalidError = class extends Error {
@@ -88851,9 +88906,11 @@ var IdentityStore = class {
   peers = /* @__PURE__ */ new Map();
   peerSaveChain = Promise.resolve();
   defaultOptions;
+  env;
   role;
   constructor(options = {}) {
     const env = options.env ?? process.env;
+    this.env = env;
     const dshHome = env.DSH_HOME || join5(options.homeDirectory ?? homedir2(), ".dsh");
     this.storageDirectory = options.directory ?? join5(dshHome, "ds-harness-remote");
     this.defaultOptions = options.directory === void 0 ? options : void 0;
@@ -88923,8 +88980,14 @@ var IdentityStore = class {
     return identity3;
   }
   async createAndReadIdentityLocked(devicePath, keyPath, deviceName) {
-    const keys = generateKeyPair();
-    const record11 = { schemaVersion: 1, deviceId: uuidV7(), name: deviceName, publicKey: keys.publicKey };
+    const prefix = this.role === "host" ? "DSH_REMOTE_HOST_" : this.role === "client" ? "DSH_REMOTE_CLIENT_" : void 0;
+    const pinnedId = (prefix === void 0 ? void 0 : this.env[`${prefix}DEVICE_ID`]?.trim()) || this.env.DSH_REMOTE_DEVICE_ID?.trim() || void 0;
+    const pinnedKey = (prefix === void 0 ? void 0 : this.env[`${prefix}DEVICE_KEY`]?.trim()) || this.env.DSH_REMOTE_DEVICE_KEY?.trim() || void 0;
+    if (pinnedId !== void 0 && !UUID_RE.test(pinnedId)) {
+      throw new IdentityInvalidError("DSH_REMOTE_DEVICE_ID must be a UUID.");
+    }
+    const keys = pinnedKey === void 0 ? generateKeyPair() : generateKeyPair(fromBase64Url2(pinnedKey));
+    const record11 = { schemaVersion: 1, deviceId: pinnedId === void 0 ? uuidV7() : pinnedId.toLowerCase(), name: deviceName, publicKey: keys.publicKey };
     await atomicTextWrite(keyPath, `${keys.privateKey}
 `, 384);
     await atomicJsonWrite(devicePath, record11, 384);
@@ -93284,9 +93347,9 @@ var RemoteTerminalState = class {
   }
 };
 var RemoteTerminalController = class {
-  constructor(shared, spawn7, enabled, scopeError) {
+  constructor(shared, spawn8, enabled, scopeError) {
     this.shared = shared;
-    this.spawn = spawn7;
+    this.spawn = spawn8;
     this.enabled = enabled;
     this.scopeError = scopeError;
   }
@@ -100010,7 +100073,8 @@ var apiMethods = /* @__PURE__ */ new Set([
   "workspace.upload.chunk",
   "workspace.upload.chunk.binary",
   "workspace.upload.commit",
-  "workspace.upload.abort"
+  "workspace.upload.abort",
+  "host.restart"
 ]);
 var HOST_CAPABILITIES = [
   "harness.remote.v1",
@@ -100023,7 +100087,7 @@ var HOST_CAPABILITIES = [
   "agent.acp.transfer.v1"
 ];
 var RpcRouter = class {
-  constructor(maxPending = 128, logger2, fileViewer, harnessRemote, capabilities = () => HOST_CAPABILITIES, codex, acp, loopback, workspaceTypes, pluginRoute, workspaceUpload, compaction, lanUpload) {
+  constructor(maxPending = 128, logger2, fileViewer, harnessRemote, capabilities = () => HOST_CAPABILITIES, codex, acp, loopback, workspaceTypes, pluginRoute, workspaceUpload, hostRestart, compaction, lanUpload) {
     this.maxPending = maxPending;
     this.logger = logger2;
     this.fileViewer = fileViewer;
@@ -100035,6 +100099,7 @@ var RpcRouter = class {
     this.workspaceTypes = workspaceTypes;
     this.pluginRoute = pluginRoute;
     this.workspaceUpload = workspaceUpload;
+    this.hostRestart = hostRestart;
     this.compaction = compaction;
     this.lanUpload = lanUpload;
   }
@@ -100211,6 +100276,13 @@ var RpcRouter = class {
       }
       case "plugin.route.call":
         return this.requirePluginRoute().call(params);
+      case "host.restart": {
+        emptyParamsSchema.parse(params);
+        if (this.hostRestart === void 0 || !this.hostRestart.supported) {
+          throw new RpcError("RESTART_UNSUPPORTED", "This Host cannot restart itself on its platform.");
+        }
+        return this.hostRestart.restart();
+      }
       default:
         throw new RpcError("METHOD_NOT_FOUND", "The requested method does not exist.");
     }
@@ -100408,6 +100480,10 @@ var HostServerConnection = class {
   reconnectRequested = false;
   resumeQueued = false;
   authRecoveryAttempted = false;
+  // Set when the Server announced its own shutdown. The Server is expected back
+  // within seconds, so the next attempts skip the wide fleet-spreading jitter
+  // and retry quickly; normal network drops keep using the full-jitter delay.
+  serverRestartRetries = 0;
   rtcFactory;
   negotiatedCapabilities = ["transport.relay"];
   controlFrameLimits = {};
@@ -100602,6 +100678,7 @@ var HostServerConnection = class {
         closing = true;
         clearLiveness();
         const closeSemantics = classifyControlClose(event.code, event.reason);
+        if (closeSemantics.serverShutdown) this.serverRestartRetries = 12;
         retainOnClose = [1e3, 1001, 4007].includes(event.code) || closeSemantics.retryable && !closeSemantics.replaced;
         const close = async () => {
           if (!forced) {
@@ -100767,6 +100844,7 @@ var HostServerConnection = class {
               throw new ControlConnectionError("INVALID_MESSAGE", "Server did not negotiate a transport capability.");
             }
             acknowledged = true;
+            this.serverRestartRetries = 0;
             clearTimeout(helloTimer);
             armLiveness();
             if (this.rtcFactory === void 0 && this.rtcFactoryProvider !== void 0 && !this.config.forceRelay) {
@@ -101472,6 +101550,20 @@ var HostServerConnection = class {
     }
   }
   waitBeforeRetry() {
+    if (this.serverRestartRetries > 0) {
+      this.serverRestartRetries -= 1;
+      const quickDelay = Math.round(Math.random() * Math.min(this.config.reconnect.maxDelayMs, 1500));
+      return new Promise((resolve10) => {
+        const timer2 = setTimeout(() => {
+          this.retryWake = void 0;
+          resolve10();
+        }, quickDelay);
+        this.retryWake = () => {
+          clearTimeout(timer2);
+          resolve10();
+        };
+      });
+    }
     const delay2 = Math.round(Math.random() * this.config.reconnect.maxDelayMs);
     return new Promise((resolve10) => {
       const timer2 = setTimeout(() => {
@@ -101815,6 +101907,8 @@ var HARNESS_REMOTE_ALLOWLIST = [
   "agentPresets/select",
   "commands/execute",
   "commands/list",
+  "cotTranslation/limits",
+  "cotTranslation/translate",
   "credentials/describe",
   "credentials/set",
   "credentials/unset",
@@ -103304,7 +103398,93 @@ function errorText(error62) {
 
 // packages/plugin/src/service.ts
 import { execFileSync as execFileSync3 } from "node:child_process";
-import { existsSync as existsSync5 } from "node:fs";
+import { existsSync as existsSync6 } from "node:fs";
+
+// packages/plugin/src/host-restart.ts
+import { spawn as spawn7 } from "node:child_process";
+import { existsSync as existsSync5, readFileSync as readFileSync2 } from "node:fs";
+var HostRestartError = class extends Error {
+  constructor(code, message) {
+    super(message);
+    this.code = code;
+    this.name = "HostRestartError";
+  }
+};
+var SYSTEMD_SERVICE_UNIT = /\/system\.slice\/([A-Za-z0-9:_.@-]+\.service)(?:\/|\s|$)/;
+function systemdUnitFromCgroup(cgroup) {
+  return SYSTEMD_SERVICE_UNIT.exec(cgroup)?.[1];
+}
+function createHostRestartController(options = {}) {
+  const platform3 = options.platform ?? process.platform;
+  const readFile6 = options.readFile ?? ((path) => {
+    try {
+      return readFileSync2(path, "utf8");
+    } catch {
+      return void 0;
+    }
+  });
+  const pathExists = options.pathExists ?? existsSync5;
+  const spawnProcess = options.spawnProcess ?? ((command, args) => {
+    const child = spawn7(command, [...args], { detached: true, stdio: "ignore", windowsHide: true });
+    child.unref();
+  });
+  const setTimer = options.setTimer ?? ((callback, ms) => setTimeout(callback, ms));
+  const armDelayMs = options.armDelayMs ?? 1500;
+  const supervisor = detectSupervisor({
+    platform: platform3,
+    execPath: options.execPath ?? process.execPath,
+    parentPid: options.parentPid ?? process.ppid,
+    electronVersion: options.electronVersion ?? process.versions.electron,
+    processType: options.processType ?? process.type,
+    readFile: readFile6,
+    pathExists,
+    spawnProcess
+  });
+  if (supervisor === void 0) {
+    return {
+      supported: false,
+      restart: async () => {
+        throw new HostRestartError(
+          "RESTART_UNSUPPORTED",
+          platform3 === "linux" ? "This Host is not managed by a systemd service, so it cannot restart itself." : platform3 === "win32" ? "This Host is not the DSH Desktop app, so it cannot relaunch itself." : "Restarting the Harness is not supported on this platform."
+        );
+      }
+    };
+  }
+  return {
+    supported: true,
+    async restart() {
+      setTimer(() => {
+        try {
+          supervisor.restart();
+        } catch {
+        }
+      }, armDelayMs);
+      return { supervisor: supervisor.kind };
+    }
+  };
+}
+function detectSupervisor(input4) {
+  if (input4.platform === "linux") {
+    if (!input4.pathExists("/run/systemd/system")) return void 0;
+    const unit = systemdUnitFromCgroup(input4.readFile("/proc/self/cgroup") ?? "");
+    if (unit === void 0) return void 0;
+    return { kind: "systemd", restart: () => input4.spawnProcess("systemctl", ["restart", unit]) };
+  }
+  if (input4.platform === "win32") {
+    if (input4.electronVersion === void 0 || input4.processType !== void 0) return void 0;
+    if (!/\.exe$/i.test(input4.execPath)) return void 0;
+    if (!Number.isSafeInteger(input4.parentPid) || input4.parentPid <= 0) return void 0;
+    const command = [
+      "timeout /t 2 /nobreak >nul",
+      `taskkill /PID ${String(input4.parentPid)} /F >nul 2>&1`,
+      "ping -n 4 127.0.0.1 >nul",
+      `start "" "${input4.execPath}"`
+    ].join(" & ");
+    return { kind: "desktop", restart: () => input4.spawnProcess("cmd.exe", ["/d", "/s", "/c", command]) };
+  }
+  return void 0;
+}
 
 // packages/plugin/src/codex-workspace-bridge.ts
 var CodexWorkspaceBridge = class extends WorkspaceBridge {
@@ -103434,6 +103614,7 @@ var HostPluginRuntime = class {
         () => this.hostWorkspaceTypes(),
         pluginRoute,
         workspaceUpload,
+        this.hostRestartHandler(),
         {
           operations: this.compactionOperations,
           owner: { deviceId: context.peerDeviceId, connectionId: context.connectionId }
@@ -103459,6 +103640,7 @@ var HostPluginRuntime = class {
   codex;
   acp;
   codexWorkspaceState = new WorkspaceBridgeState((key) => TerminalPolicy.releaseOwner(this.terminalOwners, key));
+  hostRestart = createHostRestartController();
   /**
    * Host-wide async compaction registry. It deliberately lives on the runtime,
    * not on a connection: disconnecting a client must not abort a compaction.
@@ -103569,6 +103751,9 @@ var HostPluginRuntime = class {
   }
   async hasStoredAuthorization() {
     return this.serverApi?.hasStoredAuthorization() ?? false;
+  }
+  async linkOwnedRole(accessToken) {
+    await this.serverApi?.linkOwnedRole(accessToken);
   }
   listConnectedClients() {
     return this.connections.connectedPeers().map((peer) => {
@@ -103790,6 +103975,22 @@ var HostPluginRuntime = class {
     if (version2 === void 0) this.logger.warn("Harness version is unavailable");
     return version2;
   }
+  hostRestartHandler() {
+    return {
+      supported: this.hostRestart.supported && this.config.hostControl?.enabled !== false,
+      restart: async () => {
+        if (this.config.hostControl?.enabled === false) {
+          throw new RpcError("RESTART_DENIED", "Remote host control is disabled on this Host.");
+        }
+        try {
+          return await this.hostRestart.restart();
+        } catch (error62) {
+          if (error62 instanceof HostRestartError) throw new RpcError(error62.code, error62.message);
+          throw error62;
+        }
+      }
+    };
+  }
   hostCapabilities() {
     const capabilities = ["workspace.upload.v1"];
     if (this.loopbackPorts.length > 0) capabilities.push("loopback.http-ws.v1");
@@ -103802,6 +104003,7 @@ var HostPluginRuntime = class {
     if (this.localGateway?.supportsCarrier && this.terminalEnabled) capabilities.push("harness.terminal.v1");
     if (this.fileViewerHost?.() !== void 0) capabilities.push("fileviewer.read.v1");
     if (this.pluginRoutes?.() !== void 0) capabilities.push("plugin.route.v1");
+    if (this.hostRestart.supported && this.config.hostControl?.enabled !== false) capabilities.push("host.restart.v1");
     if (this.codex.isAvailable()) capabilities.push("codex.appserver.v1", "codex.appserver.transfer.v1");
     if (this.acp.enabledBackends().length > 0) {
       capabilities.push("agent.acp.v1", "agent.acp.transfer.v1", "agent.acp.workspace-files.v1");
@@ -103882,7 +104084,7 @@ var HostPluginRuntime = class {
   acpAvailable(command) {
     if (command === "opencode") {
       try {
-        if (existsSync5("/usr/local/bin/opencode") || existsSync5("/var/lib/dsh/.opencode/bin/opencode")) return true;
+        if (existsSync6("/usr/local/bin/opencode") || existsSync6("/var/lib/dsh/.opencode/bin/opencode")) return true;
       } catch {
       }
     }

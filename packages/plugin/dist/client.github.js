@@ -1845,6 +1845,7 @@ If a code was sent, recover the original submission without changing it.`,
     noRemoteHosts: "No remote hosts are currently available.",
     online: "Online",
     offline: "Offline",
+    hostRestartingBadge: "Restarting\u2026",
     thisMachineHost: "This machine as Remote Host",
     connected: "Connected",
     connectedAs: "Connected as {account}",
@@ -1880,7 +1881,17 @@ If a code was sent, recover the original submission without changing it.`,
     useRegistrationCode: "Use connection code",
     registering: "Registering\u2026",
     remoteEntry: "Remote",
-    remoteTitle: "DS Harness Remote - Remote Workspace",
+    remoteTitle: "Remote workbench",
+    chooseWorkspace: "Choose workspace",
+    platform: "System",
+    searchWorkspaces: "Search workspaces or paths",
+    noWorkspaceMatches: "No matching workspaces.",
+    allHosts: "All Hosts",
+    onlineHosts: "Online Hosts",
+    offlineHosts: "Offline Hosts",
+    hostFilterLabel: "Host filter",
+    onlineHostCount: "{count} online",
+    noHostMatches: "No Hosts match this filter.",
     remoteDescription: "Choose one of your Hosts, then select a working directory. The Harness interface stays on this device.",
     starProject: "Open source project, stars welcome~",
     chooseHost: "Host",
@@ -1951,6 +1962,8 @@ If a code was sent, recover the original submission without changing it.`,
     noHermesWorkspaces: "No Hermes workspaces yet. Add a project directory to start.",
     cancelAddWorkspace: "Cancel",
     confirmAddWorkspace: "Add and open",
+    browseFolderHint: "Browse the Host directories, then choose a folder to open as a workspace.",
+    directoryCount: "{count} directories",
     showAllWorkspaces: "Show all DSH workspaces",
     showAllCodexWorkspaces: "Show all CodeX workspaces",
     showAllCursorWorkspaces: "Show all Cursor workspaces",
@@ -2028,6 +2041,10 @@ If a code was sent, recover the original submission without changing it.`,
     allowControlCurrentDevice: "Allow control of this device",
     allowControlDevice: "Allow control of this device",
     connectedClientCount: "{count} connected",
+    restartHostTitle: 'Restart "{name}"',
+    restartHostConfirm: 'Restart the Harness on "{name}"? Sessions on that Host disconnect and come back after it starts again.',
+    hostRestartUnsupported: "This Host cannot restart itself from Remote.",
+    hostRestartDenied: "Remote control is disabled on this Host.",
     checkAcp: "Check backend",
     checkingAcp: "Checking ACP\u2026",
     acpAvailable: "ACP available",
@@ -2228,6 +2245,7 @@ If a code was sent, recover the original submission without changing it.`,
     noRemoteHosts: "\u5F53\u524D\u65E0\u53EF\u7528\u7684\u8FDC\u7A0B\u4E3B\u673A\u3002",
     online: "\u5728\u7EBF",
     offline: "\u79BB\u7EBF",
+    hostRestartingBadge: "\u91CD\u542F\u4E2D\u2026",
     thisMachineHost: "\u5C06\u6B64\u8BBE\u5907\u4F5C\u4E3A\u8FDC\u7A0B Host",
     connected: "\u5DF2\u8FDE\u63A5",
     connectedAs: "\u5DF2\u4F7F\u7528 {account} \u8FDE\u63A5",
@@ -2263,7 +2281,17 @@ If a code was sent, recover the original submission without changing it.`,
     useRegistrationCode: "\u4F7F\u7528\u8FDE\u63A5\u7801",
     registering: "\u6B63\u5728\u6CE8\u518C\u2026",
     remoteEntry: "Remote",
-    remoteTitle: "DS Harness Remote - \u8FDC\u7A0B\u5DE5\u4F5C\u53F0",
+    remoteTitle: "\u8FDC\u7A0B\u5DE5\u4F5C\u53F0",
+    chooseWorkspace: "\u9009\u62E9\u5DE5\u4F5C\u533A",
+    platform: "\u7CFB\u7EDF",
+    searchWorkspaces: "\u641C\u7D22\u5DE5\u4F5C\u533A\u6216\u8DEF\u5F84",
+    noWorkspaceMatches: "\u6CA1\u6709\u5339\u914D\u7684\u5DE5\u4F5C\u533A\u3002",
+    allHosts: "\u5168\u90E8\u4E3B\u673A",
+    onlineHosts: "\u5728\u7EBF\u4E3B\u673A",
+    offlineHosts: "\u79BB\u7EBF\u4E3B\u673A",
+    hostFilterLabel: "\u4E3B\u673A\u7B5B\u9009",
+    onlineHostCount: "{count} \u53F0\u5728\u7EBF",
+    noHostMatches: "\u6CA1\u6709\u7B26\u5408\u7B5B\u9009\u6761\u4EF6\u7684\u4E3B\u673A\u3002",
     remoteDescription: "\u9009\u62E9\u60F3\u8981\u8FDE\u63A5\u4E3B\u673A\u548C\u5DE5\u4F5C\u76EE\u5F55\u3002",
     starProject: "\u5F00\u6E90\u9879\u76EE\uFF0C\u6B22\u8FCEStar~",
     chooseHost: "\u4E3B\u673A",
@@ -2334,6 +2362,8 @@ If a code was sent, recover the original submission without changing it.`,
     noHermesWorkspaces: "\u8FD8\u6CA1\u6709 Hermes \u5DE5\u4F5C\u533A\u3002\u6DFB\u52A0\u9879\u76EE\u76EE\u5F55\u5373\u53EF\u5F00\u59CB\u3002",
     cancelAddWorkspace: "\u53D6\u6D88",
     confirmAddWorkspace: "\u786E\u8BA4\u5E76\u6253\u5F00",
+    browseFolderHint: "\u6D4F\u89C8\u670D\u52A1\u5668\u76EE\u5F55\uFF0C\u9009\u62E9\u4E00\u4E2A\u6587\u4EF6\u5939\u4F5C\u4E3A\u5DE5\u4F5C\u533A\u6253\u5F00\u3002",
+    directoryCount: "{count} \u4E2A\u76EE\u5F55",
     showAllWorkspaces: "\u663E\u793A\u5168\u90E8 DSH \u5DE5\u4F5C\u533A",
     showAllCodexWorkspaces: "\u663E\u793A\u5168\u90E8 CodeX \u5DE5\u4F5C\u533A",
     showAllCursorWorkspaces: "\u663E\u793A\u5168\u90E8 Cursor \u5DE5\u4F5C\u533A",
@@ -2411,6 +2441,10 @@ If a code was sent, recover the original submission without changing it.`,
     allowControlCurrentDevice: "\u5141\u8BB8\u63A7\u5236\u672C\u673A",
     allowControlDevice: "\u5141\u8BB8\u63A7\u5236\u672C\u673A",
     connectedClientCount: "{count} \u53F0\u5DF2\u8FDE\u63A5",
+    restartHostTitle: "\u91CD\u542F\u201C{name}\u201D",
+    restartHostConfirm: "\u786E\u5B9A\u91CD\u542F\u201C{name}\u201D\u4E0A\u7684 Harness\uFF1F\u8BE5\u4E3B\u673A\u4E0A\u7684\u4F1A\u8BDD\u4F1A\u65AD\u5F00\uFF0C\u91CD\u542F\u5B8C\u6210\u540E\u81EA\u52A8\u6062\u590D\u3002",
+    hostRestartUnsupported: "\u8BE5\u4E3B\u673A\u4E0D\u652F\u6301\u4ECE Remote \u91CD\u542F\u3002",
+    hostRestartDenied: "\u8BE5\u4E3B\u673A\u5DF2\u5173\u95ED\u8FDC\u7A0B\u63A7\u5236\u3002",
     checkAcp: "\u68C0\u6D4B\u540E\u7AEF",
     checkingAcp: "\u6B63\u5728\u68C0\u6D4B ACP\u2026",
     acpAvailable: "ACP \u53EF\u7528",
@@ -2844,7 +2878,24 @@ If a code was sent, recover the original submission without changing it.`,
     opencodeVirtualWorkspace: "\u0412\u0438\u0440\u0442\u0443\u0430\u043B\u044C\u043D\u0430\u044F \u0440\u0430\u0431\u043E\u0447\u0430\u044F \u043E\u0431\u043B\u0430\u0441\u0442\u044C OpenCode",
     claudeVirtualWorkspace: "\u0412\u0438\u0440\u0442\u0443\u0430\u043B\u044C\u043D\u0430\u044F \u0440\u0430\u0431\u043E\u0447\u0430\u044F \u043E\u0431\u043B\u0430\u0441\u0442\u044C Claude",
     hermesVirtualWorkspace: "\u0412\u0438\u0440\u0442\u0443\u0430\u043B\u044C\u043D\u0430\u044F \u0440\u0430\u0431\u043E\u0447\u0430\u044F \u043E\u0431\u043B\u0430\u0441\u0442\u044C Hermes",
-    codexVirtualSessions: "\u0421\u0435\u0441\u0441\u0438\u0438"
+    codexVirtualSessions: "\u0421\u0435\u0441\u0441\u0438\u0438",
+    hostRestartingBadge: "\u91CD\u542F\u4E2D\u2026",
+    chooseWorkspace: "\u9009\u62E9\u5DE5\u4F5C\u533A",
+    platform: "\u7CFB\u7EDF",
+    searchWorkspaces: "\u641C\u7D22\u5DE5\u4F5C\u533A\u6216\u8DEF\u5F84",
+    noWorkspaceMatches: "\u6CA1\u6709\u5339\u914D\u7684\u5DE5\u4F5C\u533A\u3002",
+    allHosts: "\u5168\u90E8\u4E3B\u673A",
+    onlineHosts: "\u5728\u7EBF\u4E3B\u673A",
+    offlineHosts: "\u79BB\u7EBF\u4E3B\u673A",
+    hostFilterLabel: "\u4E3B\u673A\u7B5B\u9009",
+    onlineHostCount: "{count} \u53F0\u5728\u7EBF",
+    noHostMatches: "\u6CA1\u6709\u7B26\u5408\u7B5B\u9009\u6761\u4EF6\u7684\u4E3B\u673A\u3002",
+    browseFolderHint: "\u6D4F\u89C8\u670D\u52A1\u5668\u76EE\u5F55\uFF0C\u9009\u62E9\u4E00\u4E2A\u6587\u4EF6\u5939\u4F5C\u4E3A\u5DE5\u4F5C\u533A\u6253\u5F00\u3002",
+    directoryCount: "{count} \u4E2A\u76EE\u5F55",
+    restartHostTitle: "\u91CD\u542F\u201C{name}\u201D",
+    restartHostConfirm: "\u786E\u5B9A\u91CD\u542F\u201C{name}\u201D\u4E0A\u7684 Harness\uFF1F\u8BE5\u4E3B\u673A\u4E0A\u7684\u4F1A\u8BDD\u4F1A\u65AD\u5F00\uFF0C\u91CD\u542F\u5B8C\u6210\u540E\u81EA\u52A8\u6062\u590D\u3002",
+    hostRestartUnsupported: "\u8BE5\u4E3B\u673A\u4E0D\u652F\u6301\u4ECE Remote \u91CD\u542F\u3002",
+    hostRestartDenied: "\u8BE5\u4E3B\u673A\u5DF2\u5173\u95ED\u8FDC\u7A0B\u63A7\u5236\u3002"
   }, uk = {
     serverSavedLive: "\u0410\u0434\u0440\u0435\u0441\u0443 \u0441\u0435\u0440\u0432\u0435\u0440\u0430 \u0437\u0431\u0435\u0440\u0435\u0436\u0435\u043D\u043E \u0439 \u0437\u0430\u0441\u0442\u043E\u0441\u043E\u0432\u0430\u043D\u043E.",
     saveServerBeforeLogin: "\u0417\u0431\u0435\u0440\u0435\u0436\u0456\u0442\u044C \u0430\u0434\u0440\u0435\u0441\u0443 \u0441\u0435\u0440\u0432\u0435\u0440\u0430, \u043F\u0435\u0440\u0448 \u043D\u0456\u0436 \u043F\u0440\u043E\u0434\u043E\u0432\u0436\u0438\u0442\u0438 \u0432\u0445\u0456\u0434 \u0430\u0431\u043E \u0441\u043F\u0430\u0440\u044E\u0432\u0430\u043D\u043D\u044F.",
@@ -3226,7 +3277,24 @@ If a code was sent, recover the original submission without changing it.`,
     opencodeVirtualWorkspace: "\u0412\u0456\u0440\u0442\u0443\u0430\u043B\u044C\u043D\u0438\u0439 \u0440\u043E\u0431\u043E\u0447\u0438\u0439 \u043F\u0440\u043E\u0441\u0442\u0456\u0440 OpenCode",
     claudeVirtualWorkspace: "\u0412\u0456\u0440\u0442\u0443\u0430\u043B\u044C\u043D\u0438\u0439 \u0440\u043E\u0431\u043E\u0447\u0438\u0439 \u043F\u0440\u043E\u0441\u0442\u0456\u0440 Claude",
     hermesVirtualWorkspace: "\u0412\u0456\u0440\u0442\u0443\u0430\u043B\u044C\u043D\u0438\u0439 \u0440\u043E\u0431\u043E\u0447\u0438\u0439 \u043F\u0440\u043E\u0441\u0442\u0456\u0440 Hermes",
-    codexVirtualSessions: "\u0421\u0435\u0441\u0456\u0457"
+    codexVirtualSessions: "\u0421\u0435\u0441\u0456\u0457",
+    hostRestartingBadge: "\u91CD\u542F\u4E2D\u2026",
+    chooseWorkspace: "\u9009\u62E9\u5DE5\u4F5C\u533A",
+    platform: "\u7CFB\u7EDF",
+    searchWorkspaces: "\u641C\u7D22\u5DE5\u4F5C\u533A\u6216\u8DEF\u5F84",
+    noWorkspaceMatches: "\u6CA1\u6709\u5339\u914D\u7684\u5DE5\u4F5C\u533A\u3002",
+    allHosts: "\u5168\u90E8\u4E3B\u673A",
+    onlineHosts: "\u5728\u7EBF\u4E3B\u673A",
+    offlineHosts: "\u79BB\u7EBF\u4E3B\u673A",
+    hostFilterLabel: "\u4E3B\u673A\u7B5B\u9009",
+    onlineHostCount: "{count} \u53F0\u5728\u7EBF",
+    noHostMatches: "\u6CA1\u6709\u7B26\u5408\u7B5B\u9009\u6761\u4EF6\u7684\u4E3B\u673A\u3002",
+    browseFolderHint: "\u6D4F\u89C8\u670D\u52A1\u5668\u76EE\u5F55\uFF0C\u9009\u62E9\u4E00\u4E2A\u6587\u4EF6\u5939\u4F5C\u4E3A\u5DE5\u4F5C\u533A\u6253\u5F00\u3002",
+    directoryCount: "{count} \u4E2A\u76EE\u5F55",
+    restartHostTitle: "\u91CD\u542F\u201C{name}\u201D",
+    restartHostConfirm: "\u786E\u5B9A\u91CD\u542F\u201C{name}\u201D\u4E0A\u7684 Harness\uFF1F\u8BE5\u4E3B\u673A\u4E0A\u7684\u4F1A\u8BDD\u4F1A\u65AD\u5F00\uFF0C\u91CD\u542F\u5B8C\u6210\u540E\u81EA\u52A8\u6062\u590D\u3002",
+    hostRestartUnsupported: "\u8BE5\u4E3B\u673A\u4E0D\u652F\u6301\u4ECE Remote \u91CD\u542F\u3002",
+    hostRestartDenied: "\u8BE5\u4E3B\u673A\u5DF2\u5173\u95ED\u8FDC\u7A0B\u63A7\u5236\u3002"
   };
 
   // packages/plugin/src/client/server-notice.ts
@@ -3347,7 +3415,7 @@ If a code was sent, recover the original submission without changing it.`,
     };
   }
   function connectionErrorMessage(code, t) {
-    return t(code === "ACCOUNT_AUTH_REQUIRED" || code === "AUTH_REQUIRED" ? "hostSignInHint" : code === "AUTH_INVALID" || code === "TOKEN_EXPIRED" ? "connectionAuthorizationExpired" : code === "CONNECTION_REPLACED" ? "connectionReplaced" : code === "SERVER_CREDENTIALS_BUSY" ? "connectionCredentialsBusy" : code === "DEVICE_REVOKED" ? "connectionDeviceRevoked" : code === "DEVICE_OWNERSHIP_REQUIRED" ? "connectionOwnershipRequired" : code === "RATE_LIMITED" ? "connectionRateLimited" : code === "UNSUPPORTED_VERSION" ? "connectionVersionMismatch" : code === "INVALID_MESSAGE" ? "connectionInvalidResponse" : code === "CONNECTION_FAILED" ? "serverUnavailableError" : code === "SERVER_NOT_CONFIGURED" ? "connectionReachability" : "connectionUnexpected");
+    return t(code === "ACCOUNT_AUTH_REQUIRED" || code === "AUTH_REQUIRED" ? "hostSignInHint" : code === "AUTH_INVALID" || code === "TOKEN_EXPIRED" ? "connectionAuthorizationExpired" : code === "CONNECTION_REPLACED" ? "connectionReplaced" : code === "SERVER_CREDENTIALS_BUSY" ? "connectionCredentialsBusy" : code === "DEVICE_REVOKED" ? "connectionDeviceRevoked" : code === "DEVICE_OWNERSHIP_REQUIRED" ? "connectionOwnershipRequired" : code === "RATE_LIMITED" ? "connectionRateLimited" : code === "UNSUPPORTED_VERSION" ? "connectionVersionMismatch" : code === "INVALID_MESSAGE" ? "connectionInvalidResponse" : code === "CONNECTION_FAILED" ? "serverUnavailableError" : code === "SERVER_NOT_CONFIGURED" ? "connectionReachability" : code === "RESTART_UNSUPPORTED" ? "hostRestartUnsupported" : code === "RESTART_DENIED" ? "hostRestartDenied" : "connectionUnexpected");
   }
   function connectionStatusLabel(status, t) {
     return status === void 0 ? t("checkingConnection") : status.online ? t("online") : status.error !== void 0 ? connectionErrorMessage(status.error, t) : status.reconnecting ? t(status.lastActiveAt === void 0 ? "connecting" : "serverUnavailableShort") : t("offline");
@@ -4428,7 +4496,7 @@ If a code was sent, recover the original submission without changing it.`,
             { className: "dshRemoteAcpSummaryText" },
             React.createElement("strong", null, t("agentBackends")),
             React.createElement("p", null, t("acpHint"), React.createElement("a", {
-              href: "https://github.com/liguobao/ds-harness-remote/blob/feat/cursor-remote/docs/acp-remote.md",
+              href: "https://github.com/gaolin89898/ds-harness-remote/blob/feat/cursor-remote/docs/acp-remote.md",
               target: "_blank",
               rel: "noopener noreferrer",
               onClick: (event) => event.stopPropagation()
@@ -4923,6 +4991,194 @@ If a code was sent, recover the original submission without changing it.`,
     return RemotePluginOptions;
   }
 
+  // packages/plugin/src/client/workbench-styles.ts
+  var workbenchStyles = `
+.dshRemotePage { box-sizing:border-box; letter-spacing:0; }
+.dshRemotePage:focus { outline:0; }
+.dshRemotePageHeader { box-sizing:border-box; min-height:88px; padding:20px 28px; flex-shrink:0; }
+.dshRemotePageHeader strong,.dshRemotePageTitles>strong { font-size:22px; line-height:1.35; letter-spacing:0; white-space:normal; overflow-wrap:anywhere; }
+.dshRemotePageTitles { gap:5px; }
+.dshRemotePageEyebrow { color:var(--dsw-alias-label-tertiary); font-size:11px; }
+.dshRemotePageEyebrowLabel { letter-spacing:0; text-transform:none; }
+.dshRemotePageEyebrow>svg { width:12px; height:12px; flex:none; }
+.dshRemoteBreadcrumbHost { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.dshRemoteBrandMark { width:40px; height:40px; border-radius:8px; color:var(--dsw-alias-brand-primary); background:color-mix(in srgb,var(--dsw-alias-brand-primary) 8%,transparent); }
+.dshRemotePageEyebrow .dshRemoteStarLink { font-size:10px; padding:2px 7px; border-radius:4px; }
+.dshRemotePageActions { gap:8px; }
+.dshRemotePageActions>button { box-sizing:border-box; width:34px; height:34px; min-width:34px; padding:0; border-radius:6px; }
+.dshRemotePageActions>.dshRemotePageBack { width:auto; gap:7px; padding:0 10px; font-size:12px; }
+.dshRemotePageActions>button>svg { width:15px; height:15px; flex:none; }
+.dshRemotePage.isWorkbench { width:min(1000px,100%); height:min(620px,calc(100dvh - 40px)); max-height:calc(100dvh - 40px); border-radius:12px; }
+.dshRemotePage.isWorkbench>.dshRemotePageBody { min-height:0; flex:1; padding:22px 28px 0; gap:18px; }
+.isWorkbench .dshRemoteHosts { min-height:0; display:flex; flex-direction:column; gap:14px; flex:1; }
+.isWorkbench .dshRemotePermissionRow { min-height:60px; box-sizing:border-box; display:flex; align-items:center; gap:12px; flex:none; padding:12px 14px; border:1px solid var(--dsw-alias-border-l2); border-radius:8px; background:var(--dsw-alias-bg-layer-2); }
+.dshRemotePermissionIcon { display:grid; place-items:center; width:32px; height:32px; flex:none; border-radius:6px; color:var(--dsw-alias-brand-primary); background:color-mix(in srgb,var(--dsw-alias-brand-primary) 8%,transparent); }
+.dshRemotePermissionRow>.dshRemoteHostControlToggle { gap:12px; color:var(--dsw-alias-label-primary); font-size:13px; font-weight:500; white-space:normal; }
+.dshRemotePermissionRow>.dshRemoteConnectedMenu { margin-left:auto; }
+.dshRemotePage .dshRemoteHostControlToggle>input:checked { background:var(--dsw-alias-brand-primary); border-color:var(--dsw-alias-brand-primary); box-shadow:none; }
+.dshRemotePage .dshRemoteHostControlToggle>input:checked::after { background:var(--dsw-alias-label-primary-foreground,#fff); }
+.dshRemotePage .dshRemoteConnectedCount { padding:5px 8px; font-size:11px; border-radius:6px; text-decoration:none; background:var(--dsw-alias-bg-layer-3); box-shadow:none; }
+.isWorkbench .dshRemoteSectionHeading { margin:0; flex:none; min-height:28px; }
+.dshRemoteOnlineCount { display:inline-flex; padding:3px 7px; border-radius:4px; color:var(--dsw-alias-state-success-primary); background:color-mix(in srgb,var(--dsw-alias-state-success-primary) 9%,transparent); font-size:11px; line-height:1.4; }
+.dshRemoteHostFilter { position:relative; flex:none; min-width:0; max-width:45%; }
+.dshRemoteHostFilterTrigger { box-sizing:border-box; display:inline-flex; align-items:center; gap:6px; min-height:30px; min-width:0; max-width:100%; padding:0 9px 0 11px; border:1px solid var(--dsw-alias-border-l2); border-radius:6px; background:var(--dsw-alias-bg-layer-2); color:var(--dsw-alias-label-secondary); font:inherit; font-size:11px; white-space:nowrap; cursor:pointer; transition:color .15s,border-color .15s; }
+.dshRemoteHostFilterTrigger:hover:not(:disabled),.dshRemoteHostFilter.isOpen .dshRemoteHostFilterTrigger { color:var(--dsw-alias-label-primary); border-color:color-mix(in srgb,var(--dsw-alias-brand-primary) 30%,var(--dsw-alias-border-l2)); }
+.dshRemoteHostFilterTrigger:disabled { opacity:.55; cursor:default; }
+.dshRemoteHostFilterChevron { width:11px; height:11px; flex:none; color:var(--dsw-alias-label-tertiary); transition:transform .15s,color .15s; }
+.dshRemoteHostFilter.isOpen .dshRemoteHostFilterChevron { transform:rotate(180deg); color:var(--dsw-alias-brand-primary); }
+.dshRemoteHostFilterMenu { position:absolute; top:calc(100% + 5px); right:0; z-index:30; box-sizing:border-box; display:flex; flex-direction:column; gap:2px; min-width:calc(100% + 12px); padding:4px; border:1px solid var(--dsw-alias-border-l2); border-radius:8px; background:var(--dsw-alias-bg-layer-2); box-shadow:0 12px 32px rgba(0,0,0,.4),0 0 0 1px rgba(255,255,255,.05) inset; transform-origin:top right; animation:dshRemoteFilterIn .14s cubic-bezier(.16,1,.3,1); }
+@keyframes dshRemoteFilterIn { from { opacity:0; transform:translateY(-3px) scale(.98); } to { opacity:1; transform:none; } }
+.dshRemoteHostFilterOption { display:flex; align-items:center; justify-content:space-between; gap:12px; box-sizing:border-box; min-height:28px; padding:5px 10px; border:0; border-radius:6px; background:transparent; color:var(--dsw-alias-label-secondary); font:inherit; font-size:11px; text-align:left; white-space:nowrap; cursor:pointer; }
+.dshRemoteHostFilterOption:hover { background:var(--dsw-alias-bg-layer-3); color:var(--dsw-alias-label-primary); }
+.dshRemoteHostFilterOption.isSelected { color:var(--dsw-alias-brand-primary); background:color-mix(in srgb,var(--dsw-alias-brand-primary) 8%,transparent); }
+.dshRemoteHostFilterOption.isSelected::after { content:''; width:5px; height:9px; flex:none; margin-right:2px; border-right:1.5px solid currentColor; border-bottom:1.5px solid currentColor; transform:rotate(45deg) translateY(-1px); }
+.dshRemoteHostFilterTrigger:focus-visible,.dshRemoteHostFilterOption:focus-visible,.dshRemoteWorkspaceSearch:focus-within { outline:2px solid var(--dsw-alias-brand-primary); outline-offset:2px; }
+.dshRemoteHostFilterOption:focus-visible { outline-offset:-2px; }
+@media(prefers-reduced-motion:reduce) { .dshRemoteHostFilterMenu { animation:none; } .dshRemoteHostFilterChevron { transition:none; } }
+.dshRemoteAccountMenu { position:relative; min-width:0; }
+.dshRemoteAccountTrigger { display:flex; align-items:center; gap:10px; box-sizing:border-box; width:fit-content; max-width:100%; padding:5px 9px; margin:-5px -9px; border:0; border-radius:8px; background:transparent; color:inherit; font:inherit; text-align:left; cursor:pointer; }
+.dshRemoteAccountTrigger:hover { background:var(--dsw-alias-bg-layer-2); }
+.dshRemoteAccountTrigger:focus-visible { outline:2px solid var(--dsw-alias-brand-primary); outline-offset:2px; }
+.dshRemoteAccountChevron { width:11px; height:11px; flex:none; color:var(--dsw-alias-label-tertiary); transition:transform .15s,color .15s; }
+.dshRemoteAccountMenu.isOpen .dshRemoteAccountChevron { transform:rotate(180deg); color:var(--dsw-alias-brand-primary); }
+.dshRemoteAccountMenuPanel { position:absolute; bottom:calc(100% + 8px); left:0; z-index:40; box-sizing:border-box; min-width:190px; padding:4px; border:1px solid var(--dsw-alias-border-l2); border-radius:8px; background:var(--dsw-alias-bg-layer-2); box-shadow:0 12px 32px rgba(0,0,0,.4),0 0 0 1px rgba(255,255,255,.05) inset; transform-origin:bottom left; animation:dshRemoteMenuUpIn .14s cubic-bezier(.16,1,.3,1); }
+@keyframes dshRemoteMenuUpIn { from { opacity:0; transform:translateY(3px) scale(.98); } to { opacity:1; transform:none; } }
+.dshRemoteAccountMenuItem { display:flex; align-items:center; gap:9px; box-sizing:border-box; width:100%; min-height:32px; padding:6px 10px; border:0; border-radius:6px; background:transparent; color:var(--dsw-alias-label-secondary); font:inherit; font-size:12px; text-align:left; cursor:pointer; white-space:nowrap; }
+.dshRemoteAccountMenuItem:hover:not(:disabled) { background:var(--dsw-alias-bg-layer-3); color:var(--dsw-alias-label-primary); }
+.dshRemoteAccountMenuItem:disabled { opacity:.5; cursor:default; }
+.dshRemoteAccountMenuItem>svg { width:14px; height:14px; flex:none; }
+.dshRemoteAccountMenuItem:focus-visible { outline:2px solid var(--dsw-alias-brand-primary); outline-offset:-2px; }
+@media(prefers-reduced-motion:reduce) { .dshRemoteAccountMenuPanel { animation:none; } .dshRemoteAccountChevron { transition:none; } }
+.dshRemotePageBody>.dshRemoteNotice,.dshRemotePageBody>.dshRemoteError { box-sizing:border-box; display:flex; align-items:center; gap:9px; margin:14px 0 18px; padding:9px 12px; border:1px solid var(--dsw-alias-border-l2); border-radius:8px; background:var(--dsw-alias-bg-layer-2); font-size:12px; line-height:1.6; }
+.dshRemotePageBody>.dshRemoteNotice { color:var(--dsw-alias-label-secondary); }
+.dshRemotePageBody>.dshRemoteError { color:var(--dsw-alias-state-error-primary); }
+.dshRemotePageBody>.dshRemoteNotice::before,.dshRemotePageBody>.dshRemoteError::before { content:''; width:6px; height:6px; flex:none; border-radius:50%; background:var(--dsw-alias-brand-primary); }
+.dshRemotePageBody>.dshRemoteError::before { background:var(--dsw-alias-state-error-primary); }
+.isWorkbench .dshRemoteHostList { min-height:0; max-height:none; flex:1; gap:10px; padding:0 2px 4px; margin:0 -2px; }
+.isWorkbench .dshRemoteHostList>.dshRemoteHostRow { box-sizing:border-box; min-height:72px; border-radius:8px; padding:12px 16px; gap:12px; box-shadow:none; transition:background .15s,border-color .15s; }
+.isWorkbench .dshRemoteHostItemIcon { width:36px; height:36px; border-radius:8px; background:color-mix(in srgb,var(--dsw-alias-brand-primary) 7%,var(--dsw-alias-bg-layer-2)); }
+.isWorkbench .dshRemoteHostItemText strong { font-size:14px; }
+.isWorkbench .dshRemoteHostItemText small { font-size:11px; }
+.isWorkbench .dshRemoteHostStatus { padding:4px 8px; font-size:10px; border:0; }
+.isWorkbench .dshRemoteHostStatus::before { width:5px; height:5px; box-shadow:none; }
+.dshRemoteHostStatus.isRestarting { background:color-mix(in srgb,var(--dsw-alias-state-warn-primary) 12%,transparent); color:var(--dsw-alias-state-warn-primary); border:1px solid color-mix(in srgb,var(--dsw-alias-state-warn-primary) 26%,transparent); }
+.dshRemoteHostStatus.isRestarting::before { content:''; width:6px; height:6px; border-radius:50%; background:currentColor; box-shadow:0 0 0 2px color-mix(in srgb,var(--dsw-alias-state-warn-primary) 18%,transparent); animation:dshRemoteRestartPulse 1.2s ease-in-out infinite; }
+@keyframes dshRemoteRestartPulse { 0%,100% { opacity:1; } 50% { opacity:.35; } }
+@media(prefers-reduced-motion:reduce) { .dshRemoteHostStatus.isRestarting::before { animation:none; } }
+.isWorkbench .dshRemoteHostItemChevron { display:flex; margin:0; }
+.dshRemotePageBody>.dshRemoteAccountFooter { flex:none; margin:0 -28px; padding:16px 28px; min-height:64px; box-sizing:border-box; }
+.dshRemotePage .dshRemoteAccountAvatar { width:30px; height:30px; background:var(--dsw-alias-brand-primary); color:var(--dsw-alias-label-primary-foreground,#fff); }
+.dshRemotePage .dshRemoteAccountSettings,.dshRemotePage .dshRemoteAccountExit { min-height:30px; display:inline-flex; justify-content:center; align-items:center; gap:7px; padding:5px 8px; border-radius:6px; }
+.dshRemotePage .dshRemoteAccountSettings { width:30px; padding:0; }
+.dshRemotePage .dshRemoteAccountExit { border:1px solid var(--dsw-alias-border-l2); }
+.dshRemoteAccountFooter button>svg { width:14px; height:14px; flex:none; }
+.dshRemotePage.hasSelectedHost { width:min(1080px,100%); }
+.dshRemotePage.hasSelectedHost>.dshRemotePageBody { padding:0; gap:0; overflow:hidden; }
+.hasSelectedHost .dshRemoteLocalLink { margin:8px 28px; font-size:12px; }
+.dshRemotePickerLayout { display:grid; grid-template-columns:260px minmax(0,1fr); min-height:0; flex:1; }
+.dshRemoteHostRail { box-sizing:border-box; min-width:0; min-height:0; display:flex; flex-direction:column; gap:22px; padding:24px 22px 16px; border-right:1px solid var(--dsw-alias-border-l2); background:color-mix(in srgb,var(--dsw-alias-bg-base) 55%,var(--dsw-alias-bg-layer-1)); overflow:auto; }
+.dshRemoteRailHost { display:flex; align-items:center; gap:11px; flex:none; min-width:0; }
+.dshRemoteRailHost>div { min-width:0; display:flex; flex-direction:column; gap:4px; }
+.dshRemoteRailHost strong { font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.dshRemoteRailStatus { display:flex; align-items:center; gap:5px; font-size:11px; color:var(--dsw-alias-label-secondary); }
+.dshRemoteRailStatus::before { content:''; width:5px; height:5px; flex:none; border-radius:50%; background:currentColor; }
+.dshRemoteRailStatus.isOnline { color:var(--dsw-alias-state-success-primary); }
+.dshRemoteHostSpecs { flex:none; margin:0; padding:0 0 18px; border-bottom:1px solid var(--dsw-alias-border-l2); display:flex; flex-direction:column; gap:10px; font-size:11px; }
+.dshRemoteHostSpecs>div { display:flex; align-items:baseline; justify-content:space-between; gap:10px; min-width:0; }
+.dshRemoteHostSpecs dt { color:var(--dsw-alias-label-tertiary); }
+.dshRemoteHostSpecs dd { margin:0; color:var(--dsw-alias-label-secondary); text-align:right; overflow-wrap:anywhere; }
+.dshRemoteHostSpecs dd>small { display:block; color:var(--dsw-alias-brand-primary); }
+.dshRemoteSelectedDirectory { min-width:0; flex:none; display:flex; flex-direction:column; gap:10px; }
+.dshRemoteSelectedDirectory>span { display:flex; align-items:center; gap:7px; color:var(--dsw-alias-label-secondary); font-size:11px; }
+.dshRemoteSelectedDirectory>span>svg { width:14px; height:14px; }
+.dshRemoteSelectedDirectory>strong { padding:10px 12px; font:12px/1.6 var(--dsw-font-mono,ui-monospace,Consolas,monospace); overflow-wrap:anywhere; border-left:2px solid var(--dsw-alias-border-l2); }
+.dshRemoteSelectedDirectory.hasSelection>strong { color:var(--dsw-alias-brand-primary); border-color:var(--dsw-alias-brand-primary); background:color-mix(in srgb,var(--dsw-alias-brand-primary) 7%,transparent); }
+.dshRemoteHostRail>.dshRemoteAccountFooter { margin-top:auto; padding-top:14px; gap:5px; flex-wrap:wrap; flex:none; }
+.dshRemoteHostRail .dshRemoteAccountIdentity { flex:1; }
+.dshRemoteHostRail .dshRemoteAccountUpdate { order:4; width:100%; padding-left:40px; white-space:normal; box-sizing:border-box; }
+.dshRemoteHostRail .dshRemoteAccountExit { width:30px; padding:0; }
+.dshRemotePickerLayout>.dshRemoteBrowser { min-width:0; min-height:0; padding:22px 24px 0; gap:16px; }
+.dshRemoteWorkspaceSearch { display:flex; align-items:center; gap:9px; flex:none; min-height:40px; padding:0 12px; border:1px solid var(--dsw-alias-border-l2); border-radius:8px; background:var(--dsw-alias-bg-base); color:var(--dsw-alias-label-tertiary); }
+.dshRemoteWorkspaceSearch>svg { width:15px; height:15px; flex:none; }
+.dshRemoteWorkspaceSearch>input { min-width:0; width:100%; height:38px; padding:0; border:0; outline:0; background:transparent; color:var(--dsw-alias-label-primary); font:inherit; font-size:12px; }
+.dshRemoteWorkspaceSearch>input::placeholder { color:var(--dsw-alias-label-tertiary); opacity:1; }
+.dshRemoteWorkspaceLists { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px 18px; align-content:start; padding:0 2px 4px; margin:0 -2px; }
+.dshRemoteWorkspaceLists>.dshRemoteCodexWorkspaceGroup { min-width:0; margin:0; border-top:1px solid var(--dsw-alias-border-l2); }
+.dshRemoteWorkspaceLists>.dshRemoteCodexWorkspaceGroup:only-child { grid-column:1/-1; }
+.dshRemoteWorkspaceSourceHeading { box-sizing:border-box; min-height:44px; padding:6px 2px; gap:8px; }
+.dshRemoteWorkspaceSourceHeading>strong,.dshRemoteWorkspaceSourceText>strong { font-size:12px; line-height:1.4; overflow-wrap:anywhere; }
+.dshRemoteWorkspaceSourceHeading>.dshRemoteAddWorkspace { width:26px; height:26px; border:1px solid var(--dsw-alias-border-l2); border-radius:6px; }
+.dshRemoteWorkspaceSourceHeading>.dshRemoteAddWorkspace svg { width:14px; height:14px; }
+.dshRemoteWorkspaceLists .dshRemoteDirectoryList { min-height:0; border:0; gap:3px; }
+.dshRemoteWorkspaceLists .dshRemoteDirectoryList>button:not(.dshRemoteWorkspaceMore) { position:relative; min-height:68px; flex:none; grid-template-columns:28px minmax(0,1fr); grid-template-rows:auto auto; column-gap:10px; row-gap:4px; align-content:center; padding:12px 24px 12px 10px; border:1px solid transparent; border-radius:8px; }
+.dshRemoteWorkspaceLists .dshRemoteDirectoryList>button.isSelected { border-color:color-mix(in srgb,var(--dsw-alias-brand-primary) 28%,transparent); background:color-mix(in srgb,var(--dsw-alias-brand-primary) 9%,transparent); }
+.dshRemoteWorkspaceLists .dshRemoteDirectoryList>button.isSelected::after { content:''; position:absolute; top:28px; right:10px; width:5px; height:9px; border-right:1.5px solid var(--dsw-alias-brand-primary); border-bottom:1.5px solid var(--dsw-alias-brand-primary); transform:rotate(45deg); }
+.dshRemoteWorkspaceLists .dshRemoteDirectoryList>button>span { font-size:13px; line-height:1.4; }
+.dshRemoteWorkspaceLists .dshRemoteDirectoryList>button>small { font-size:10px; line-height:1.5; font-family:var(--dsw-font-mono,ui-monospace,Consolas,monospace); }
+.dshRemoteWorkspaceLists .dshRemoteWorkspaceIcon { width:24px; height:24px; color:var(--dsw-alias-label-secondary); }
+.dshRemoteWorkspaceLists .isSelected>.dshRemoteWorkspaceIcon { color:var(--dsw-alias-brand-primary); }
+.dshRemoteWorkspaceLists .dshRemoteDirectoryList>p { padding:12px 4px; margin:0; font-size:12px; line-height:1.6; }
+.dshRemoteWorkspaceLists .dshRemoteWorkspaceMore { min-height:30px; font-size:16px; border:0; }
+.dshRemotePickerLayout .dshRemoteOpenBar { box-sizing:border-box; margin:0 -24px; padding:14px 24px; gap:12px; min-height:66px; }
+.dshRemoteOpenBar>.dshRemoteOpenActions { margin-left:auto; display:flex; flex-direction:row; gap:8px; align-items:center; flex:none; }
+.dshRemoteOpenActions>button { min-height:36px; display:inline-flex; align-items:center; justify-content:center; gap:7px; padding:8px 14px; border:0; border-radius:6px; background:var(--dsw-alias-brand-primary); color:var(--dsw-alias-label-primary-foreground,#fff); font-size:12px; line-height:1.4; cursor:pointer; }
+.dshRemoteOpenActions>button>svg { width:15px; height:15px; flex:none; }
+.dshRemoteOpenActions>.dshRemotePickerCancel { color:var(--dsw-alias-label-secondary); background:transparent; }
+.dshRemoteOpenActions>button:hover:not(:disabled) { filter:brightness(1.08); }
+.dshRemoteOpenActions>button:disabled { opacity:1; background:color-mix(in srgb,var(--dsw-alias-label-primary) 10%,transparent); color:var(--dsw-alias-label-secondary); cursor:default; }
+.dshRemoteOpenBar .dshRemoteConnectedPanel { top:auto; bottom:calc(100% + 8px); left:0; right:auto; }
+.dshRemotePage.hasSelectedHost .dshRemotePageBody>p { padding:8px 24px; margin:0; }
+.dshRemotePickerLayout .dshRemoteFolderBrowser { margin:0; }
+@media(max-width:920px) {
+  .dshRemotePickerLayout { grid-template-columns:220px minmax(0,1fr); }
+  .dshRemoteHostRail { padding:20px 16px 16px; }
+  .dshRemoteWorkspaceLists { grid-template-columns:minmax(0,1fr); }
+}
+@media(max-width:700px) {
+  .dshRemoteBackdrop { padding:12px; }
+  .dshRemotePage.isWorkbench { height:min(780px,calc(100dvh - 24px)); max-height:calc(100dvh - 24px); }
+  .dshRemotePageHeader { padding:16px; gap:12px; }
+  .dshRemotePageHeader strong,.dshRemotePageTitles>strong { font-size:19px; }
+  .dshRemotePageTitleRow { gap:10px; }
+  .dshRemotePageEyebrow { flex-wrap:wrap; gap:4px; }
+  .dshRemotePageEyebrow .dshRemoteStarLink { display:none; }
+  .dshRemotePage.hasSelectedHost .dshRemotePageBack { width:34px; padding:0; }
+  .dshRemotePageBack>span { display:none; }
+  .dshRemotePage.isWorkbench>.dshRemotePageBody { padding:16px 16px 0; gap:14px; }
+  .isWorkbench .dshRemoteSectionHeading { flex-direction:row; align-items:center; }
+  .isWorkbench .dshRemotePermissionRow { padding:10px; gap:9px; }
+  .dshRemotePermissionRow>.dshRemoteHostControlToggle { gap:8px; font-size:12px; }
+  .dshRemotePermissionIcon { display:none; }
+  .isWorkbench .dshRemoteHostList>.dshRemoteHostRow { padding:12px; gap:8px; }
+  .isWorkbench .dshRemoteHostItemLeft { gap:10px; }
+  .dshRemotePageBody>.dshRemoteAccountFooter { margin:0 -16px; padding:14px 16px; gap:8px; flex-wrap:wrap; }
+  .dshRemoteAccountFooter>.dshRemoteAccountUpdate { white-space:normal; }
+  .dshRemotePage.hasSelectedHost>.dshRemotePageBody { padding:0; gap:0; }
+  .dshRemotePickerLayout { display:flex; flex-direction:column; }
+  .dshRemoteHostRail { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px 16px; padding:14px 16px; border-right:0; border-bottom:1px solid var(--dsw-alias-border-l2); max-height:42%; flex:none; }
+  .dshRemoteHostSpecs { padding:0; border:0; gap:4px; font-size:10px; }
+  .dshRemoteHostSpecs>div { gap:5px; }
+  .dshRemoteSelectedDirectory { grid-column:1/-1; gap:5px; }
+  .dshRemoteSelectedDirectory>strong { padding:5px 8px; max-height:52px; overflow:auto; }
+  .dshRemoteHostRail>.dshRemoteAccountFooter { grid-column:1/-1; padding:8px 0 0; }
+  .dshRemoteHostRail .dshRemoteAccountAvatar { width:24px; height:24px; }
+  .dshRemoteHostRail .dshRemoteAccountCopy>.dshRemoteServerNotice { display:none; }
+  .dshRemotePickerLayout>.dshRemoteBrowser { padding:16px 16px 0; gap:12px; }
+  .dshRemotePickerLayout .dshRemoteOpenBar { margin:0 -16px; padding:12px 16px; min-height:60px; align-items:center; }
+  .dshRemoteOpenBar .dshRemoteConnectedCount { padding:0; background:transparent; font-size:10px; }
+}
+@media(max-width:380px) {
+  .dshRemoteBrandMark { width:32px; height:32px; }
+  .dshRemotePageActions { gap:4px; }
+  .dshRemotePermissionRow>.dshRemoteConnectedMenu .dshRemoteConnectedCount { font-size:10px; padding:4px; }
+  .isWorkbench .dshRemoteHostItemIcon { width:30px; height:30px; }
+  .isWorkbench .dshRemoteHostItemText small { font-size:10px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .isWorkbench .dshRemoteHostList>.dshRemoteHostRow { transition:none; }
+}
+`;
+
   // packages/plugin/src/client/shell.ts
   function installStyle(clientModuleId2) {
     let style = document.createElement("style");
@@ -4951,18 +5207,15 @@ If a code was sent, recover the original submission without changing it.`,
       // The official sidebar.footer.action slot owns the surrounding layout.
       // Style only our entry so other footer actions, usage and Settings keep
       // their host-defined geometry, including third-party sidebar variants.
-      // Match native workspace rows: 8px inset, 16px icon slot and 6px label gap.
-      ".dshRemoteSidebarEntry{box-sizing:border-box;flex:none;width:36px;min-width:36px;display:block}.dshRemoteSidebarEntry .dshRemoteModeButton{box-sizing:border-box;width:36px;height:36px;min-height:36px;justify-content:center;gap:0;padding:0;border-radius:50%}.dshRemoteSidebarEntry.isWide{flex:0 1 auto;width:fit-content;min-width:36px;max-width:100%;height:36px;margin:0}.dshRemoteSidebarEntry.isWide .dshRemoteModeButton{width:auto;max-width:100%;min-width:0;justify-content:flex-start;gap:6px;padding:0 8px;border-radius:8px;font:inherit;font-size:14px;line-height:20px;text-align:start}.dshRemoteSidebarLabel{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.dshRemoteSidebarEntry.isRail{height:36px}.dshRemoteSidebarEntry.isActive .dshRemoteComputerIcon{color:var(--dsw-alias-brand-primary)}.dshRemoteSidebarEntry .dshRemoteModeButton:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-2px}.dshRemoteSidebarEntry .dshRemoteModeButton:disabled{opacity:.45;cursor:default}",
-      ".dshRemoteSidebarEntry.isWide.isActive .dshRemoteSidebarLabel{max-width:170px}",
-      ".dshRemoteComputerIcon{box-sizing:border-box;width:18px;height:18px;flex:0 0 18px;color:var(--dsw-alias-label-secondary)}.dshRemoteSidebarEntry.isWide .dshRemoteComputerIcon{width:16px;height:16px;flex-basis:16px}",
+      // Match native workspace rows: 8px inset and 6px label gap, with the
+      // 18px computer icon button at the row's trailing edge.
+      ".dshRemoteSidebarEntry{box-sizing:border-box;flex:none;width:100%;min-width:0;display:block}.dshRemoteSidebarEntry .dshRemoteModeButton{box-sizing:border-box;width:36px;height:36px;min-height:36px;justify-content:center;gap:0;padding:0;border-radius:50%}.dshRemoteSidebarEntry.isWide{display:flex;align-items:center;gap:6px;width:100%;min-width:0;max-width:100%;height:36px;margin:0;padding:0 8px;border-radius:8px}.dshRemoteSidebarEntry.isWide .dshRemoteModeButton{width:28px;min-width:28px;height:28px;min-height:28px;justify-content:center;gap:0;padding:0;border-radius:6px}.dshRemoteSidebarLabel{min-width:0;flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:inherit;font-size:14px;line-height:20px;text-align:start}.dshRemoteSidebarEntry.isRail{width:36px;min-width:36px;height:36px}.dshRemoteSidebarEntry.isActive .dshRemoteComputerIcon{color:var(--dsw-alias-brand-primary)}.dshRemoteSidebarEntry .dshRemoteModeButton:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-2px}.dshRemoteSidebarEntry .dshRemoteModeButton:disabled{opacity:.45;cursor:default}",
+      ".dshRemoteComputerIcon{box-sizing:border-box;width:18px;height:18px;flex:0 0 18px;color:var(--dsw-alias-label-secondary)}",
       // Compact entry: the same button portalled to the end of the host account row.
       ".dshRemoteAccountEntry{display:inline-flex;align-items:center;flex:none}.dshRemoteAccountEntry .dshRemoteAccountEntryButton{box-sizing:border-box;width:26px;height:26px;min-width:26px;border:0;border-radius:6px;background:transparent;color:var(--dsw-alias-label-secondary);display:inline-flex;align-items:center;justify-content:center;padding:0;cursor:pointer}.dshRemoteAccountEntry .dshRemoteAccountEntryButton:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}.dshRemoteAccountEntry .dshRemoteAccountEntryButton:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:0}.dshRemoteAccountEntry .dshRemoteAccountEntryButton:disabled{opacity:.45;cursor:default}.dshRemoteAccountEntry.isActive .dshRemoteComputerIcon{color:var(--dsw-alias-brand-primary)}",
       // Segmented control for the entry style; scoped through the group because the
       // page body rule for bare buttons outranks a single class.
       ".dshRemoteEntryStyleChoices{flex:0 0 auto;display:inline-flex;align-items:center;gap:2px;padding:2px;border-radius:8px;border:.5px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3)}.dshRemoteEntryStyleChoices>button{box-sizing:border-box;border:0;background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;line-height:18px;padding:3px 10px;border-radius:6px;white-space:nowrap;cursor:pointer}.dshRemoteEntryStyleChoices>button:hover:not(:disabled):not(.isSelected){color:var(--dsw-alias-label-primary)}.dshRemoteEntryStyleChoices>button.isSelected{background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary)}.dshRemoteEntryStyleChoices>button:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}.dshRemoteEntryStyleChoices>button:disabled{opacity:.45;cursor:default}",
-      // Keep Exit in flow: an absolute action and reserved padding can overlap
-      // the icon or adjacent plugins when the host shrinks this flex item.
-      ".dshRemoteSidebarEntry.isWide.isActive{display:flex;align-items:center}.dshRemoteSidebarEntry.isWide.isActive .dshRemoteModeButton{flex:1 1 auto;width:auto;overflow:hidden;padding:0}.dshRemoteSidebarEntry.isWide.isActive .dshRemoteComputerIcon{margin-inline-start:8px}.dshRemoteExitLink{margin-inline-start:auto;flex:0 0 36px;min-width:36px;height:36px;border:0;border-radius:8px;background:transparent;color:var(--dsw-alias-label-secondary);padding:0;font:inherit;font-size:12px;line-height:20px;white-space:nowrap;cursor:pointer}.dshRemoteExitLink:hover:not(:disabled){color:var(--dsw-alias-label-primary);text-decoration:underline}.dshRemoteExitLink:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-2px}.dshRemoteExitLink:disabled{opacity:.45;cursor:default}",
       // The strip sits inside the 40px Windows caption row, which the shell declares as the
       // window drag region. Without an explicit opt-out every press starts a window drag and
       // never reaches these buttons; the shell's own caption controls (sidebar toggle, new
@@ -4971,20 +5224,22 @@ If a code was sent, recover the original submission without changing it.`,
       ".dshRemoteSessionHeader{left:auto;right:148px;transform:none;max-width:calc(100vw - 420px)}@media(max-width:760px){.dshRemoteSessionHeader{left:auto;right:104px;transform:none;max-width:calc(100vw - 124px)}}",
       ".dshRemoteHostReferencePanel{position:fixed;z-index:2147483000;top:56px;right:20px;bottom:auto;width:min(380px,calc(100vw - 40px));box-sizing:border-box;padding:16px;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l1);border-radius:12px;box-shadow:0 12px 36px var(--dsw-alias-shadow-l2);}.dshRemoteHostReferencePanel header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}.dshRemoteHostReferencePanel header button{border:0;background:transparent;color:inherit;font-size:20px;cursor:pointer}.dshRemoteHostReferencePanel dl{margin:0}.dshRemoteHostReferencePanel dl>div{display:grid;grid-template-columns:80px minmax(0,1fr);gap:12px;padding:8px 0;border-bottom:1px solid var(--dsw-alias-border-l2)}.dshRemoteHostReferencePanel dt{color:var(--dsw-alias-label-tertiary)}.dshRemoteHostReferencePanel dd{margin:0;overflow-wrap:anywhere}.dshRemoteHostReferencePanel .isMono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}",
       ".dshRemoteModeButton:focus-visible,.dshRemotePage button:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}",
-      ".dshRemotePage{width:min(720px,100%);max-height:min(760px,calc(100vh - 40px));display:flex;flex-direction:column;background:var(--dsw-alias-bg-base,var(--dsw-alias-bg-layer-1));color:var(--dsw-alias-label-primary);border-radius:14px;box-shadow:0 24px 64px rgba(0,0,0,.35);overflow:hidden;animation:dshRemotePageIn .18s cubic-bezier(.25,1,.5,1);-webkit-app-region:no-drag}",
-      ".dshRemotePageHeader{min-height:72px;display:flex;align-items:center;justify-content:space-between;gap:24px;padding:14px 24px;border-bottom:1px solid var(--dsw-alias-border-l2);-webkit-app-region:no-drag}.dshRemotePageIntro{min-width:0;flex:1;-webkit-app-region:no-drag}.dshRemotePageHeader strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:18px;line-height:1.4}.dshRemotePageHeader p{min-width:0;max-width:70ch;margin:3px 0 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dsw-alias-label-secondary);font-size:13px;line-height:1.5}.dshRemoteStarLink{-webkit-app-region:no-drag}.dshRemotePageActions{flex:0 0 auto;display:flex;align-items:center;gap:4px;-webkit-app-region:no-drag;pointer-events:auto}.dshRemotePageActions>button{height:40px;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;border:0;border-radius:8px;background:transparent;color:inherit;line-height:1;cursor:pointer;-webkit-app-region:no-drag;pointer-events:auto}.dshRemotePageActions>button:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}.dshRemotePageActions>button:disabled{opacity:.45;cursor:default}.dshRemotePageBack,.dshRemotePageRefresh{min-width:48px;padding:0 10px;font:inherit;font-size:13px}.dshRemotePageBack{color:var(--dsw-alias-label-secondary)!important}.dshRemotePageClose{width:40px;padding:0;font-size:24px}",
+      ".dshRemotePage{width:min(740px,100%);max-height:min(780px,calc(100vh - 40px));display:flex;flex-direction:column;background:var(--dsw-alias-bg-layer-1,var(--dsw-alias-bg-base));color:var(--dsw-alias-label-primary);border-radius:16px;border:1px solid var(--dsw-alias-border-l1);box-shadow:0 24px 64px rgba(0,0,0,.32),0 0 0 1px rgba(255,255,255,.05) inset;overflow:hidden;animation:dshRemotePageIn .2s cubic-bezier(.16,1,.3,1);-webkit-app-region:no-drag}",
+      ".dshRemotePageHeader{min-height:76px;display:flex;align-items:center;justify-content:space-between;gap:20px;padding:16px 24px;border-bottom:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1);-webkit-app-region:no-drag}.dshRemotePageIntro{min-width:0;flex:1;-webkit-app-region:no-drag}.dshRemotePageHeader strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:18px;font-weight:700;line-height:1.4;letter-spacing:-0.01em}.dshRemotePageHeader p{min-width:0;max-width:70ch;margin:4px 0 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dsw-alias-label-secondary);font-size:13px;line-height:1.5}.dshRemoteStarLink{-webkit-app-region:no-drag}.dshRemotePageActions{flex:0 0 auto;display:flex;align-items:center;gap:6px;-webkit-app-region:no-drag;pointer-events:auto}.dshRemotePageActions>button{height:36px;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;border:0;border-radius:8px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-secondary);line-height:1;cursor:pointer;-webkit-app-region:no-drag;pointer-events:auto;transition:all .16s ease}.dshRemotePageActions>button:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}.dshRemotePageActions>button:disabled{opacity:.45;cursor:default}.dshRemotePageBack,.dshRemotePageRefresh{min-width:48px;padding:0 12px;font:inherit;font-size:13px;font-weight:500}.dshRemotePageBack{color:var(--dsw-alias-label-secondary)!important}.dshRemotePageClose{width:36px;padding:0;font-size:22px;border-radius:50%}",
       ".dshRemotePageBody{padding:24px;overflow:auto;display:flex;flex-direction:column;gap:24px}.dshRemotePageBody button{font:inherit;color:inherit}",
-      ".dshRemotePageTitleRow{display:flex;align-items:center;gap:10px;min-width:0}.dshRemotePageTitleRow>strong{min-width:0;flex:0 1 auto}.dshRemoteStarLink{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dsw-alias-label-secondary);font-size:12px;font-weight:400;text-decoration:none}.dshRemoteStarLink:hover{color:var(--dsw-alias-label-primary);text-decoration:underline;text-underline-offset:3px}.dshRemoteStarLink:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:3px;border-radius:3px}",
+      ".dshRemotePageTitleRow{display:flex;align-items:center;gap:12px;min-width:0}.dshRemotePageTitleRow>strong{min-width:0;flex:0 1 auto}.dshRemoteStarLink{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;background:var(--dsw-alias-bg-layer-3);border:1px solid var(--dsw-alias-border-l2);color:var(--dsw-alias-label-secondary);font-size:11px;font-weight:500;text-decoration:none;transition:all .18s ease}.dshRemoteStarLink:hover{color:#f59e0b;background:rgba(245,158,11,.08);border-color:rgba(245,158,11,.35);text-decoration:none}.dshRemoteStarLink:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px;border-radius:999px}",
+      // Workbench header: brand mark, mono eyebrow and title stack, as on the site.
+      ".dshRemotePageTitleRow{display:flex;align-items:center;gap:14px;min-width:0}.dshRemoteBrandMark{box-sizing:border-box;width:40px;height:40px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;border-radius:12px;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-brand-primary)}.dshRemoteBrandMark>svg{width:23px;height:17px;display:block}.dshRemotePageTitles{min-width:0;display:flex;flex-direction:column;gap:3px}.dshRemotePageEyebrow{display:flex;align-items:center;gap:8px;min-width:0}.dshRemotePageEyebrowLabel{color:var(--dsw-alias-label-tertiary);font-size:10px;font-weight:600;line-height:1.2;letter-spacing:.14em;text-transform:uppercase;white-space:nowrap}.dshRemotePageEyebrow .dshRemoteStarLink{text-transform:none;letter-spacing:normal;font-size:10.5px;padding:2px 8px;line-height:1.5}.dshRemotePageTitles>strong{font-size:19px;line-height:1.3;letter-spacing:-0.01em}.dshRemoteHostList>.dshRemoteHostRow .dshRemoteHostItemIcon{color:var(--dsw-alias-brand-primary)}.dshRemotePageActions>button{background:transparent;border:1px solid var(--dsw-alias-border-l2)}.dshRemotePageActions>button:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover);border-color:var(--dsw-alias-border-l3)}.dshRemotePageClose{border-radius:8px!important}",
       // Registry update link inside the modal's account footer row, and the mini
       // upgrade affordances on the sidebar entry buttons. The host-row
       // "update available" marker stays plain text inside the joined detail string.
-      ".dshRemoteAccountUpdate,button.dshRemoteAccountUpdate{flex:0 0 auto;color:var(--dsw-alias-brand-primary);font-size:12px;font-weight:500;white-space:nowrap;text-decoration:none}button.dshRemoteAccountUpdate{background:none;border:0;padding:0;font:inherit;line-height:1.5;cursor:pointer}button.dshRemoteAccountUpdate:disabled{cursor:default;text-decoration:none;opacity:.7}.dshRemoteAccountUpdate:hover{color:var(--dsw-alias-brand-primary);text-decoration:underline;text-underline-offset:3px}.dshRemoteAccountUpdate:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:3px;border-radius:3px}",
+      ".dshRemoteAccountUpdate{flex:0 0 auto;color:var(--dsw-alias-brand-primary);font-size:12px;font-weight:500;white-space:nowrap;text-decoration:none}.dshRemoteAccountUpdate:hover{color:var(--dsw-alias-brand-primary);text-decoration:underline;text-underline-offset:3px}.dshRemoteAccountUpdate:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:3px;border-radius:3px}",
       // Update affordances in the host's own update-indicator look: the labeled
       // sidebar entry button (full width again, as before cab95ec) carries the
       // DesktopUpdateIndicator palette (8% brand fill, 20% brand border, 12px/500
       // suffix); icon-only rail/compact entries get the official 6px brand dot.
       ".dshRemoteSidebarEntry.isWide.hasUpdate .dshRemoteModeButton{border:1px solid color-mix(in srgb,var(--dsw-alias-brand-primary-new-colorprimary-new-color,var(--dsw-alias-brand-primary)) 20%,transparent);background:color-mix(in srgb,var(--dsw-alias-brand-primary-new-colorprimary-new-color,var(--dsw-alias-brand-primary)) 8%,transparent);color:var(--dsw-alias-brand-primary-new-colorprimary-new-color,var(--dsw-alias-brand-primary));font-weight:500}.dshRemoteSidebarEntry .dshRemoteModeButton,.dshRemoteAccountEntry .dshRemoteAccountEntryButton{position:relative}.dshRemoteUpdateSuffix{flex:0 0 auto;margin-left:auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;line-height:18px;font-weight:500}.dshRemoteUpdateDot{position:absolute;inset-inline-end:2px;top:2px;width:6px;height:6px;border-radius:50%;background:var(--dsw-alias-brand-primary-new-colorprimary-new-color,var(--dsw-alias-brand-primary))}",
-      ".dshRemoteSectionHeading{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:10px}.dshRemoteSectionTitle{min-width:0;display:flex;align-items:center;gap:10px}.dshRemoteSectionTitle>strong{font-size:14px}.dshRemoteManageHosts{color:var(--dsw-alias-label-secondary);font-size:12px;text-decoration:none;white-space:nowrap}.dshRemoteManageHosts:hover{color:var(--dsw-alias-label-primary);text-decoration:underline}.dshRemoteSectionActions{display:flex;align-items:center;gap:14px}.dshRemoteSectionActions>button{border:0;background:transparent;color:var(--dsw-alias-label-secondary);cursor:pointer;padding:5px 0;font-size:12px}.dshRemoteSectionActions>button:hover:not(:disabled){color:var(--dsw-alias-label-primary);text-decoration:underline}",
+      ".dshRemoteSectionHeading{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:10px}.dshRemoteSectionTitle{min-width:0;display:flex;align-items:center;gap:10px}.dshRemoteSectionTitle>strong{font-size:14px}.dshRemoteSectionActions{display:flex;align-items:center;gap:14px}.dshRemoteSectionActions>button{border:0;background:transparent;color:var(--dsw-alias-label-secondary);cursor:pointer;padding:5px 0;font-size:12px}.dshRemoteSectionActions>button:hover:not(:disabled){color:var(--dsw-alias-label-primary);text-decoration:underline}",
       ".dshRemoteSectionTitle{flex:1}.dshRemoteSectionTitle>.dshRemoteConnectedMenu{margin-left:auto}",
       '.dshRemoteAcpSetting{display:block!important;width:100%;padding:0}.dshRemoteAcpSetting>summary{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;cursor:pointer;list-style:none}.dshRemoteAcpSetting>summary::-webkit-details-marker{display:none}.dshRemoteAcpSetting>summary::after{content:"\u2304";color:var(--dsw-alias-label-secondary);transition:transform .18s ease-out}.dshRemoteAcpSetting[open]>summary::after{transform:rotate(180deg)}.dshRemoteAcpSummaryText{min-width:0}.dshRemoteAcpSummaryText strong{display:block}.dshRemoteAcpSummaryText p{margin:4px 0 0;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:1.4}.dshRemoteAcpCheckLink{grid-column:2;grid-row:1;color:var(--dsw-alias-brand-primary);font-size:12px;text-decoration:underline;text-underline-offset:3px}.dshRemoteAcpCheckLink:hover{color:var(--dsw-alias-label-primary)}.dshRemoteAcpCheckResult{grid-column:3;grid-row:1;font-size:11px;line-height:1.4;white-space:nowrap}.dshRemoteAcpCheckResult.isPassed{color:var(--dsw-alias-state-success-primary)}.dshRemoteAcpCheckResult.isFailed{color:var(--dsw-alias-state-danger-primary)}.dshRemoteAcpList{display:flex;flex-direction:column;gap:0;margin-top:12px;padding-top:0;border-top:0}.dshRemoteAcpList>.dshRemoteAuthorizationSetting{display:grid;width:100%;grid-template-columns:minmax(0,1fr) auto auto auto auto;align-items:center;column-gap:18px;line-height:1.4}.dshRemoteAcpList>.dshRemoteAuthorizationSetting>span:first-child{min-width:0;line-height:1.4}.dshRemoteAcpList>.dshRemoteAuthorizationSetting>input{grid-column:4;grid-row:1}',
       ".dshRemoteAcpAddLink{align-self:flex-start;margin-top:12px;color:var(--dsw-alias-brand-primary);font-size:12px;text-decoration:underline;text-underline-offset:3px}.dshRemoteAcpAddForm{display:grid;grid-template-columns:minmax(100px,.8fr) minmax(140px,1fr) minmax(100px,1fr) auto;gap:8px;margin-top:12px}.dshRemoteAcpAddForm input{min-width:0;height:34px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-layer-2);color:inherit;padding:0 10px}.dshRemoteAcpAddForm button{border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:transparent;color:var(--dsw-alias-label-primary);padding:0 12px;cursor:pointer;font:inherit;font-size:12px}.dshRemoteAcpAddForm button:hover{background:var(--dsw-alias-interactive-bg-hover)}.dshRemoteAcpRemoveLink{grid-column:3;grid-row:1;color:var(--dsw-alias-label-secondary);font-size:12px;text-decoration:underline;text-underline-offset:3px}.dshRemoteAcpRemoveLink:hover{color:var(--dsw-alias-state-danger-primary)}",
@@ -4992,18 +5247,21 @@ If a code was sent, recover the original submission without changing it.`,
       ".dshRemoteAcpList>.dshRemoteAuthorizationSetting{grid-template-columns:minmax(0,1fr) auto 40px 56px;column-gap:18px}.dshRemoteAcpCheckCell{grid-column:2;display:flex;align-items:center;gap:10px;min-width:0}.dshRemoteAcpCheckLink,.dshRemoteAcpRemoveLink{justify-self:start}.dshRemoteAcpCheckResult{position:static}",
       ".dshRemoteAcpCheckLink.isPassed{color:var(--dsw-alias-state-success-primary)}.dshRemoteAcpCheckLink.isFailed{color:var(--dsw-alias-state-danger-primary)}.dshRemoteAcpCheckLink.isChecking{color:var(--dsw-alias-label-secondary)}.dshRemoteAcpInstallLink{color:var(--dsw-alias-brand-primary);font-size:12px;text-decoration:underline;text-underline-offset:3px;cursor:pointer;white-space:nowrap}.dshRemoteAcpInstallLink.isInstalling{color:var(--dsw-alias-label-secondary);pointer-events:none}",
       ".dshRemoteCancelWorkspace{min-height:36px;border:0;background:transparent;color:var(--dsw-alias-label-secondary);padding:6px 0;cursor:pointer}.dshRemoteCancelWorkspace:hover:not(:disabled){color:var(--dsw-alias-label-primary);text-decoration:underline}.dshRemoteCancelWorkspace:disabled{opacity:.5;cursor:default}",
-      ".dshRemoteHostLoading{display:flex;align-items:center;justify-content:center;gap:8px;position:absolute;left:50%;transform:translateX(-50%);white-space:nowrap;color:var(--dsw-alias-label-secondary)}",
-      '.dshRemoteHostList{display:flex;flex-direction:column;border-top:1px solid var(--dsw-alias-border-l2);max-height:296px;overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable}.dshRemoteHostList.isCollapsed{max-height:none;overflow-y:visible}.dshRemoteHostList>button{min-height:58px;flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:16px;text-align:left;border:0;border-bottom:1px solid var(--dsw-alias-border-l2);background:transparent;padding:10px 20px 10px 4px;cursor:pointer}.dshRemoteHostList>button:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}.dshRemoteHostList>button:disabled{opacity:.5;cursor:default}.dshRemoteHostList>button[aria-current="true"]{background:var(--dsw-alias-interactive-bg-hover)}.dshRemoteHostList>button>span{min-width:0;display:flex;flex-direction:column;gap:3px}.dshRemoteHostList>button strong{font-size:14px;font-weight:500}.dshRemoteHostList small{color:var(--dsw-alias-label-secondary);font-size:12px}',
+      '.dshRemoteHostList{display:flex;flex-direction:column;gap:8px;max-height:310px;overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable;padding:2px 0;border-top:0}.dshRemoteHostList.isCollapsed{max-height:none;overflow-y:visible}.dshRemoteHostList>.dshRemoteHostRow{min-height:64px;flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:16px;text-align:left;border:1px solid var(--dsw-alias-border-l2);border-radius:12px;background:var(--dsw-alias-bg-layer-2);padding:12px 16px;cursor:pointer;transition:all .18s cubic-bezier(.16,1,.3,1);box-shadow:0 1px 3px rgba(0,0,0,.03)}.dshRemoteHostList>.dshRemoteHostRow:hover:not(.isDisabled){background:var(--dsw-alias-interactive-bg-hover);border-color:var(--dsw-alias-border-l3);box-shadow:none}.dshRemoteHostList>.dshRemoteHostRow.isDisabled{opacity:.5;cursor:default}.dshRemoteHostList>.dshRemoteHostRow:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}.dshRemoteHostList>.dshRemoteHostRow[aria-current="true"]{background:var(--dsw-alias-interactive-bg-hover);border-color:var(--dsw-alias-brand-primary);box-shadow:0 0 0 1px var(--dsw-alias-brand-primary)}.dshRemoteHostItemLeft{display:flex;align-items:center;gap:12px;min-width:0;flex:1}.dshRemoteHostItemIcon{width:38px;height:38px;border-radius:10px;background:var(--dsw-alias-bg-layer-3);border:1px solid var(--dsw-alias-border-l2);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:border-color .18s ease}.dshRemoteHostList>.dshRemoteHostRow:hover:not(.isDisabled) .dshRemoteHostItemIcon{border-color:var(--dsw-alias-brand-primary)}.dshRemoteHostItemText{display:flex;flex-direction:column;gap:3px;min-width:0}.dshRemoteHostItemText strong{font-size:15px;font-weight:600;color:var(--dsw-alias-label-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.dshRemoteHostItemText small{color:var(--dsw-alias-label-secondary);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.dshRemoteHostItemRight{display:flex;align-items:center;gap:8px;flex-shrink:0}.dshRemoteHostStatus{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:600;line-height:1;flex-shrink:0}.dshRemoteHostStatus.isOnline{background:color-mix(in srgb,var(--dsw-alias-state-success-primary) 12%,transparent);color:var(--dsw-alias-state-success-primary);border:1px solid color-mix(in srgb,var(--dsw-alias-state-success-primary) 26%,transparent)}.dshRemoteHostStatus.isOnline::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;box-shadow:0 0 0 2px color-mix(in srgb,var(--dsw-alias-state-success-primary) 18%,transparent)}.dshRemoteHostStatus.isOffline{background:var(--dsw-alias-bg-layer-3);color:var(--dsw-alias-label-tertiary);border:1px solid var(--dsw-alias-border-l2)}.dshRemoteHostStatus.isOffline::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}.dshRemoteHostItemChevron{font-size:18px;color:var(--dsw-alias-label-tertiary);line-height:1;margin-left:2px;transition:transform .18s ease,color .18s ease;flex-shrink:0}.dshRemoteHostList>.dshRemoteHostRow:hover:not(.isDisabled) .dshRemoteHostItemChevron{transform:translateX(2px);color:var(--dsw-alias-label-primary)}',
+      // Per-host restart action beside the status badge. It stays a native
+      // button inside the row so keyboard focus and the row's own click target
+      // remain separate; the handler stops propagation.
+      ".dshRemoteHostRestart{box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;flex:0 0 auto;border:1px solid var(--dsw-alias-border-l2);border-radius:6px;background:transparent;color:var(--dsw-alias-label-secondary);padding:0;cursor:pointer;transition:color .15s,border-color .15s,background .15s}.dshRemoteHostRestart>svg{width:14px;height:14px;flex:none}.dshRemoteHostRestart:hover:not(:disabled){color:var(--dsw-alias-label-primary);border-color:var(--dsw-alias-label-dimmed);background:var(--dsw-alias-interactive-bg-hover)}.dshRemoteHostRestart:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}.dshRemoteHostRestart:disabled{opacity:.45;cursor:default}.dshRemoteHostRestart.isBusy{opacity:.6}",
       '.dshRemoteConnectedMenu{position:relative;flex:0 0 auto;margin-right:4px}.dshRemoteConnectedCount{appearance:none;display:inline-flex;align-items:center;justify-content:center;height:22px;border:0;border-radius:999px;background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-secondary);box-shadow:0 1px 2px rgba(0,0,0,.18),0 0 0 1px rgba(255,255,255,.04) inset;padding:0 10px;font:inherit;font-size:11px;font-weight:500;line-height:17px;white-space:nowrap;cursor:default}.dshRemoteConnectedCount.isOnline{color:var(--dsw-alias-state-success-primary)}.dshRemoteConnectedCount.isInteractive{cursor:pointer}.dshRemoteConnectedCount.isInteractive:hover{filter:brightness(1.08)}.dshRemoteConnectedCount:disabled{opacity:1;cursor:default}.dshRemoteConnectedCount:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}.dshRemoteConnectedPanel{position:absolute;top:calc(100% + 8px);right:0;z-index:4;width:min(320px,calc(100vw - 48px));max-height:min(280px,40vh);overflow:auto;border:1px solid var(--dsw-alias-border-l2);border-radius:12px;background:var(--dsw-alias-bg-layer-2);box-shadow:0 10px 28px rgba(0,0,0,.28);padding:10px 12px}.dshRemoteConnectedPanelTitle{display:block;margin:0 0 6px;color:var(--dsw-alias-label-primary);font-size:12px;font-weight:600}.dshRemoteClientList{display:flex;flex-direction:column}.dshRemoteClientRow{min-height:44px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--dsw-alias-border-l2)}.dshRemoteClientRow:last-child{border-bottom:0}.dshRemoteClientRow>span{min-width:0;display:flex;flex-direction:column;gap:2px}.dshRemoteClientRow strong{font-size:13px;font-weight:500}.dshRemoteClientRow small{color:var(--dsw-alias-label-secondary);font-size:11px}.dshRemoteClientOnline{display:inline-flex;align-items:center;gap:6px;color:var(--dsw-alias-state-success-primary)!important}.dshRemoteClientOnline::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}',
       ".dshRemoteConnectedCount{height:auto;border-radius:0;background:transparent;box-shadow:none;padding:0 4px;text-decoration:underline;text-decoration-color:color-mix(in srgb,currentColor 45%,transparent);text-underline-offset:3px}.dshRemoteConnectedCount.isInteractive:hover{filter:none;text-decoration-color:currentColor}.dshRemoteConnectedCount:focus-visible{outline-offset:3px;border-radius:3px}",
-      ".dshRemoteProgressStatus{display:inline-flex;align-items:center;gap:8px}",
       '.dshRemoteProgress{display:flex;flex-direction:column;gap:8px;margin:12px 0;padding:12px 14px;border:1px solid var(--dsw-alias-border-l2);border-radius:10px;background:var(--dsw-alias-bg-layer-2)}.dshRemoteProgressHeader{display:flex;align-items:center;justify-content:space-between;gap:12px}.dshRemoteProgressHeader strong{font-size:13px;font-weight:600}.dshRemoteProgressHeader span{color:var(--dsw-alias-label-secondary);font-size:12px}.dshRemoteProgressBar{height:6px;overflow:hidden;border-radius:999px;background:var(--dsw-alias-bg-layer-3)}.dshRemoteProgressBar>span{display:block;width:100%;height:100%;border-radius:inherit;background:var(--dsw-alias-brand-primary);transform-origin:left center;transition:transform .22s ease-out}[dir="rtl"] .dshRemoteProgressBar>span{transform-origin:right center}.dshRemoteProgress p{margin:0;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:1.45}.dshRemoteProgressRoute{font-weight:500}.dshRemoteProgressRoute .isActive{color:var(--dsw-alias-state-success-primary);font-weight:700}.dshRemoteProgressRouteArrow{color:var(--dsw-alias-label-tertiary)}@media(prefers-reduced-motion:reduce){.dshRemoteProgressBar>span{transition:none}}',
-      '.dshRemoteBrowser{display:flex;flex-direction:column}.dshRemoteCrumbs{display:flex;align-items:center;gap:4px;overflow:auto;padding:2px 0 10px}.dshRemoteCrumbs>button{flex:0 0 auto;border:0;background:transparent;color:var(--dsw-alias-label-secondary);padding:5px 7px;border-radius:6px;cursor:pointer}.dshRemoteCrumbs>button:not(:last-child)::after{content:" /";color:var(--dsw-alias-label-tertiary)}.dshRemoteCrumbs>button:disabled{color:var(--dsw-alias-label-primary);font-weight:600}',
+      '.dshRemoteBrowser{display:flex;flex-direction:column}.dshRemoteCrumbs{display:flex;align-items:center;gap:2px;flex:none;min-height:44px;margin-top:14px;padding:0 10px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-layer-2);overflow-x:auto;overscroll-behavior-x:contain}.dshRemoteCrumbs>button{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;border:0;background:transparent;color:var(--dsw-alias-label-secondary);padding:5px 8px;border-radius:6px;cursor:pointer;font:inherit;font-size:12px}.dshRemoteCrumbs>button:hover:not(:disabled){color:var(--dsw-alias-label-primary)}.dshRemoteCrumbs>button:not(:last-child)::after{content:"";width:13px;height:13px;flex:none;margin-left:6px;background:var(--dsw-alias-label-tertiary);-webkit-mask:center/12px 12px no-repeat url("data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23000%22%20stroke-width%3D%222.2%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22m9%2018%206-6-6-6%22%2F%3E%3C%2Fsvg%3E");mask:center/12px 12px no-repeat url("data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23000%22%20stroke-width%3D%222.2%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22m9%2018%206-6-6-6%22%2F%3E%3C%2Fsvg%3E")}.dshRemoteCrumbs>button:disabled{color:var(--dsw-alias-label-primary);cursor:default;font-weight:600;font-family:var(--dsw-font-mono,ui-monospace,Consolas,monospace)}',
       ".dshRemotePage.hasSelectedHost>.dshRemotePageHeader{flex-shrink:0}.dshRemotePage.hasSelectedHost>.dshRemotePageBody{min-height:0;overflow:hidden}.dshRemotePage.hasSelectedHost .dshRemotePageBody>button,.dshRemotePage.hasSelectedHost .dshRemotePageBody>p{flex-shrink:0}.dshRemotePage.hasSelectedHost .dshRemoteBrowser{min-height:0;flex:1 1 auto}.dshRemoteBrowser>.dshRemoteWorkspaceHeading{flex-shrink:0}.dshRemoteWorkspaceLists,.dshRemoteFolderBrowser{min-height:0;overflow:auto;overscroll-behavior:contain;flex:1 1 auto}",
       ".dshRemoteDirectoryList{min-height:72px;display:flex;flex-direction:column;border-top:1px solid var(--dsw-alias-border-l2)}.dshRemoteDirectoryList>button{min-height:52px;display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:10px;text-align:left;border:0;border-bottom:1px solid var(--dsw-alias-border-l2);background:transparent;padding:8px 4px;cursor:pointer}.dshRemoteDirectoryList>button:hover,.dshRemoteDirectoryList>button.isSelected{background:var(--dsw-alias-interactive-bg-hover)}.dshRemoteDirectoryList>button.isSelected{color:var(--dsw-alias-label-primary)}.dshRemoteDirectoryList>button>span:first-child,.dshRemoteDirectoryList>button>.dshRemoteWorkspaceIcon{grid-row:1/3}.dshRemoteWorkspaceIcon{box-sizing:border-box;width:22px;height:22px;align-self:center;object-fit:contain}.dshRemoteWorkspaceIcon.isGpt{border-radius:6px}.dshRemoteDirectoryList>button>span:not(:first-child),.dshRemoteDirectoryList>button>small{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.dshRemoteDirectoryList>button>small{grid-column:2;color:var(--dsw-alias-label-secondary)}.dshRemoteDirectoryList>p,.dshRemoteHint{margin:12px 0;color:var(--dsw-alias-label-secondary);font-size:13px}",
       ".dshRemoteAddWorkspace{box-sizing:border-box;width:40px;height:40px;display:inline-grid;place-items:center;flex:0 0 auto;border:0;border-radius:8px;background:transparent;color:var(--dsw-alias-label-secondary);padding:0;cursor:pointer}.dshRemoteAddWorkspace:hover:not(:disabled){color:var(--dsw-alias-label-primary);background:var(--dsw-alias-interactive-bg-hover)}.dshRemoteAddWorkspace:disabled{opacity:.5;cursor:default}.dshRemoteAddWorkspaceIcon{width:20px;height:20px}.dshRemoteCodexWorkspaceGroup{margin-top:16px}.dshRemoteWorkspaceSourceHeading{min-height:44px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 4px 7px}.dshRemoteWorkspaceSourceText{min-width:0;display:flex;flex-direction:column;gap:2px}.dshRemoteWorkspaceSourceText>strong{font-size:13px}.dshRemoteWorkspaceSourceText>small{color:var(--dsw-alias-label-secondary);font-size:11px}.dshRemoteCodexWorkspaceList{min-height:0}.dshRemoteDirectoryList>.dshRemoteWorkspaceMore,.dshRemoteCodexWorkspaceGroup>.dshRemoteWorkspaceMore{box-sizing:border-box;width:100%;min-height:48px;display:flex;align-items:center;justify-content:center;border:0;border-bottom:1px solid var(--dsw-alias-border-l2);background:transparent;color:var(--dsw-alias-label-secondary);padding:8px 4px;text-align:center;font-size:16px;cursor:pointer}.dshRemoteWorkspaceMore>span{display:block;line-height:1;transform:translateY(-2px)}.dshRemoteWorkspaceMore:hover:not(:disabled){color:var(--dsw-alias-label-primary);background:transparent}.dshRemoteWorkspaceMore:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-2px}.dshRemoteWorkspaceMore:disabled{opacity:.5;cursor:default}",
       ".dshRemotePreviewAction,.dshRemotePreviewForm{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap}.dshRemotePreviewForm input{width:90px;color:inherit;background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);padding:6px}.dshRemotePreviewForm [role=alert]{max-width:360px;white-space:normal}.dshRemoteDevelopmentSettings{width:100%;margin:16px 0}.dshRemoteDevelopmentSettings .dshRemotePathField{display:flex;flex-direction:column;gap:6px;margin:8px 0}.dshRemoteDevelopmentSettings .dshRemotePathField>label{color:var(--dsw-alias-label-primary);font-size:13px;font-weight:500;line-height:1.5}.dshRemoteDevelopmentSettings .dshRemotePortsRow{display:flex;gap:8px;align-items:stretch;width:100%}.dshRemoteDevelopmentSettings .dshRemotePortsRow>input{box-sizing:border-box;width:100%;flex:1;min-width:0;height:34px;border:.5px solid var(--dsw-alias-border-l4);border-radius:8px;background:var(--dsw-alias-bg-layer-3);color:inherit;padding:0 12px;font:inherit;font-size:13px;line-height:1.5}.dshRemoteDevelopmentSettings button{min-height:34px;color:inherit;background:var(--dsw-alias-bg-layer-1);border:.5px solid var(--dsw-alias-border-l2);border-radius:8px;padding:5px 14px;white-space:nowrap;font-size:13px;line-height:1.5}.dshRemoteAcpAddForm>label{display:flex;min-width:0;flex-direction:column;gap:5px;color:var(--dsw-alias-label-primary);font-size:13px;font-weight:500;line-height:1.5}.dshRemoteAcpAddForm>label>input{box-sizing:border-box;width:100%;height:34px;border:.5px solid var(--dsw-alias-border-l4);border-radius:8px;background:var(--dsw-alias-bg-layer-3);color:var(--dsw-alias-label-primary);padding:0 12px;font:inherit;font-size:13px;line-height:1.5}",
-      ".dshRemoteFolderBrowser{margin-top:14px}.dshRemoteFolderBrowser>p,.dshRemoteFolderList>p{margin:12px 0;color:var(--dsw-alias-label-secondary);font-size:13px}.dshRemoteFolderList{max-height:260px;overflow:auto;border-block:1px solid var(--dsw-alias-border-l2)}.dshRemoteFolderList>button{width:100%;min-height:42px;display:flex;align-items:center;gap:9px;border:0;border-bottom:1px solid var(--dsw-alias-border-l2);background:transparent;padding:7px 6px;text-align:left;cursor:pointer}.dshRemoteFolderList>button:hover{background:var(--dsw-alias-interactive-bg-hover)}.dshRemoteFolderBrowser>small{display:block;margin-top:8px;color:var(--dsw-alias-state-warn-label)}",
+      ".dshRemoteFolderBrowser{display:flex;flex-direction:column;min-height:0;overflow:hidden;flex:1 1 auto;margin-top:14px}.dshRemoteFolderBrowser>p{margin:12px 0;color:var(--dsw-alias-label-secondary);font-size:13px}.dshRemoteFolderList>p{margin:0;padding:15px 14px;color:var(--dsw-alias-label-secondary);font-size:13px}.dshRemoteFolderList{min-height:0;overflow:auto;overscroll-behavior:contain;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-layer-2)}.dshRemoteFolderList>button{width:100%;min-height:46px;display:flex;align-items:center;gap:10px;border:0;border-bottom:1px solid var(--dsw-alias-border-l2);background:transparent;padding:0 14px;text-align:left;cursor:pointer;color:var(--dsw-alias-label-primary);font:inherit;font-size:13px}.dshRemoteFolderList>button:last-child{border-bottom:0}.dshRemoteFolderList>button:hover{background:var(--dsw-alias-interactive-bg-hover)}.dshRemoteFolderList>button:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-2px}.dshRemoteFolderList>button>svg{width:15px;height:15px;flex:none;color:var(--dsw-alias-label-secondary)}.dshRemoteFolderList>button.isSelected{background:color-mix(in srgb,var(--dsw-alias-brand-primary) 12%,transparent)}.dshRemoteFolderList>button.isSelected>svg{color:var(--dsw-alias-brand-primary)}.dshRemoteFolderRowEnd{margin-left:auto;display:inline-flex;align-items:center;justify-content:flex-end;color:var(--dsw-alias-label-tertiary)}.dshRemoteFolderRowEnd>svg{width:14px;height:14px}.dshRemoteFolderRowCheck{display:grid;place-items:center;width:18px;height:18px;border-radius:50%;background:var(--dsw-alias-brand-primary);color:var(--dsw-alias-label-primary-foreground,#fff)}.dshRemoteFolderBrowser>small{flex:none;margin-top:8px;color:var(--dsw-alias-state-warn-label)}",
+      ".dshRemoteAddTitle{min-width:0;display:flex;flex-direction:column;gap:5px}.dshRemoteAddTitle>strong{font-size:16px;line-height:1.35}.dshRemoteAddTitle>small{color:var(--dsw-alias-label-secondary);font-size:12px}.dshRemoteDirectoryCount{display:inline-flex;align-items:center;gap:6px;flex:none;padding:4px 10px;border:1px solid var(--dsw-alias-border-l2);border-radius:999px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-secondary);font-size:11px;line-height:1.4}",
       ".dshRemotePathField{display:flex;flex-direction:column;gap:6px;margin-top:20px}.dshRemotePathField>span{font-size:13px;font-weight:600}.dshRemotePathField>input{min-height:40px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-layer-3);color:inherit;padding:0 12px;font:inherit}.dshRemotePathField>small{color:var(--dsw-alias-label-secondary)}",
       ".dshRemoteOpenBar{flex-shrink:0;display:flex;align-items:center;justify-content:space-between;gap:20px;margin-top:20px;padding:14px 0;background:var(--dsw-alias-bg-layer-1);border-top:1px solid var(--dsw-alias-border-l2)}.dshRemoteOpenBar>div{min-width:0;display:flex;flex-direction:column;gap:3px}.dshRemoteOpenBar span{color:var(--dsw-alias-label-secondary);font-size:12px}.dshRemoteOpenBar strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}.dshRemoteOpenBar>button,.dshRemoteEnable>button{min-height:40px;flex:0 0 auto;border:0;border-radius:8px;background:var(--dsw-alias-label-primary);color:var(--dsw-alias-bg-layer-1);padding:8px 16px;cursor:pointer}.dshRemoteOpenBar>button:disabled,.dshRemoteEnable>button:disabled{opacity:.5;cursor:default}",
       ".dshRemoteEnable{box-sizing:border-box;width:min(440px,100%);max-width:100%;min-height:388px;margin:0 auto;display:flex;flex-direction:column;align-items:stretch;gap:10px}.dshRemoteEnable p{margin:0;color:var(--dsw-alias-label-secondary);line-height:1.5}",
@@ -5011,14 +5269,15 @@ If a code was sent, recover the original submission without changing it.`,
       ".dshRemoteSettingsServer{width:100%;flex:initial!important;margin:0 0 16px!important}.dshRemoteSettingsServer>label{flex:0 0 auto;font-size:13px}.dshRemotePairingInstructions,.dshRemotePairing .dshRemoteError{white-space:pre-line}",
       ".dshRemoteLoginServer{display:flex;flex-wrap:nowrap;align-items:center;gap:8px;flex:0 1 680px;min-width:0;margin:0}.dshRemoteLoginServer button{font-size:12px}.dshRemoteLoginServer input{box-sizing:border-box;flex:1 1 220px;min-width:0;min-height:40px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-layer-3);color:inherit;padding:0 12px;font:inherit}.dshRemoteLoginServer button{flex:0 0 auto;min-height:40px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-layer-3);color:inherit;padding:8px 12px;font:inherit;cursor:pointer}",
       ".dshRemoteClientLogin{width:min(440px,100%);display:flex;flex-direction:column;gap:8px}.dshRemoteClientLogin input{box-sizing:border-box;width:100%;min-height:40px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-layer-3);color:inherit;padding:0 12px;font:inherit}.dshRemoteClientLogin button{align-self:flex-start;min-height:40px;border:0;border-radius:8px;background:var(--dsw-alias-label-primary);color:var(--dsw-alias-bg-layer-1);padding:8px 16px;cursor:pointer}.dshRemotePasswordHint{margin:0;text-align:center;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:1.5}",
-      '.dshRemoteLoginProgress{display:flex;align-items:center;justify-content:center;gap:8px;min-height:24px;color:var(--dsw-alias-label-secondary);font-size:12px}.dshRemoteLoginSpinner{order:1;display:inline-flex;align-items:center;justify-content:center;gap:12px;width:24px;height:16px;flex:0 0 auto}.dshRemoteLoginSpinner::before,.dshRemoteLoginSpinner::after{content:"";width:4px;height:4px;border-radius:50%;background:currentColor;animation:dshRemoteLoginPulse 1.2s ease-in-out infinite}.dshRemoteLoginSpinner::after{animation-delay:.2s}.dshRemoteLoginSpinner{background:radial-gradient(circle,currentColor 2px,transparent 2.5px) center/4px 4px no-repeat;animation:dshRemoteLoginPulse 1.2s ease-in-out .1s infinite}@keyframes dshRemoteLoginPulse{0%,80%,100%{opacity:.35}40%{opacity:1}}@media(prefers-reduced-motion:reduce){.dshRemoteLoginSpinner,.dshRemoteLoginSpinner::before,.dshRemoteLoginSpinner::after{animation:none;opacity:.65}}',
       ".dshRemoteQrLogin{width:min(440px,100%);display:flex;flex-direction:column;align-items:center;gap:8px;padding:6px 0 2px;text-align:center}.dshRemoteQrLogin img,.dshRemoteQrPlaceholder{box-sizing:border-box;width:200px;height:200px;border:1px solid var(--dsw-alias-border-l2);border-radius:12px;background:#fff;padding:8px}.dshRemoteQrOpen{display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--dsw-alias-label-secondary);font-size:12px;text-decoration:none}.dshRemoteQrOpen:hover{color:var(--dsw-alias-label-primary);text-decoration:underline}.dshRemoteQrOpen:hover img{border-color:var(--dsw-alias-label-dimmed)}.dshRemoteQrOpen:focus-visible{border-radius:12px;outline:2px solid var(--dsw-alias-brand-primary);outline-offset:3px}.dshRemoteQrPlaceholder{display:flex;align-items:center;justify-content:center;color:var(--dsw-alias-label-secondary)}.dshRemoteQrLogin>strong{font-size:14px}.dshRemoteQrLogin>p{max-width:48ch;margin:0;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:1.5}.dshRemoteServiceAddress{box-sizing:border-box;display:flex;flex-wrap:nowrap;align-items:center;justify-content:center;gap:6px;width:100%;height:44px;min-height:44px;margin:8px 0 0;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:1.5}.dshRemoteServiceAddress>span{flex:0 0 auto;white-space:nowrap}.dshRemoteServiceAddress>a{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dsw-alias-label-secondary);text-decoration:none}.dshRemoteServiceAddress>a:hover{color:var(--dsw-alias-label-primary);text-decoration:underline}.dshRemoteServiceAddressEdit{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;padding:4px;border:0;border-radius:6px;background:transparent;color:var(--dsw-alias-label-secondary);cursor:pointer}.dshRemoteServiceAddressEdit:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}.dshRemoteServiceAddressEdit:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}.dshRemoteServiceAddressEdit:disabled{opacity:.5;cursor:default}.dshRemoteQrLogin>button,.dshRemoteClientLogin>.dshRemoteLoginSwitch{min-height:32px;border:0;background:transparent;color:var(--dsw-alias-label-secondary);padding:4px 8px;font:inherit;font-size:12px;cursor:pointer}.dshRemoteQrLogin>button:hover,.dshRemoteClientLogin>.dshRemoteLoginSwitch:hover{color:var(--dsw-alias-label-primary);text-decoration:underline}.dshRemoteClientLogin>.dshRemoteLoginSwitch{align-self:flex-start;background:transparent;color:var(--dsw-alias-label-secondary);padding-left:0}",
       ".dshRemoteLoginHeading{box-sizing:border-box;width:100%;display:flex;align-items:baseline;justify-content:center;overflow:hidden;white-space:nowrap;font-size:14px}.dshRemoteLoginHeading>a{display:inline-flex;align-items:baseline;justify-content:center;gap:10px;min-width:0;color:var(--dsw-alias-label-primary);font-size:inherit;font-weight:700;text-decoration:none;border-bottom:1px solid transparent}.dshRemoteLoginHeading>a:hover{text-decoration:none;border-bottom-color:currentColor}.dshRemoteLoginHeading>a:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px;border-radius:3px}.dshRemoteLoginTitle{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.dshRemoteLoginHeading>a>span{flex:0 0 auto;color:inherit;font-size:inherit;font-weight:inherit}.dshRemoteLoginTabs{box-sizing:border-box;width:100%;flex-wrap:nowrap;overflow-x:auto}.dshRemoteLoginTabs>button{min-width:max-content;flex:1 0 auto;display:flex;align-items:center;justify-content:center;padding:6px 10px;white-space:nowrap;text-align:center}.dshRemoteLoginTabs>button.isActive::after{right:0;left:0;bottom:0;border-radius:0}.dshRemoteClientLogin,.dshRemoteQrLogin{box-sizing:border-box;width:100%;height:300px;min-height:300px}.dshRemoteClientLogin{align-items:stretch;padding-top:16px}.dshRemoteClientLogin>button{align-self:stretch;width:100%}.dshRemoteQrLogin{padding-top:12px}",
-      '.dshRemoteHostControlToggle{display:flex;align-items:center;gap:7px;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px;white-space:nowrap;cursor:default}.dshRemoteHostControlToggle>input{appearance:none;box-sizing:border-box;position:relative;width:32px;height:18px;flex:0 0 auto;margin:0;border:1px solid var(--dsw-alias-label-secondary);border-radius:999px;background:var(--dsw-alias-bg-layer-3);cursor:pointer;box-shadow:inset 0 0 0 1px var(--dsw-alias-border-l2);transition:background .16s ease-out,border-color .16s ease-out,box-shadow .16s ease-out}.dshRemoteHostControlToggle>input::after{content:"";position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:var(--dsw-alias-label-secondary);transition:transform .16s ease-out,background .16s ease-out}.dshRemoteHostControlToggle>input:checked{border-color:var(--dsw-alias-state-success-primary);background:var(--dsw-alias-state-success-primary);box-shadow:none}.dshRemoteHostControlToggle>input:checked::after{transform:translateX(14px);background:var(--dsw-alias-bg-layer-1)}.dshRemoteHostControlToggle>input:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}.dshRemoteHostControlToggle>input:disabled{opacity:.5;cursor:default}@media(prefers-reduced-motion:reduce){.dshRemoteHostControlToggle>input,.dshRemoteHostControlToggle>input::after{transition:none}}',
-      ".dshRemoteAccountFooter{position:relative;display:flex;align-items:center;justify-content:flex-start;gap:12px;border-top:1px solid var(--dsw-alias-border-l2);padding-top:14px;color:var(--dsw-alias-label-secondary);font-size:12px}.dshRemoteAccountSettings{flex:0 0 auto;border:0;background:transparent;color:var(--dsw-alias-label-secondary);cursor:pointer;padding:5px 0;font:inherit;line-height:1.5;white-space:nowrap}.dshRemoteAccountSettings:hover{color:var(--dsw-alias-label-primary);text-decoration:underline}.dshRemoteAccountExit{flex:0 0 auto;margin-left:auto;border:0;background:transparent;color:var(--dsw-alias-label-secondary);cursor:pointer;padding:5px 0;font-size:12px;line-height:1.5;white-space:nowrap}.dshRemoteAccountExit:hover:not(:disabled){color:var(--dsw-alias-label-primary);text-decoration:underline}.dshRemoteAccountExit:disabled{opacity:.5;cursor:default;text-decoration:none}",
+      '.dshRemoteHostControlToggle{display:flex;align-items:center;gap:8px;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px;white-space:nowrap;cursor:default}.dshRemoteHostControlToggle>input{appearance:none;box-sizing:border-box;position:relative;width:36px;height:20px;flex:0 0 auto;margin:0;border:1px solid var(--dsw-alias-border-l2);border-radius:999px;background:var(--dsw-alias-bg-layer-3);cursor:pointer;transition:all .18s ease}.dshRemoteHostControlToggle>input::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:transform .18s cubic-bezier(.16,1,.3,1)}.dshRemoteHostControlToggle>input:checked{border-color:#10b981;background:#10b981;box-shadow:0 2px 6px rgba(16,185,129,.35)}.dshRemoteHostControlToggle>input:checked::after{transform:translateX(16px);background:#fff}.dshRemoteHostControlToggle>input:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}.dshRemoteHostControlToggle>input:disabled{opacity:.5;cursor:default}@media(prefers-reduced-motion:reduce){.dshRemoteHostControlToggle>input,.dshRemoteHostControlToggle>input::after{transition:none}}',
+      ".dshRemoteAccountFooter{display:flex;align-items:center;justify-content:flex-start;gap:12px;border-top:1px solid var(--dsw-alias-border-l2);padding-top:16px;color:var(--dsw-alias-label-secondary);font-size:12px}.dshRemoteHostNameLine{display:inline-flex;align-items:center;gap:8px;padding:3px 10px;border-radius:999px;background:var(--dsw-alias-bg-layer-2);border:1px solid var(--dsw-alias-border-l2);font-weight:500;color:var(--dsw-alias-label-primary)}.dshRemoteAccountSettings{flex:0 0 auto;border:0;background:transparent;color:var(--dsw-alias-label-secondary);cursor:pointer;padding:4px 8px;font:inherit;line-height:1.5;white-space:nowrap;border-radius:6px;transition:all .15s ease}.dshRemoteAccountSettings:hover{color:var(--dsw-alias-label-primary);background:var(--dsw-alias-interactive-bg-hover)}.dshRemoteAccountExit{flex:0 0 auto;margin-left:auto;border:0;background:transparent;color:var(--dsw-alias-label-secondary);cursor:pointer;padding:4px 10px;font-size:12px;line-height:1.5;white-space:nowrap;border-radius:6px;transition:all .15s ease}.dshRemoteAccountExit:hover:not(:disabled){color:#ef4444;background:rgba(239,68,68,.08)}.dshRemoteAccountExit:disabled{opacity:.5;cursor:default;text-decoration:none}",
+      // Footer identity: avatar plus a two-line account block, actions stay right.
+      ".dshRemoteAccountFooter{gap:14px}.dshRemoteAccountIdentity{display:flex;align-items:center;gap:10px;min-width:0;flex:1 1 auto}.dshRemoteAccountAvatar{box-sizing:border-box;width:26px;height:26px;flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;background:color-mix(in srgb,var(--dsw-alias-brand-primary) 20%,transparent);color:var(--dsw-alias-brand-primary);font-size:11px;font-weight:600;line-height:1}.dshRemoteAccountCopy{display:flex;flex-direction:column;gap:2px;min-width:0}.dshRemoteAccountCopy>strong{font-size:12.5px;font-weight:600;line-height:1.35;color:var(--dsw-alias-label-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.dshRemoteAccountCopy>.dshRemoteServerNotice{font-size:11px;line-height:1.35;color:var(--dsw-alias-label-tertiary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.dshRemoteAccountFooter>.dshRemoteAccountUpdate{margin-left:auto;flex:0 0 auto}.dshRemoteAccountFooter>.dshRemoteAccountExit{margin-left:0}",
       ".dshRemoteLocalLink{align-self:flex-start;border:0;background:transparent;color:var(--dsw-alias-label-secondary);padding:4px 0;cursor:pointer}.dshRemoteLocalLink:hover{color:var(--dsw-alias-label-primary)}",
       "@keyframes dshRemotePageIn{from{opacity:0;transform:translateY(6px) scale(.99)}to{opacity:1;transform:none}}@media(prefers-reduced-motion:reduce){.dshRemotePage{animation:none}}@media(max-width:620px){.dshRemoteBackdrop{padding:12px}.dshRemotePage{max-height:calc(100vh - 24px)}.dshRemotePageHeader{gap:8px;padding:12px 16px}.dshRemotePage.hasSelectedHost .dshRemotePageBack{max-width:112px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.dshRemoteSectionHeading{align-items:flex-start;flex-direction:column;gap:8px}.dshRemoteWorkspaceHeading{align-items:center;flex-direction:row}.dshRemoteSectionActions{width:100%;justify-content:space-between}.dshRemotePageBody{padding:20px 16px}.dshRemoteOpenBar{align-items:flex-end}.dshRemoteOpenBar>button{min-height:48px}}",
-      ".dshRemoteBackdrop{position:fixed;inset:0;z-index:1000;background:var(--dsw-alias-bg-mask-3);display:grid;place-items:center;padding:20px;-webkit-app-region:no-drag}",
+      ".dshRemoteBackdrop{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.45);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:grid;place-items:center;padding:20px;-webkit-app-region:no-drag}",
       ".dshRemoteDialog{width:min(460px,100%);max-height:80vh;overflow:auto;background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);border:1px solid var(--dsw-alias-border-l2);border-radius:14px;padding:18px;display:grid;gap:12px;box-shadow:var(--dsw-shadow-lv2)}",
       ".dshRemoteDialog button,.dshRemoteDialog input{font:inherit;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:9px 10px;background:transparent;color:inherit}",
       ".dshRemoteDialog button:not(:disabled){cursor:pointer}.dshRemoteDialog button:disabled{opacity:.5}",
@@ -5046,18 +5305,17 @@ If a code was sent, recover the original submission without changing it.`,
       ".dshRemotePairing{padding:16px 0;border-bottom:1px solid var(--dsw-alias-border-l2);color:var(--dsw-alias-label-primary)}.dshRemotePairing h3{font-size:14px;margin:0 0 8px}.dshRemotePairing p{font-size:13px;line-height:1.5;margin:8px 0}.dshRemotePairingQr{box-sizing:border-box;display:block;width:min(200px,100%);height:auto;margin:12px auto;border:1px solid var(--dsw-alias-border-l2);border-radius:12px;padding:8px;background:#fff}.dshRemotePairingIdentity code{overflow-wrap:anywhere;font-size:12px}.dshRemotePairing label{display:grid;gap:8px}.dshRemotePairing input{width:100%;max-width:240px;box-sizing:border-box;padding:10px 12px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);font-size:20px;letter-spacing:.15em}.dshRemotePairing input:focus-visible,.dshRemotePairing button:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}.dshRemotePairingActions{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}",
       ".dshRemoteServiceAddress:has(form){height:auto;flex-wrap:wrap;justify-content:flex-start;row-gap:6px}.dshRemoteServiceAddress:has(form)>span{width:100%;text-align:left}.dshRemoteServiceAddress .dshRemoteLoginServer{box-sizing:border-box;width:100%;flex:1 0 100%;display:flex;flex-wrap:wrap;gap:6px}.dshRemoteServiceAddress .dshRemoteLoginServer>input,.dshRemoteServiceAddress .dshRemoteLoginServer>button{box-sizing:border-box;height:36px;min-height:36px;font-size:13px;line-height:normal;border-radius:8px;padding:0 10px}.dshRemoteServiceAddress .dshRemoteLoginServer>input{flex:1 1 180px;width:0;min-width:180px}.dshRemoteServiceAddress .dshRemoteLoginServer>button{flex:0 1 auto}",
       ".dshRemotePairing .dshRemotePairingCountdown{text-align:center;font-size:12px;font-variant-numeric:tabular-nums;color:var(--dsw-alias-label-secondary);margin:4px 0}",
-      ".dshRemoteLoginContent{box-sizing:border-box;height:360px;min-height:360px;overflow:auto;scrollbar-gutter:stable;overflow-anchor:none;padding-top:12px}.dshRemoteLoginContent>.dshRemoteClientLogin,.dshRemoteLoginContent>.dshRemoteQrLogin{height:auto;min-height:0;padding-top:4px}.dshRemoteLoginContent .dshRemoteQrPlaceholder,.dshRemoteLoginContent .dshRemoteInlineSignInQrState{box-sizing:border-box;height:228px;min-height:228px;display:flex;flex-direction:column;align-items:center;justify-content:center}.dshRemoteLoginContent .dshRemoteQrOpen{box-sizing:border-box;min-height:228px}.dshRemoteInlineSignIn .dshRemoteLoginContent>.dshRemoteClientLogin,.dshRemoteInlineSignIn .dshRemoteLoginContent>.dshRemoteQrLogin{padding-top:4px}.dshRemoteLoginContent .dshRemotePairing,.dshRemoteInlineSignIn .dshRemoteLoginContent .dshRemotePairing{padding:4px 0}.dshRemoteLoginContent .dshRemotePairing .dshRemotePairingInstructions,.dshRemoteLoginContent .dshRemotePairing .dshRemotePairingPolicy{margin:0 0 8px}.dshRemoteLoginContent .dshRemotePairingQr{margin:8px auto}",
+      ".dshRemoteLoginContent{box-sizing:border-box;height:auto;min-height:320px;overflow:visible;overflow-anchor:none;padding-top:12px}.dshRemoteLoginContent>.dshRemoteClientLogin,.dshRemoteLoginContent>.dshRemoteQrLogin{height:auto;min-height:0;padding-top:4px}.dshRemoteLoginContent .dshRemoteQrPlaceholder,.dshRemoteLoginContent .dshRemoteInlineSignInQrState{box-sizing:border-box;height:228px;min-height:228px;display:flex;flex-direction:column;align-items:center;justify-content:center}.dshRemoteLoginContent .dshRemoteQrOpen{box-sizing:border-box;min-height:228px}.dshRemoteInlineSignIn .dshRemoteLoginContent>.dshRemoteClientLogin,.dshRemoteInlineSignIn .dshRemoteLoginContent>.dshRemoteQrLogin{padding-top:4px}.dshRemoteLoginContent .dshRemotePairing,.dshRemoteInlineSignIn .dshRemoteLoginContent .dshRemotePairing{padding:4px 0}.dshRemoteLoginContent .dshRemotePairing .dshRemotePairingInstructions,.dshRemoteLoginContent .dshRemotePairing .dshRemotePairingPolicy{margin:0 0 8px}.dshRemoteLoginContent .dshRemotePairingQr{margin:8px auto}",
       ".dshRemoteInlineSignIn>.dshRemoteServiceAddress{justify-content:center;margin:8px 0 0;font-size:12px;height:36px;min-height:36px}.dshRemoteInlineSignIn>.dshRemoteServiceAddress:has(form){height:auto;min-height:0;margin-bottom:24px;position:relative;z-index:1;background:var(--dsw-alias-bg-base,var(--dsw-alias-bg-layer-1))}.dshRemotePanelPairing{width:100%;min-width:0}.dshRemotePanelPairing .dshRemoteSave{background:var(--dsw-alias-label-primary);color:var(--dsw-alias-bg-layer-1);border:0}.dshRemotePanelPairing .dshRemotePairing{border-bottom:0}.dshRemotePanelPairing .dshRemotePairingPolicy{color:var(--dsw-alias-label-secondary);font-size:12px}",
       ".dshRemoteInlineSignIn .dshRemoteClientLogin{max-width:440px}.dshRemoteInlineSignIn .dshRemoteClientLogin>input,.dshRemoteInlineSignIn .dshRemoteClientLogin>button{height:36px;min-height:36px;font-size:13px}.dshRemoteInlineSignIn{width:min(440px,100%);max-width:100%;margin:0 auto 48px;padding-top:0;border-top:0}.dshRemoteInlineSignIn .dshRemoteSettingsServer{display:flex;align-items:center;gap:8px;width:100%;margin:0 0 20px!important}.dshRemoteInlineSignIn .dshRemoteSettingsServer>label{font-size:12px;color:var(--dsw-alias-label-secondary);white-space:nowrap}.dshRemoteInlineSignIn .dshRemoteSettingsServer>input{height:34px;min-height:34px;font-size:13px;padding:0 10px;background:transparent;border-radius:6px}.dshRemoteInlineSignIn .dshRemoteSettingsServer>button{height:34px;min-height:34px;padding:0 12px;font-size:12px;border-radius:6px;background:transparent}.dshRemoteInlineSignIn .dshRemoteLoginTabs{width:100%;justify-content:stretch;gap:0}.dshRemoteInlineSignIn .dshRemoteLoginTabs>button{flex:1 0 0;min-width:max-content;min-height:38px;padding:6px 10px;font-size:13px}.dshRemoteInlineSignIn .dshRemotePairing{padding:20px 0 8px;border-bottom:0}.dshRemoteInlineSignIn .dshRemotePairing h3{margin:0 0 12px;font-size:14px}.dshRemoteInlineSignIn .dshRemotePairingInstructions{font-size:13px;line-height:1.8;margin:0 0 12px}.dshRemoteInlineSignIn .dshRemotePairingPolicy{font-size:12px;color:var(--dsw-alias-label-secondary);margin:0 0 20px}.dshRemoteInlineSignIn .dshRemotePairingActions{margin:16px 0 0}.dshRemoteInlineSignIn .dshRemotePairingActions>button{width:100%;min-height:36px;padding:8px 14px;font-size:13px;border-radius:8px}.dshRemoteInlineSignIn .dshRemotePairing .dshRemoteError{font-size:12px;line-height:1.7}",
       ".dshRemoteLoginContent .dshRemotePairingQr{margin:4px auto}.dshRemotePairingActions:empty{display:none}.dshRemotePairingQrActions{display:flex;align-items:center;justify-content:center;gap:16px;min-height:48px}.dshRemotePairingQrActions>.dshRemotePairingCountdown{font-size:18px;line-height:1.4}.dshRemotePairingQrActions>button{min-height:44px;padding:8px 18px;font-size:15px}.dshRemoteLoginContent .dshRemotePairing .dshRemotePairingInstructions{font-size:15px;line-height:1.6}.dshRemotePairingInstructionPrimary{font-size:18px}.dshRemotePairingInstructionSecondary{font-size:15px}.dshRemoteLoginContent .dshRemotePairing .dshRemotePairingInstructions,.dshRemoteLoginContent .dshRemotePairing .dshRemotePairingPolicy{margin-bottom:4px}",
       ".dshRemotePairingHeading{display:flex;align-items:baseline;flex-wrap:wrap;gap:6px 12px;margin-bottom:12px}.dshRemotePairingHeading>.dshRemotePairingInstructions{margin:0!important}.dshRemotePairingHeading>.dshRemotePairingCountdown{white-space:nowrap}.dshRemotePairing .dshRemotePairingIdentity{margin:12px 0 20px}.dshRemotePairingIdentity>strong{display:inline-block;margin-bottom:4px}.dshRemotePairingIdentity code{display:inline-block;font-size:11px;line-height:1.6;color:var(--dsw-alias-label-secondary)}.dshRemotePairingCodeForm{display:grid;gap:12px;margin-top:20px}.dshRemotePairingCodeForm>label{font-size:13px;gap:8px}.dshRemotePairingCodeForm input{height:44px;padding:8px 12px;font-size:20px}.dshRemotePairing .dshRemotePairingCodeWarning{margin:0;font-size:12px;line-height:1.6;color:var(--dsw-alias-label-secondary)}.dshRemotePairingCodeActions{display:flex;gap:8px;flex-wrap:wrap}.dshRemotePairingCodeActions>button{min-height:36px;font-size:13px}",
-      '.dshRemoteAuthorizationSetting{border-top:1px solid var(--dsw-alias-border-l2);display:flex;align-items:center;justify-content:space-between;gap:20px;padding:12px 0}.dshRemoteAuthorizationSetting>div{min-width:0}.dshRemoteAuthorizationSetting strong{font-size:13px;font-weight:500}.dshRemoteAuthorizationSetting p{margin:3px 0 0;color:var(--dsw-alias-label-tertiary);font-size:12px}.dshRemoteAuthorizationSetting>input,.dshRemoteDebugLogControls>input{appearance:none;position:relative;width:38px;height:22px;flex:0 0 auto;margin:0;border:1px solid var(--dsw-alias-label-secondary);border-radius:999px;background:var(--dsw-alias-bg-layer-3);cursor:pointer;box-shadow:inset 0 0 0 1px var(--dsw-alias-border-l2);transition:background .16s ease-out,border-color .16s ease-out,box-shadow .16s ease-out}.dshRemoteAuthorizationSetting>input::after,.dshRemoteDebugLogControls>input::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--dsw-alias-label-secondary);transition:transform .16s ease-out,background .16s ease-out}.dshRemoteAuthorizationSetting>input:checked,.dshRemoteDebugLogControls>input:checked{border-color:var(--dsw-alias-state-success-primary);background:var(--dsw-alias-state-success-primary);box-shadow:none}.dshRemoteAuthorizationSetting>input:checked::after,.dshRemoteDebugLogControls>input:checked::after{transform:translateX(16px);background:var(--dsw-alias-bg-layer-1)}.dshRemoteAuthorizationSetting>input:focus-visible,.dshRemoteDebugLogControls>input:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}.dshRemoteAuthorizationSetting>input:disabled,.dshRemoteDebugLogControls>input:disabled{opacity:.5;cursor:default}@media(prefers-reduced-motion:reduce){.dshRemoteAuthorizationSetting>input,.dshRemoteAuthorizationSetting>input::after,.dshRemoteDebugLogControls>input,.dshRemoteDebugLogControls>input::after{transition:none}}',
+      '.dshRemoteAuthorizationSetting{border-top:1px solid var(--dsw-alias-border-l2);display:flex;align-items:center;justify-content:space-between;gap:20px;padding:12px 0}.dshRemoteAuthorizationSetting>div{min-width:0}.dshRemoteAuthorizationSetting strong{font-size:13px;font-weight:500}.dshRemoteAuthorizationSetting p{margin:3px 0 0;color:var(--dsw-alias-label-tertiary);font-size:12px}.dshRemoteAuthorizationSetting>input{appearance:none;position:relative;width:38px;height:22px;flex:0 0 auto;margin:0;border:1px solid var(--dsw-alias-label-secondary);border-radius:999px;background:var(--dsw-alias-bg-layer-3);cursor:pointer;box-shadow:inset 0 0 0 1px var(--dsw-alias-border-l2);transition:background .16s ease-out,border-color .16s ease-out,box-shadow .16s ease-out}.dshRemoteAuthorizationSetting>input::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--dsw-alias-label-secondary);transition:transform .16s ease-out,background .16s ease-out}.dshRemoteAuthorizationSetting>input:checked{border-color:var(--dsw-alias-state-success-primary);background:var(--dsw-alias-state-success-primary);box-shadow:none}.dshRemoteAuthorizationSetting>input:checked::after{transform:translateX(16px);background:var(--dsw-alias-bg-layer-1)}.dshRemoteAuthorizationSetting>input:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}.dshRemoteAuthorizationSetting>input:disabled{opacity:.5;cursor:default}@media(prefers-reduced-motion:reduce){.dshRemoteAuthorizationSetting>input,.dshRemoteAuthorizationSetting>input::after{transition:none}}',
       ".dshRemoteAssociation{min-width:0;flex:1;display:grid;grid-template-columns:minmax(0,auto) minmax(0,1fr);align-items:baseline;column-gap:12px;row-gap:4px}.dshRemoteAssociation>span{grid-column:1/-1;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:1.5}.dshRemoteAssociation strong{grid-column:1;min-width:0;color:var(--dsw-alias-label-primary);font-size:14px;font-weight:500;line-height:1.5;overflow-wrap:anywhere}.dshRemoteAssociation p{grid-column:2;color:var(--dsw-alias-label-tertiary);margin:0;font-size:12px;line-height:1.5}",
       ".dshRemoteConnection{border-top:1px solid var(--dsw-alias-border-l2);display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 0}.dshRemoteConnectionSummary{min-width:0;display:flex;flex-direction:column;gap:4px}.dshRemoteConnectionSummary>span{color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:1.5}.dshRemoteConnectionSummary strong{display:flex;align-items:center;gap:7px;color:var(--dsw-alias-label-primary);font-size:14px;font-weight:500;line-height:1.5}.dshRemoteConnectionSummary p,.dshRemoteConnectionIssue{color:var(--dsw-alias-label-tertiary);margin:0;font-size:12px;line-height:1.5}.dshRemoteConnectionDot{width:8px;height:8px;flex:0 0 auto;border-radius:999px;background:var(--dsw-alias-label-tertiary)}.dshRemoteConnectionDot.isOnline{background:var(--dsw-alias-state-success-primary)}.dshRemoteConnectionDot.isReconnecting{background:var(--dsw-alias-state-warn-primary)}.dshRemoteConnectionDot.isOffline{background:var(--dsw-alias-state-error-primary)}.dshRemoteConnectionIssue{color:var(--dsw-alias-state-error-primary);padding:0 0 12px}.dshRemoteReconnect{appearance:none;flex:0 0 auto;font:inherit;cursor:pointer;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:transparent;color:var(--dsw-alias-label-secondary);min-height:34px;padding:5px 14px;font-size:13px;line-height:1.5}.dshRemoteReconnect:hover:not(:disabled){color:var(--dsw-alias-label-primary);border-color:var(--dsw-alias-label-dimmed);background:var(--dsw-alias-interactive-bg-hover)}.dshRemoteReconnect:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}.dshRemoteReconnect:disabled{opacity:.4;cursor:default}",
-      ".dshRemoteSettingsFooter{border-top:1px solid var(--dsw-alias-border-l2);display:flex;justify-content:flex-end;align-items:center;gap:8px;padding:12px 0 4px}.dshRemoteSettingsFooter .dshRemoteError,.dshRemoteNotice{min-width:0;flex:1;margin:0;font-size:12px;line-height:1.5}.dshRemoteNotice{color:var(--dsw-alias-label-tertiary)}.dshRemoteDiscard,.dshRemoteSave{appearance:none;font:inherit;cursor:pointer;border:1px solid transparent;border-radius:8px;padding:5px 14px;font-size:13px;line-height:1.5}.dshRemoteDiscard{border-color:var(--dsw-alias-border-l2);color:var(--dsw-alias-label-secondary);background:transparent}.dshRemoteDiscard:hover:not(:disabled){color:var(--dsw-alias-label-primary);border-color:var(--dsw-alias-label-dimmed)}.dshRemoteSave{background:var(--dsw-alias-label-primary);color:var(--dsw-alias-bg-layer-3)}.dshRemoteDiscard:disabled,.dshRemoteSave:disabled{opacity:.4;cursor:default}.dshRemoteDiscard:focus-visible,.dshRemoteSave:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}",
-      ".dshRemoteDebugLogGroup{border-top:1px solid var(--dsw-alias-border-l2);padding:12px 0}.dshRemoteDebugLogHeader{display:flex;align-items:center;justify-content:space-between;gap:16px}.dshRemoteDebugLogTrigger{appearance:none;border:0!important;border-radius:6px!important;background:transparent!important;padding:0!important;margin:0;text-align:left;color:inherit;font:inherit;cursor:pointer;min-width:0;flex:1;min-height:unset!important;white-space:normal}.dshRemoteDebugLogTrigger:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:4px;border-radius:6px}.dshRemoteDebugLogTitleRow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.dshRemoteDebugLogTitleRow strong{font-size:13px;font-weight:500}.dshRemoteDebugLogTrigger p{margin:3px 0 0;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:1.4;white-space:normal}.dshRemoteDebugLogLevelBadge{display:inline-flex;align-items:center;padding:1px 7px;border-radius:999px;font-size:11px;font-weight:500;line-height:1.5;background:var(--dsw-alias-bg-layer-3);color:var(--dsw-alias-label-secondary);border:1px solid var(--dsw-alias-border-l2)}.dshRemoteDebugLogLevelBadge.isDebug{color:var(--dsw-alias-state-success-primary);border-color:var(--dsw-alias-state-success-primary)}.dshRemoteDebugLogControls{display:flex;align-items:center;gap:10px;flex:0 0 auto}",
-      ".dshRemoteLogToggleBtn,.dshRemoteLogActionBtn,.dshRemoteLogFilterBtn{appearance:none;font:inherit;cursor:pointer;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-secondary);min-height:28px!important;padding:3px 10px!important;font-size:12px!important;line-height:1.4!important;white-space:nowrap}.dshRemoteLogToggleBtn:hover:not(:disabled),.dshRemoteLogActionBtn:hover:not(:disabled),.dshRemoteLogFilterBtn:hover:not(:disabled){color:var(--dsw-alias-label-primary);border-color:var(--dsw-alias-label-dimmed);background:var(--dsw-alias-interactive-bg-hover)}.dshRemoteLogToggleBtn:disabled,.dshRemoteLogActionBtn:disabled,.dshRemoteLogFilterBtn:disabled{opacity:.45;cursor:default}.dshRemoteLogFilterBtn.isActive{color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-layer-3);border-color:var(--dsw-alias-label-secondary);font-weight:500}.dshRemoteLogDrawer{margin-top:12px;padding:12px;border:1px solid var(--dsw-alias-border-l2);border-radius:10px;background:var(--dsw-alias-bg-layer-2,var(--dsw-alias-bg-layer-1));display:flex;flex-direction:column;gap:8px}.dshRemoteLogToolbar{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}.dshRemoteLogFilterGroup,.dshRemoteLogActions{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.dshRemoteLogMeta{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:11px;color:var(--dsw-alias-label-tertiary);line-height:1.4}.dshRemoteLogMeta code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;color:var(--dsw-alias-label-secondary);overflow-wrap:anywhere}.dshRemoteLogFallback{color:var(--dsw-alias-state-warn-primary)}.dshRemoteLogViewport{box-sizing:border-box;width:100%;max-height:260px;min-height:120px;overflow:auto;padding:10px 12px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-layer-3);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11.5px;line-height:1.55;margin:0;white-space:pre-wrap;overflow-wrap:break-word;word-break:normal}.dshRemoteLogLine{display:block;color:var(--dsw-alias-label-primary);margin-bottom:3px}.dshRemoteLogLine:last-child{margin-bottom:0}.dshRemoteLogLine.isDebug{color:var(--dsw-alias-label-tertiary)}.dshRemoteLogLine.isWarn{color:var(--dsw-alias-state-warn-primary)}.dshRemoteLogLine.isError{color:var(--dsw-alias-state-error-primary)}.dshRemoteLogEmpty{color:var(--dsw-alias-label-tertiary);font-size:12px;margin:0;padding:16px 0;text-align:center}",
-      "@media(max-width:620px){.dshRemotePluginCardStatus{display:none}.dshRemoteSettingsTop{gap:10px}.dshRemoteConnection{align-items:flex-start}.dshRemoteReconnect{min-height:40px}.dshRemotePortsRow{flex-direction:column}.dshRemoteAcpAddForm{grid-template-columns:1fr}.dshRemoteAcpAddForm button{min-height:40px}}"
+      ".dshRemoteSettingsFooter{border-top:1px solid var(--dsw-alias-border-l2);display:flex;justify-content:flex-end;align-items:center;gap:8px;padding:12px 0 4px}.dshRemoteSettingsFooter .dshRemoteError,.dshRemoteSettingsFooter .dshRemoteNotice{min-width:0;flex:1;margin:0;font-size:12px;line-height:1.5}.dshRemoteSettingsFooter .dshRemoteNotice{color:var(--dsw-alias-label-tertiary)}.dshRemoteDiscard,.dshRemoteSave{appearance:none;font:inherit;cursor:pointer;border:1px solid transparent;border-radius:8px;padding:5px 14px;font-size:13px;line-height:1.5}.dshRemoteDiscard{border-color:var(--dsw-alias-border-l2);color:var(--dsw-alias-label-secondary);background:transparent}.dshRemoteDiscard:hover:not(:disabled){color:var(--dsw-alias-label-primary);border-color:var(--dsw-alias-label-dimmed)}.dshRemoteSave{background:var(--dsw-alias-label-primary);color:var(--dsw-alias-bg-layer-3)}.dshRemoteDiscard:disabled,.dshRemoteSave:disabled{opacity:.4;cursor:default}.dshRemoteDiscard:focus-visible,.dshRemoteSave:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}",
+      "@media(max-width:620px){.dshRemotePluginCardStatus{display:none}.dshRemoteSettingsTop{gap:10px}.dshRemoteConnection{align-items:flex-start}.dshRemoteReconnect{min-height:40px}.dshRemotePortsRow{flex-direction:column}.dshRemoteAcpAddForm{grid-template-columns:1fr}.dshRemoteAcpAddForm button{min-height:40px}}",
+      workbenchStyles
     ].join(""), document.head.append(style), () => style.remove();
   }
   function installTerminalAvailabilityNotice(feed, t) {
@@ -5076,39 +5334,161 @@ If a code was sent, recover the original submission without changing it.`,
     };
   }
 
-  // packages/plugin/src/client/account-entry.ts
-  var NATIVE_ROW_SELECTOR = '[class*="settingsArea"] [class*="triggerRow"]', DS_BOT_ROW_SELECTOR = '[class*="settingsArea"] .bt-settings-row', accountRowSelectors = [NATIVE_ROW_SELECTOR, DS_BOT_ROW_SELECTOR], accountRowRetry = { intervalMs: 50, attempts: 40 }, MISSING_ANCHOR_WARNING = 'ds-harness-remote: Compact sidebar entry found no account row ([class*="settingsArea"] [class*="triggerRow"] or [class*="settingsArea"] .bt-settings-row). This host/DS-Bot combination exposes no Compact slot; the Standard entry stays in the sidebar footer.', warned = /* @__PURE__ */ new Set();
-  function reportMissingAnchor() {
-    warned.has(MISSING_ANCHOR_WARNING) || (warned.add(MISSING_ANCHOR_WARNING), console.warn(MISSING_ANCHOR_WARNING));
-  }
-  function isLaidOut(row) {
-    return typeof row.getClientRects != "function" || row.getClientRects().length > 0;
-  }
-  function findAccountRow(root) {
-    for (let selector of accountRowSelectors)
-      for (let row of Array.from(root.querySelectorAll(selector)))
-        if (isLaidOut(row)) return row;
-    return null;
-  }
-  function mountAccountEntry(attach) {
-    let attempt = 0, timer, host, attached = !1, observer, sync = () => {
-      timer !== void 0 && (window.clearTimeout(timer), timer = void 0);
-      let row = findAccountRow(document);
-      if (row === null) {
-        attached && (attached = !1, attach(null)), attempt < accountRowRetry.attempts ? (attempt += 1, timer = window.setTimeout(sync, accountRowRetry.intervalMs)) : reportMissingAnchor();
-        return;
-      }
-      attempt = 0, host === void 0 && (host = document.createElement("span")), (host.parentElement !== row || !host.isConnected) && row.append(host), attached || (attached = !0, attach(host)), observer === void 0 && document.body !== null && (observer = new MutationObserver(() => {
-        (!attached || host?.isConnected !== !0) && sync();
-      }), observer.observe(document.body, { childList: !0, subtree: !0 }));
-    };
-    return sync(), () => {
-      timer !== void 0 && window.clearTimeout(timer), observer?.disconnect(), host?.remove();
-    };
-  }
-
   // packages/plugin/src/client/workspaces.ts
   var import_qrcode3 = __toESM(require_browser(), 1);
+
+  // node_modules/lucide/dist/esm/defaultAttributes.js
+  var defaultAttributes = {
+    xmlns: "http://www.w3.org/2000/svg",
+    width: 24,
+    height: 24,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    "stroke-width": 2,
+    "stroke-linecap": "round",
+    "stroke-linejoin": "round"
+  };
+
+  // node_modules/lucide/dist/esm/icons/arrow-left-right.js
+  var ArrowLeftRight = [
+    "svg",
+    defaultAttributes,
+    [
+      ["path", { d: "M8 3 4 7l4 4" }],
+      ["path", { d: "M4 7h16" }],
+      ["path", { d: "m16 21 4-4-4-4" }],
+      ["path", { d: "M20 17H4" }]
+    ]
+  ];
+
+  // node_modules/lucide/dist/esm/icons/chevron-right.js
+  var ChevronRight = ["svg", defaultAttributes, [["path", { d: "m9 18 6-6-6-6" }]]];
+
+  // node_modules/lucide/dist/esm/icons/folder-open.js
+  var FolderOpen = [
+    "svg",
+    defaultAttributes,
+    [
+      [
+        "path",
+        {
+          d: "m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"
+        }
+      ]
+    ]
+  ];
+
+  // node_modules/lucide/dist/esm/icons/log-out.js
+  var LogOut = [
+    "svg",
+    defaultAttributes,
+    [
+      ["path", { d: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" }],
+      ["polyline", { points: "16 17 21 12 16 7" }],
+      ["line", { x1: "21", x2: "9", y1: "12", y2: "12" }]
+    ]
+  ];
+
+  // node_modules/lucide/dist/esm/icons/monitor.js
+  var Monitor = [
+    "svg",
+    defaultAttributes,
+    [
+      ["rect", { width: "20", height: "14", x: "2", y: "3", rx: "2" }],
+      ["line", { x1: "8", x2: "16", y1: "21", y2: "21" }],
+      ["line", { x1: "12", x2: "12", y1: "17", y2: "21" }]
+    ]
+  ];
+
+  // node_modules/lucide/dist/esm/icons/plus.js
+  var Plus = [
+    "svg",
+    defaultAttributes,
+    [
+      ["path", { d: "M5 12h14" }],
+      ["path", { d: "M12 5v14" }]
+    ]
+  ];
+
+  // node_modules/lucide/dist/esm/icons/power.js
+  var Power = [
+    "svg",
+    defaultAttributes,
+    [
+      ["path", { d: "M12 2v10" }],
+      ["path", { d: "M18.4 6.6a9 9 0 1 1-12.77.04" }]
+    ]
+  ];
+
+  // node_modules/lucide/dist/esm/icons/refresh-cw.js
+  var RefreshCw = [
+    "svg",
+    defaultAttributes,
+    [
+      ["path", { d: "M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" }],
+      ["path", { d: "M21 3v5h-5" }],
+      ["path", { d: "M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" }],
+      ["path", { d: "M8 16H3v5" }]
+    ]
+  ];
+
+  // node_modules/lucide/dist/esm/icons/search.js
+  var Search = [
+    "svg",
+    defaultAttributes,
+    [
+      ["circle", { cx: "11", cy: "11", r: "8" }],
+      ["path", { d: "m21 21-4.3-4.3" }]
+    ]
+  ];
+
+  // node_modules/lucide/dist/esm/icons/settings-2.js
+  var Settings2 = [
+    "svg",
+    defaultAttributes,
+    [
+      ["path", { d: "M20 7h-9" }],
+      ["path", { d: "M14 17H5" }],
+      ["circle", { cx: "17", cy: "17", r: "3" }],
+      ["circle", { cx: "7", cy: "7", r: "3" }]
+    ]
+  ];
+
+  // node_modules/lucide/dist/esm/icons/shield-check.js
+  var ShieldCheck = [
+    "svg",
+    defaultAttributes,
+    [
+      [
+        "path",
+        {
+          d: "M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+        }
+      ],
+      ["path", { d: "m9 12 2 2 4-4" }]
+    ]
+  ];
+
+  // node_modules/lucide/dist/esm/icons/smartphone.js
+  var Smartphone = [
+    "svg",
+    defaultAttributes,
+    [
+      ["rect", { width: "14", height: "20", x: "5", y: "2", rx: "2", ry: "2" }],
+      ["path", { d: "M12 18h.01" }]
+    ]
+  ];
+
+  // node_modules/lucide/dist/esm/icons/x.js
+  var X = [
+    "svg",
+    defaultAttributes,
+    [
+      ["path", { d: "M18 6 6 18" }],
+      ["path", { d: "m6 6 12 12" }]
+    ]
+  ];
 
   // packages/plugin/src/version-compare.ts
   var VERSION_PATTERN = /^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?$/;
@@ -5143,44 +5523,57 @@ If a code was sent, recover the original submission without changing it.`,
     return comparePrerelease(parsedLeft.prerelease, parsedRight.prerelease);
   }
 
-  // packages/plugin/src/client/icons.ts
-  var deepSeekWorkspaceIcon = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAMAAACdt4HsAAAACVBMVEUAAADy8vXx8fUsA3vyAAAAAXRSTlMAQObYZgAAAOxJREFUWMPtlsEOwyAMQxP+/6OnTZMGxHGcot3wDYgfhkJbs6urprzveGtu9d1NgEdto8w93GuA7zPS2RFg7ynsCOAokbtAmLr2YaeKgJ6fxpT8jCAC0qSqPyNoO5DXdvyouj4ClFAdYaDxK09uiBDCIYBf6CxLesnR0uF2pG+JmhCqrUb0AOvjjoQaYDTCEAAgMg5grhAeAQIB+/M15IcKlnUIp4CkTCd0AKb4zVsRSJVGYEVzT0agK107IMGMEurvromEpaX4wzk/IKw378kq4LafED6Oowxfk7AP2q8W16EdM3p29Eyvrv6vF0WIBfBziKyCAAAAAElFTkSuQmCC", gptWorkspaceIcon = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAMAAACdt4HsAAAAclBMVEX////v7+++wMf////s7O3k5OTExcrX2Ny6vMTv8PPW19yXmqRqboJmaHd3eoaqrLPs7fGMjpfb3eKlpq1eYXOxs7pWWWd+gY5HSVdRVGVub3k+QU74+Pg4OkcvMT1ISlUoKjUiIy4fICueoKkaGyUSFB21Bp+qAAAAAXRSTlMAQObYZgAABChJREFUWMPtl916qjoQhlsdEwIECEgMYCBxx/u/xT1DrFUL1LO1DtY8LSLJvPnmB4gfH//sr7TPDfvdebf/xXZbkE/4zZ0MVhGHd9zJDsv+7F3//Z69tT5wljAu3tXw+TIlzXKJlhflYmJ+5uF5WpWhb54X+C/zZCmT2wJA4dJZwus0UYjIGqWyMhVbEp4yKNRRqlv0opW5PJLJ4rFJXvP4JKDRMqturBZjkMVJFYjR6iHQDQDI4+k2k51wZbWrqwp4mR/1CVYATyko9TFGxBUqL5IvMbXSWt0T8bkGgFLqgqZBI/Uxbx5UAxLaNcCNLBpttM7wbCc1pmJOpWAsDtey68UaQMyrFgb9uxLPjqg3+nGluyKN0XUdWw0BJ0NvTFFqgzpr9J+Dh4w0Ga1qkqBNswagxdRgFPAbgHRQG5jumGWyMxrTIaRRa4AzFs0YrNMXgI4MJWnsKYFhGNMnIh/mBOPsV8CZBFjN9w8ArowxnZzDr5IcvxTaKpxJCVsoI3SWysz1UM4AqQdzlCgho1IKrK+x1mKFzisANtgEU8E7GwHDgOqxe4w9tnM166wbaA2xBMBLrTWcAGYGdCiYVUJUrMCF+7l6gklrW1RwPi8ByjuActANqhKzVWoYrFGcCFzbDgNaBrTWpncFQMcI2DfWoAiDqRCiHcYM/ZdCEKkZqfR8spj4F0CiJjv2gHL6URNoCQDaYacL6O1oFDO2eQDUFP7AKdCRdC4CRDZaNifbjA41l/uYb/SZMAFNTBGzY7sG4J2jTsJgToOzIzXF3HZqBpSOAGduXbkGEKV1OqVGqRJpRxtvwbSw5IqAiUJItwBCOT9R32FCGo3nCkAN3t0UTBRC6zDONcBeOee9pr4T+ASbnDOdc5OmtREwEEB5w8Wqgt4bOV5c7Lt9iiK8zdP/IsBbutUGX4gNwEVCqd3FUt/xYnRWt7BvPBYQjwjAGXa3ASguHVAZ/WXKlA3eZDX1wRegFsr7E2wAlB9xFbx/7MV70kFT8aqNgLL3F8nFBmA3hrn/IJHjKJOK2oj1WI4Z4FzwN/81AOhgYD6v2xbIvaZIurLC9AfvB1WLTYAoXejF1xeBL5cpBIyEbmxkZymIXwDQh1BAfOrhI1lfwtgz8tozF5T4ttf3+32AyxC6klwAgw/YVTHpoK82xYt3wLP/Bw4AAI4D7/01TLKXBj9NEz2wEuGiKpoy68S/FwCLMQAZ3gXhihaCa25vQo6RyToOz9PE6wYjJgGi1YnqZX8qMIK+TDlnargGzSv4NvFjlwXf/nfLLMrAB4O/Xl3BH0d+RIASFgDA8IYMIXgr2+cBsbDdPSwAAHjSZFmb3txETCKIxc0uWwI8rxsLJcTiVndNwyMgKljbbNN2/zcEAja2+4RgIDYN2Bu/WtAOaEodnu2dnzz/7I/Y/w/LaEcX/MdfAAAAAElFTkSuQmCC";
+  // packages/plugin/src/client/brand.ts
+  var whaleMarkViewBox = "0 0 23.5 17.2", whaleMarkPath = "M22.9168 1.43018c-0.2455-0.12-0.351 0.109-0.4945 0.22501-0.049 0.0375-0.0905 0.0865-0.132 0.1315-0.3586 0.38301-0.7776 0.63452-1.3246 0.60452-0.8-0.045-1.483 0.2065-2.087 0.81852-0.1285-0.75452-0.5551-1.20503-1.2041-1.49404-0.3395-0.15001-0.683-0.30051-0.921-0.62702-0.166-0.23251-0.2115-0.49152-0.2945-0.74702-0.053-0.154-0.1055-0.31151-0.283-0.33801-0.1925-0.03-0.268 0.1315-0.3435 0.26651-0.302 0.55202-0.419 1.16003-0.4075 1.77605 0.0265 1.38554 0.6115 2.48907 1.774 3.2741 0.132 0.09 0.166 0.18 0.1245 0.31151-0.0795 0.2705-0.1735 0.53301-0.2565 0.80352-0.053 0.17251-0.132 0.21051-0.317 0.135-0.638-0.2665-1.189-0.66102-1.6761-1.13753-0.8265-0.79952-1.574-1.68205-2.506-2.37307-0.219-0.16151-0.438-0.31151-0.6646-0.45451-0.951-0.92353 0.1246-1.68206 0.3736-1.77206 0.2605-0.094 0.0905-0.41701-0.7511-0.41301-0.8415 0.0035-1.61151 0.28551-2.59304 0.66102-0.14351 0.0565-0.29451 0.0975-0.44902 0.1315-0.89052-0.169-1.81555-0.2065-2.78158-0.0975-1.81905 0.20251-3.2721 1.06253-4.34013 2.53058-1.28304 1.76455-1.58505 3.76961-1.21553 5.86067 0.38851 2.20408 1.51354 4.02858 3.24209 5.45518 1.79256 1.479 3.85712 2.2041 6.21269 2.065 1.43052-0.0825 3.02312-0.274 4.81962-1.7945 0.453 0.2255 0.9286 0.3155 1.7171 0.383 0.6075 0.0565 1.1925-0.03 1.6455-0.124 0.7095-0.15 0.6605-0.807 0.404-0.9275-2.0795-0.9686-1.623-0.5745-2.038-0.8936 1.0565-1.25 2.6706-3.4721 3.1686-6.49765 0.049-0.33401 0.1115-0.80452 0.104-1.07503-0.004-0.16501 0.034-0.22901 0.2225-0.24801 0.521-0.06 1.0265-0.2025 1.491-0.45801 1.3476-0.73602 1.8911-1.94506 2.0191-3.3941 0.019-0.22151-0.004-0.45052-0.238-0.56702z m-11.7419 13.04342c-2.01554-1.5846-2.99306-2.1061-3.39658-2.0836-0.37751 0.0225-0.30951 0.4545-0.2265 0.736 0.087 0.278 0.2 0.4695 0.35851 0.7136 0.1095 0.1615 0.185 0.4015-0.1095 0.582-0.64902 0.4015-1.77756-0.135-1.83056-0.1615-1.31354-0.7736-2.41157-1.7946-3.1856-3.1911-0.74752-1.34407-1.18153-2.78611-1.25303-4.32516-0.019-0.37151 0.0905-0.50302 0.46051-0.57052 0.48701-0.09 0.98903-0.109 1.47554-0.0375 2.05707 0.30051 3.80812 1.22004 5.27616 2.67708 0.83803 0.82953 1.47205 1.8211 2.12505 2.7896 0.6945 1.0285 1.4416 2.0085 2.3931 2.8121 0.336 0.2815 0.604 0.4955 0.8605 0.6535-0.7735 0.0865-2.0645 0.105-2.9476-0.5935l0-0.001z m0.9661-6.21372c0-0.165 0.132-0.2965 0.298-0.2965 0.0375 0 0.0715 0.0075 0.102 0.0185 0.0415 0.015 0.0795 0.0375 0.1095 0.0715 0.053 0.0525 0.083 0.1275 0.083 0.2065 0 0.16501-0.132 0.29651-0.298 0.29651-0.166 0-0.2945-0.1315-0.2945-0.29651z m3.0005 1.53905c-0.1925 0.079-0.385 0.14651-0.57 0.15401-0.287 0.015-0.6-0.10151-0.77-0.24401-0.264-0.22151-0.453-0.34551-0.532-0.73202-0.034-0.16501-0.015-0.42052 0.015-0.56702 0.068-0.31551-0.0075-0.51802-0.23-0.70202-0.181-0.15001-0.4115-0.19151-0.6645-0.19151-0.0945 0-0.181-0.0415-0.2455-0.075-0.1055-0.0525-0.1926-0.18401-0.1095-0.34551 0.0265-0.0525 0.155-0.18001 0.185-0.20251 0.3435-0.1955 0.7395-0.1315 1.106 0.015 0.3395 0.13901 0.5965 0.39402 0.966 0.75453 0.3775 0.43551 0.4455 0.55551 0.6605 0.88252 0.17 0.25551 0.3245 0.51802 0.4306 0.81853 0.064 0.1875-0.019 0.34101-0.2416 0.43501z";
 
-  // packages/plugin/src/client/plugin-upgrade.ts
-  var DEFAULTS = {
-    intervalMs: 1e3,
-    unreachableDeadlineMs: 6e4,
-    stalledReads: 3
-  };
-  async function settleLostUpgrade(readStatus, latest, options = {}) {
-    let intervalMs = options.intervalMs ?? DEFAULTS.intervalMs, deadlineMs = options.unreachableDeadlineMs ?? DEFAULTS.unreachableDeadlineMs, stalledReads = options.stalledReads ?? DEFAULTS.stalledReads, sleep = options.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms))), waited = 0, stalled = 0;
-    for (; waited <= deadlineMs; ) {
-      let status;
-      try {
-        status = await readStatus();
-      } catch {
-        status = void 0;
-      }
-      let current = status !== void 0 && status.controlUnavailable !== !0 ? status.update?.currentVersion : void 0;
-      if (current !== void 0) {
-        if (compareVersions(current, latest) >= 0) return "upgraded";
-        if (stalled += 1, stalled >= stalledReads) return "unknown";
-      } else
-        stalled = 0;
-      await sleep(intervalMs), waited += intervalMs;
-    }
-    return "unknown";
-  }
+  // packages/plugin/src/client/icons.ts
+  var gptWorkspaceIcon = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAMAAACdt4HsAAAAclBMVEX////v7+++wMf////s7O3k5OTExcrX2Ny6vMTv8PPW19yXmqRqboJmaHd3eoaqrLPs7fGMjpfb3eKlpq1eYXOxs7pWWWd+gY5HSVdRVGVub3k+QU74+Pg4OkcvMT1ISlUoKjUiIy4fICueoKkaGyUSFB21Bp+qAAAAAXRSTlMAQObYZgAABChJREFUWMPtl916qjoQhlsdEwIECEgMYCBxx/u/xT1DrFUL1LO1DtY8LSLJvPnmB4gfH//sr7TPDfvdebf/xXZbkE/4zZ0MVhGHd9zJDsv+7F3//Z69tT5wljAu3tXw+TIlzXKJlhflYmJ+5uF5WpWhb54X+C/zZCmT2wJA4dJZwus0UYjIGqWyMhVbEp4yKNRRqlv0opW5PJLJ4rFJXvP4JKDRMqturBZjkMVJFYjR6iHQDQDI4+k2k51wZbWrqwp4mR/1CVYATyko9TFGxBUqL5IvMbXSWt0T8bkGgFLqgqZBI/Uxbx5UAxLaNcCNLBpttM7wbCc1pmJOpWAsDtey68UaQMyrFgb9uxLPjqg3+nGluyKN0XUdWw0BJ0NvTFFqgzpr9J+Dh4w0Ga1qkqBNswagxdRgFPAbgHRQG5jumGWyMxrTIaRRa4AzFs0YrNMXgI4MJWnsKYFhGNMnIh/mBOPsV8CZBFjN9w8ArowxnZzDr5IcvxTaKpxJCVsoI3SWysz1UM4AqQdzlCgho1IKrK+x1mKFzisANtgEU8E7GwHDgOqxe4w9tnM166wbaA2xBMBLrTWcAGYGdCiYVUJUrMCF+7l6gklrW1RwPi8ByjuActANqhKzVWoYrFGcCFzbDgNaBrTWpncFQMcI2DfWoAiDqRCiHcYM/ZdCEKkZqfR8spj4F0CiJjv2gHL6URNoCQDaYacL6O1oFDO2eQDUFP7AKdCRdC4CRDZaNifbjA41l/uYb/SZMAFNTBGzY7sG4J2jTsJgToOzIzXF3HZqBpSOAGduXbkGEKV1OqVGqRJpRxtvwbSw5IqAiUJItwBCOT9R32FCGo3nCkAN3t0UTBRC6zDONcBeOee9pr4T+ASbnDOdc5OmtREwEEB5w8Wqgt4bOV5c7Lt9iiK8zdP/IsBbutUGX4gNwEVCqd3FUt/xYnRWt7BvPBYQjwjAGXa3ASguHVAZ/WXKlA3eZDX1wRegFsr7E2wAlB9xFbx/7MV70kFT8aqNgLL3F8nFBmA3hrn/IJHjKJOK2oj1WI4Z4FzwN/81AOhgYD6v2xbIvaZIurLC9AfvB1WLTYAoXejF1xeBL5cpBIyEbmxkZymIXwDQh1BAfOrhI1lfwtgz8tozF5T4ttf3+32AyxC6klwAgw/YVTHpoK82xYt3wLP/Bw4AAI4D7/01TLKXBj9NEz2wEuGiKpoy68S/FwCLMQAZ3gXhihaCa25vQo6RyToOz9PE6wYjJgGi1YnqZX8qMIK+TDlnargGzSv4NvFjlwXf/nfLLMrAB4O/Xl3BH0d+RIASFgDA8IYMIXgr2+cBsbDdPSwAAHjSZFmb3txETCKIxc0uWwI8rxsLJcTiVndNwyMgKljbbNN2/zcEAja2+4RgIDYN2Bu/WtAOaEodnu2dnzz/7I/Y/w/LaEcX/MdfAAAAAElFTkSuQmCC";
 
   // packages/plugin/src/client/workspaces.ts
+  function glyph(React, icon) {
+    return React.createElement("svg", {
+      viewBox: "0 0 24 24",
+      width: 18,
+      height: 18,
+      fill: "none",
+      stroke: "currentColor",
+      strokeWidth: 1.6,
+      strokeLinecap: "round",
+      strokeLinejoin: "round",
+      "aria-hidden": !0,
+      focusable: !1
+    }, ...(icon[2] ?? []).map(([tag, attributes], key) => React.createElement(tag, { ...attributes, key })));
+  }
+  function hostDeviceGlyph(React, platform) {
+    return glyph(React, /android|ios|iphone|ipad/i.test(platform) ? Smartphone : Monitor);
+  }
+  function footerAccountName(status, t) {
+    return status?.host?.account === void 0 ? status?.deviceName ?? t("account") : displayRemoteAccount(status.host.account);
+  }
+  function accountInitial(label) {
+    let trimmed = label.trim();
+    return trimmed.length === 0 ? "\xB7" : trimmed.slice(0, 1).toUpperCase();
+  }
   function createRemoteWorkspaceAction(React, portal) {
     let ServerNotice = createServerNotice(React), HostPairingPanel = createHostPairingPanel(React), RemoteProgressView = createRemoteProgressView(React);
     function RemoteAccountEntry(props) {
       let [container, setContainer] = React.useState(null), { portal: portal2 } = props;
-      if (React.useEffect(
-        () => portal2 === void 0 ? void 0 : mountAccountEntry(setContainer),
-        [portal2]
-      ), typeof portal2 != "function" || container === null) return props.fallback;
+      if (React.useEffect(() => {
+        if (portal2 === void 0) return;
+        let attempt = 0, timer, host, observer, attach = () => {
+          let row = document.querySelector('[class*="settingsArea"] [class*="triggerRow"]');
+          if (row === null) {
+            attempt < 40 && (attempt += 1, timer = window.setTimeout(attach, 50));
+            return;
+          }
+          host = document.createElement("span"), observer = new MutationObserver(() => {
+            host !== void 0 && !host.isConnected && row.append(host);
+          }), observer.observe(row, { childList: !0 }), row.append(host), setContainer(host);
+        };
+        return attach(), () => {
+          timer !== void 0 && window.clearTimeout(timer), observer?.disconnect(), host?.remove();
+        };
+      }, [portal2]), typeof portal2 != "function" || container === null) return props.fallback;
       try {
         return portal2(props.children, container);
       } catch {
@@ -5194,7 +5587,15 @@ If a code was sent, recover the original submission without changing it.`,
           if (typeof code == "string") return connectionErrorMessage(code, translate);
         }
         return messageOf(reason, translate);
-      }, [open, setOpen] = React.useState(!1), [status, setStatus] = React.useState(void 0), [devices, setDevices] = React.useState([]), [discoveryUnavailable, setDiscoveryUnavailable] = React.useState(!1), [selectedHost, setSelectedHost] = React.useState(void 0), [connectingHost, setConnectingHost] = React.useState(void 0), [workspaces, setWorkspaces] = React.useState([]), [codexWorkspaces, setCodexWorkspaces] = React.useState([]), [cursorWorkspaces, setCursorWorkspaces] = React.useState([]), [antigravityWorkspaces, setAntigravityWorkspaces] = React.useState([]), [piWorkspaces, setPiWorkspaces] = React.useState([]), [opencodeWorkspaces, setOpencodeWorkspaces] = React.useState([]), [claudeWorkspaces, setClaudeWorkspaces] = React.useState([]), [hermesWorkspaces, setHermesWorkspaces] = React.useState([]), [workspaceBackend, setWorkspaceBackend] = React.useState("harness"), [codexWorkspaceId, setCodexWorkspaceId] = React.useState(void 0), [cursorWorkspaceId, setCursorWorkspaceId] = React.useState(void 0), [antigravityWorkspaceId, setAntigravityWorkspaceId] = React.useState(void 0), [piWorkspaceId, setPiWorkspaceId] = React.useState(void 0), [opencodeWorkspaceId, setOpencodeWorkspaceId] = React.useState(void 0), [claudeWorkspaceId, setClaudeWorkspaceId] = React.useState(void 0), [hermesWorkspaceId, setHermesWorkspaceId] = React.useState(void 0), [directory, setDirectory] = React.useState(void 0), [path, setPath] = React.useState(""), [addingWorkspace, setAddingWorkspace] = React.useState(!1), [showAllWorkspaces, setShowAllWorkspaces] = React.useState(!1), [showAllCodexWorkspaces, setShowAllCodexWorkspaces] = React.useState(!1), [devicesOpen, setDevicesOpen] = React.useState(!1), [upgradePhase, setUpgradePhase] = React.useState("idle"), [upgradeError, setUpgradeError] = React.useState(void 0), [showAllCursorWorkspaces, setShowAllCursorWorkspaces] = React.useState(!1), [showAllAntigravityWorkspaces, setShowAllAntigravityWorkspaces] = React.useState(!1), [showAllPiWorkspaces, setShowAllPiWorkspaces] = React.useState(!1), [showAllOpencodeWorkspaces, setShowAllOpencodeWorkspaces] = React.useState(!1), [showAllClaudeWorkspaces, setShowAllClaudeWorkspaces] = React.useState(!1), [showAllHermesWorkspaces, setShowAllHermesWorkspaces] = React.useState(!1), workspaceListId = "dsh-remote-workspace-list", codexWorkspaceHeadingId = "dsh-remote-codex-workspace-heading", codexWorkspaceListId = "dsh-remote-codex-workspace-list", cursorWorkspaceHeadingId = "dsh-remote-cursor-workspace-heading", cursorWorkspaceListId = "dsh-remote-cursor-workspace-list", antigravityWorkspaceHeadingId = "dsh-remote-antigravity-workspace-heading", piWorkspaceHeadingId = "dsh-remote-pi-workspace-heading", opencodeWorkspaceHeadingId = "dsh-remote-opencode-workspace-heading", claudeWorkspaceHeadingId = "dsh-remote-claude-workspace-heading", hermesWorkspaceHeadingId = "dsh-remote-hermes-workspace-heading", antigravityWorkspaceListId = "dsh-remote-antigravity-workspace-list", piWorkspaceListId = "dsh-remote-pi-workspace-list", opencodeWorkspaceListId = "dsh-remote-opencode-workspace-list", claudeWorkspaceListId = "dsh-remote-claude-workspace-list", hermesWorkspaceListId = "dsh-remote-hermes-workspace-list", [busy, setBusy] = React.useState(!1), [refreshingHosts, setRefreshingHosts] = React.useState(!1), [needsAuthorization, setNeedsAuthorization] = React.useState(void 0), [email, setEmail] = React.useState(""), [password, setPassword] = React.useState(""), [loginServerUrl, setLoginServerUrl] = React.useState("https://dsh.r2049.cn"), [editingServer, setEditingServer] = React.useState(!1), [savingServer, setSavingServer] = React.useState(!1), serverDirty = loginServerUrl.trim() !== (status?.serverUrl ?? ""), [loginMethod, setLoginMethod] = React.useState("password"), loginMethodManuallySelected = React.useRef(!1), [oauthProviders, setOAuthProviders] = React.useState([]), [providersLoading, setProvidersLoading] = React.useState(!1), [providersFailed, setProvidersFailed] = React.useState(!1), [pairingServerUrl, setPairingServerUrl] = React.useState(void 0), pairingAvailable = pairingServerUrl !== void 0 && pairingServerUrl === status?.serverUrl, [providerReload, setProviderReload] = React.useState(0), providerRequestRun = React.useRef(0), [qrSession, setQrSession] = React.useState(void 0), [qrImage, setQrImage] = React.useState(void 0), [qrExpired, setQrExpired] = React.useState(!1), [hostEmail, setHostEmail] = React.useState(""), [hostPassword, setHostPassword] = React.useState(""), [hostRegistrationCode, setHostRegistrationCode] = React.useState(""), [progress, setProgress] = React.useState(void 0), progressRun = React.useRef(0), qrFlowRun = React.useRef(0), pageRef = React.useRef(null), [notice, setNotice] = React.useState(void 0), [error, setError] = React.useState(void 0), [sidebarEntry, setSidebarEntry] = React.useState(() => props.sidebarEntry.read());
+      }, [open, setOpen] = React.useState(!1), [status, setStatus] = React.useState(void 0), [devices, setDevices] = React.useState([]), [hostFilter, setHostFilter] = React.useState("all"), [hostFilterOpen, setHostFilterOpen] = React.useState(!1), [accountMenuOpen, setAccountMenuOpen] = React.useState(!1), [workspaceSearch, setWorkspaceSearch] = React.useState(""), [discoveryUnavailable, setDiscoveryUnavailable] = React.useState(!1), [selectedHost, setSelectedHost] = React.useState(void 0), [connectingHost, setConnectingHost] = React.useState(void 0), [workspaces, setWorkspaces] = React.useState([]), [codexWorkspaces, setCodexWorkspaces] = React.useState([]), [cursorWorkspaces, setCursorWorkspaces] = React.useState([]), [antigravityWorkspaces, setAntigravityWorkspaces] = React.useState([]), [piWorkspaces, setPiWorkspaces] = React.useState([]), [opencodeWorkspaces, setOpencodeWorkspaces] = React.useState([]), [claudeWorkspaces, setClaudeWorkspaces] = React.useState([]), [hermesWorkspaces, setHermesWorkspaces] = React.useState([]), [workspaceBackend, setWorkspaceBackend] = React.useState("harness"), [codexWorkspaceId, setCodexWorkspaceId] = React.useState(void 0), [cursorWorkspaceId, setCursorWorkspaceId] = React.useState(void 0), [antigravityWorkspaceId, setAntigravityWorkspaceId] = React.useState(void 0), [piWorkspaceId, setPiWorkspaceId] = React.useState(void 0), [opencodeWorkspaceId, setOpencodeWorkspaceId] = React.useState(void 0), [claudeWorkspaceId, setClaudeWorkspaceId] = React.useState(void 0), [hermesWorkspaceId, setHermesWorkspaceId] = React.useState(void 0), [directory, setDirectory] = React.useState(void 0), [path, setPath] = React.useState(""), [pickedDirectoryPath, setPickedDirectoryPath] = React.useState(void 0), [addingWorkspace, setAddingWorkspace] = React.useState(!1), [showAllWorkspaces, setShowAllWorkspaces] = React.useState(!1), [showAllCodexWorkspaces, setShowAllCodexWorkspaces] = React.useState(!1), [devicesOpen, setDevicesOpen] = React.useState(!1), [restartingHost, setRestartingHost] = React.useState(void 0), [showAllCursorWorkspaces, setShowAllCursorWorkspaces] = React.useState(!1), [showAllAntigravityWorkspaces, setShowAllAntigravityWorkspaces] = React.useState(!1), [showAllPiWorkspaces, setShowAllPiWorkspaces] = React.useState(!1), [showAllOpencodeWorkspaces, setShowAllOpencodeWorkspaces] = React.useState(!1), [showAllClaudeWorkspaces, setShowAllClaudeWorkspaces] = React.useState(!1), [showAllHermesWorkspaces, setShowAllHermesWorkspaces] = React.useState(!1), workspaceListId = "dsh-remote-workspace-list", codexWorkspaceHeadingId = "dsh-remote-codex-workspace-heading", codexWorkspaceListId = "dsh-remote-codex-workspace-list", cursorWorkspaceHeadingId = "dsh-remote-cursor-workspace-heading", cursorWorkspaceListId = "dsh-remote-cursor-workspace-list", antigravityWorkspaceHeadingId = "dsh-remote-antigravity-workspace-heading", piWorkspaceHeadingId = "dsh-remote-pi-workspace-heading", opencodeWorkspaceHeadingId = "dsh-remote-opencode-workspace-heading", claudeWorkspaceHeadingId = "dsh-remote-claude-workspace-heading", hermesWorkspaceHeadingId = "dsh-remote-hermes-workspace-heading", antigravityWorkspaceListId = "dsh-remote-antigravity-workspace-list", piWorkspaceListId = "dsh-remote-pi-workspace-list", opencodeWorkspaceListId = "dsh-remote-opencode-workspace-list", claudeWorkspaceListId = "dsh-remote-claude-workspace-list", hermesWorkspaceListId = "dsh-remote-hermes-workspace-list", [busy, setBusy] = React.useState(!1), [needsAuthorization, setNeedsAuthorization] = React.useState(void 0), [email, setEmail] = React.useState(""), [password, setPassword] = React.useState(""), [loginServerUrl, setLoginServerUrl] = React.useState("https://remote.gaolin.ink"), [editingServer, setEditingServer] = React.useState(!1), [savingServer, setSavingServer] = React.useState(!1), serverDirty = loginServerUrl.trim() !== (status?.serverUrl ?? ""), [loginMethod, setLoginMethod] = React.useState("password"), loginMethodManuallySelected = React.useRef(!1), [oauthProviders, setOAuthProviders] = React.useState([]), [providersLoading, setProvidersLoading] = React.useState(!1), [providersFailed, setProvidersFailed] = React.useState(!1), [pairingServerUrl, setPairingServerUrl] = React.useState(void 0), pairingAvailable = pairingServerUrl !== void 0 && pairingServerUrl === status?.serverUrl, [providerReload, setProviderReload] = React.useState(0), providerRequestRun = React.useRef(0), [qrSession, setQrSession] = React.useState(void 0), [qrImage, setQrImage] = React.useState(void 0), [qrExpired, setQrExpired] = React.useState(!1), [hostEmail, setHostEmail] = React.useState(""), [hostPassword, setHostPassword] = React.useState(""), [hostRegistrationCode, setHostRegistrationCode] = React.useState(""), [progress, setProgress] = React.useState(void 0), progressRun = React.useRef(0), qrFlowRun = React.useRef(0), pageRef = React.useRef(null), hostFilterMenuRef = React.useRef(null), hostFilterTriggerRef = React.useRef(null), accountMenuPanelRef = React.useRef(null);
+      React.useEffect(() => {
+        if (!hostFilterOpen) return;
+        let frame = window.requestAnimationFrame(() => {
+          hostFilterMenuRef.current?.querySelector('[aria-selected="true"]')?.focus();
+        });
+        return () => window.cancelAnimationFrame(frame);
+      }, [hostFilterOpen]);
+      let [notice, setNotice] = React.useState(void 0), [error, setError] = React.useState(void 0), [sidebarEntry, setSidebarEntry] = React.useState(() => props.sidebarEntry.read());
       React.useEffect(
         () => props.sidebarEntry.subscribe(() => setSidebarEntry(props.sidebarEntry.read())),
         [props.sidebarEntry]
@@ -5211,6 +5612,14 @@ If a code was sent, recover the original submission without changing it.`,
         if (!open) return;
         let closeOnEscape = (event) => {
           if (event.key === "Escape") {
+            if (accountMenuOpen) {
+              event.stopPropagation(), setAccountMenuOpen(!1);
+              return;
+            }
+            if (hostFilterOpen) {
+              event.stopPropagation(), setHostFilterOpen(!1);
+              return;
+            }
             if (devicesOpen) {
               event.stopPropagation(), setDevicesOpen(!1);
               return;
@@ -5219,7 +5628,7 @@ If a code was sent, recover the original submission without changing it.`,
           }
         };
         return window.addEventListener("keydown", closeOnEscape), () => window.removeEventListener("keydown", closeOnEscape);
-      }, [open, devicesOpen]), React.useEffect(() => {
+      }, [open, devicesOpen, hostFilterOpen, accountMenuOpen]), React.useEffect(() => {
         if (!devicesOpen) return;
         let closeOnPointer = (event) => {
           let target = event.target;
@@ -5227,6 +5636,28 @@ If a code was sent, recover the original submission without changing it.`,
         };
         return window.addEventListener("mousedown", closeOnPointer), () => window.removeEventListener("mousedown", closeOnPointer);
       }, [devicesOpen]), React.useEffect(() => {
+        if (!hostFilterOpen) return;
+        let closeOnPointer = (event) => {
+          let target = event.target;
+          target instanceof Element && target.closest(".dshRemoteHostFilter") === null && setHostFilterOpen(!1);
+        };
+        return window.addEventListener("mousedown", closeOnPointer), () => window.removeEventListener("mousedown", closeOnPointer);
+      }, [hostFilterOpen]), React.useEffect(() => {
+        if (!accountMenuOpen) return;
+        let closeOnPointer = (event) => {
+          let target = event.target;
+          target instanceof Element && target.closest(".dshRemoteAccountMenu") === null && setAccountMenuOpen(!1);
+        };
+        return window.addEventListener("mousedown", closeOnPointer), () => window.removeEventListener("mousedown", closeOnPointer);
+      }, [accountMenuOpen]), React.useEffect(() => {
+        open || (setHostFilterOpen(!1), setAccountMenuOpen(!1), selectedHost !== void 0 && (cancelAddingWorkspace(), chooseAnotherHost()));
+      }, [open]), React.useEffect(() => {
+        if (!accountMenuOpen) return;
+        let frame = window.requestAnimationFrame(() => {
+          accountMenuPanelRef.current?.querySelector('[role="menuitem"]')?.focus();
+        });
+        return () => window.cancelAnimationFrame(frame);
+      }, [accountMenuOpen]), React.useEffect(() => {
         (status?.host?.connectedClients?.length ?? 0) === 0 && setDevicesOpen(!1);
       }, [status?.host?.connectedClients?.length]), React.useEffect(() => {
         props.control("status").then(setStatus).catch(() => {
@@ -5320,7 +5751,7 @@ If a code was sent, recover the original submission without changing it.`,
         disabled: busy,
         onClick: () => selectLoginMethod(`oauth:${provider.id}`)
       }, t("providerLogin", { provider: provider.displayName })), selectHost = async (host) => {
-        setBusy(!0), setError(void 0), setConnectingHost(host), setCodexWorkspaces([]), setCursorWorkspaces([]), setAntigravityWorkspaces([]), setPiWorkspaces([]), setOpencodeWorkspaces([]), setClaudeWorkspaces([]), setHermesWorkspaces([]), setShowAllWorkspaces(!1), setShowAllCodexWorkspaces(!1), setShowAllCursorWorkspaces(!1), setShowAllAntigravityWorkspaces(!1), setShowAllPiWorkspaces(!1), setShowAllOpencodeWorkspaces(!1), setShowAllClaudeWorkspaces(!1), setShowAllHermesWorkspaces(!1);
+        setWorkspaceSearch(""), setBusy(!0), setError(void 0), setNotice(void 0), setConnectingHost(host), setCodexWorkspaces([]), setCursorWorkspaces([]), setAntigravityWorkspaces([]), setPiWorkspaces([]), setOpencodeWorkspaces([]), setClaudeWorkspaces([]), setHermesWorkspaces([]), setShowAllWorkspaces(!1), setShowAllCodexWorkspaces(!1), setShowAllCursorWorkspaces(!1), setShowAllAntigravityWorkspaces(!1), setShowAllPiWorkspaces(!1), setShowAllOpencodeWorkspaces(!1), setShowAllClaudeWorkspaces(!1), setShowAllHermesWorkspaces(!1);
         try {
           let result = await runConnectHostProgress(
             status?.preferredTransports,
@@ -5380,7 +5811,7 @@ If a code was sent, recover the original submission without changing it.`,
               targetDeviceId: selectedHost.deviceId,
               ...nextPath === void 0 ? {} : { path: nextPath }
             });
-            setDirectory(listing), setCodexWorkspaceId(void 0), setCursorWorkspaceId(void 0), setAntigravityWorkspaceId(void 0), setPiWorkspaceId(void 0), setOpencodeWorkspaceId(void 0), setClaudeWorkspaceId(void 0), setHermesWorkspaceId(void 0), setPath(listing.path);
+            setDirectory(listing), setCodexWorkspaceId(void 0), setCursorWorkspaceId(void 0), setAntigravityWorkspaceId(void 0), setPiWorkspaceId(void 0), setOpencodeWorkspaceId(void 0), setClaudeWorkspaceId(void 0), setHermesWorkspaceId(void 0), setPickedDirectoryPath(void 0), setPath(listing.path);
           } catch (reason) {
             setError(connectionErrorMessageFor(reason, t));
           } finally {
@@ -5388,11 +5819,11 @@ If a code was sent, recover the original submission without changing it.`,
           }
         }
       }, startAddingWorkspace = (backend) => {
-        setAddingWorkspace(!0), setWorkspaceBackend(backend), setCodexWorkspaceId(void 0), setCursorWorkspaceId(void 0), setAntigravityWorkspaceId(void 0), setPiWorkspaceId(void 0), setOpencodeWorkspaceId(void 0), setClaudeWorkspaceId(void 0), setHermesWorkspaceId(void 0), setShowAllWorkspaces(!1), setShowAllCodexWorkspaces(!1), setShowAllCursorWorkspaces(!1), setShowAllAntigravityWorkspaces(!1), setShowAllPiWorkspaces(!1), setShowAllOpencodeWorkspaces(!1), setShowAllClaudeWorkspaces(!1), setShowAllHermesWorkspaces(!1), setDirectory(void 0), setPath(""), browseDirectory();
+        setAddingWorkspace(!0), setWorkspaceBackend(backend), setCodexWorkspaceId(void 0), setCursorWorkspaceId(void 0), setAntigravityWorkspaceId(void 0), setPiWorkspaceId(void 0), setOpencodeWorkspaceId(void 0), setClaudeWorkspaceId(void 0), setHermesWorkspaceId(void 0), setShowAllWorkspaces(!1), setShowAllCodexWorkspaces(!1), setShowAllCursorWorkspaces(!1), setShowAllAntigravityWorkspaces(!1), setShowAllPiWorkspaces(!1), setShowAllOpencodeWorkspaces(!1), setShowAllClaudeWorkspaces(!1), setShowAllHermesWorkspaces(!1), setDirectory(void 0), setPickedDirectoryPath(void 0), setPath(""), browseDirectory();
       }, cancelAddingWorkspace = () => {
-        setAddingWorkspace(!1), setWorkspaceBackend("harness"), setCodexWorkspaceId(void 0), setCursorWorkspaceId(void 0), setAntigravityWorkspaceId(void 0), setPiWorkspaceId(void 0), setOpencodeWorkspaceId(void 0), setClaudeWorkspaceId(void 0), setHermesWorkspaceId(void 0), setDirectory(void 0), setPath("");
+        setAddingWorkspace(!1), setWorkspaceBackend("harness"), setCodexWorkspaceId(void 0), setCursorWorkspaceId(void 0), setAntigravityWorkspaceId(void 0), setPiWorkspaceId(void 0), setOpencodeWorkspaceId(void 0), setClaudeWorkspaceId(void 0), setHermesWorkspaceId(void 0), setDirectory(void 0), setPickedDirectoryPath(void 0), setPath("");
       }, refreshRemote = async () => {
-        setBusy(!0), setRefreshingHosts(!0), setNotice(void 0), setError(void 0);
+        setBusy(!0), setNotice(void 0), setError(void 0);
         try {
           let nextStatus = await props.control("status");
           if (setStatus(nextStatus), nextStatus.controlUnavailable) {
@@ -5437,7 +5868,28 @@ If a code was sent, recover the original submission without changing it.`,
         } catch (reason) {
           setError(connectionErrorMessageFor(reason, t));
         } finally {
-          setRefreshingHosts(!1), setBusy(!1);
+          setBusy(!1);
+        }
+      }, restartHost = async (device) => {
+        if (restartingHost === void 0 && window.confirm(t("restartHostConfirm", { name: device.name }))) {
+          setRestartingHost(device.deviceId), setError(void 0), setNotice(void 0);
+          try {
+            await props.control("host.restart", { targetDeviceId: device.deviceId }), window.setTimeout(() => {
+              let attempts = 0, refresh = () => {
+                attempts += 1, Promise.all([
+                  props.control("devices"),
+                  props.control("status")
+                ]).then(([nextDevices, nextStatus]) => {
+                  setDevices(nextDevices), setStatus(nextStatus), setRestartingHost(void 0);
+                }).catch(() => {
+                  attempts < 2 ? window.setTimeout(refresh, 1e4) : setRestartingHost(void 0);
+                });
+              };
+              refresh();
+            }, 8e3);
+          } catch (reason) {
+            setError(connectionErrorMessageFor(reason, t)), setRestartingHost(void 0);
+          }
         }
       }, show = async () => {
         setShowAllWorkspaces(!1), setShowAllCodexWorkspaces(!1), setShowAllCursorWorkspaces(!1), setShowAllAntigravityWorkspaces(!1), setShowAllPiWorkspaces(!1), setShowAllOpencodeWorkspaces(!1), setShowAllClaudeWorkspaces(!1), setShowAllHermesWorkspaces(!1), setOpen(!0), await refreshRemote();
@@ -5448,7 +5900,7 @@ If a code was sent, recover the original submission without changing it.`,
         setStatus(next), next.host?.pairingHostOnly && (setNeedsAuthorization(!next.host.authorized || next.host.accountRequired), setDevices([]), setSelectedHost(void 0), setConnectingHost(void 0)), next.host?.online && setDiscoveryUnavailable(!1);
       }), [props.statusFeed]);
       let chooseAnotherHost = () => {
-        setSelectedHost(void 0), setWorkspaces([]), setCodexWorkspaces([]), setCursorWorkspaces([]), setAntigravityWorkspaces([]), setPiWorkspaces([]), setOpencodeWorkspaces([]), setClaudeWorkspaces([]), setHermesWorkspaces([]), setShowAllWorkspaces(!1), setShowAllCodexWorkspaces(!1), setShowAllCursorWorkspaces(!1), setShowAllAntigravityWorkspaces(!1), setShowAllPiWorkspaces(!1), setShowAllOpencodeWorkspaces(!1), setShowAllClaudeWorkspaces(!1), setShowAllHermesWorkspaces(!1), setWorkspaceBackend("harness"), setCodexWorkspaceId(void 0), setCursorWorkspaceId(void 0), setAntigravityWorkspaceId(void 0), setPiWorkspaceId(void 0), setOpencodeWorkspaceId(void 0), setClaudeWorkspaceId(void 0), setHermesWorkspaceId(void 0), setDirectory(void 0), setPath(""), setAddingWorkspace(!1), setError(void 0);
+        setWorkspaceSearch(""), setSelectedHost(void 0), setWorkspaces([]), setCodexWorkspaces([]), setCursorWorkspaces([]), setAntigravityWorkspaces([]), setPiWorkspaces([]), setOpencodeWorkspaces([]), setClaudeWorkspaces([]), setHermesWorkspaces([]), setShowAllWorkspaces(!1), setShowAllCodexWorkspaces(!1), setShowAllCursorWorkspaces(!1), setShowAllAntigravityWorkspaces(!1), setShowAllPiWorkspaces(!1), setShowAllOpencodeWorkspaces(!1), setShowAllClaudeWorkspaces(!1), setShowAllHermesWorkspaces(!1), setWorkspaceBackend("harness"), setCodexWorkspaceId(void 0), setCursorWorkspaceId(void 0), setAntigravityWorkspaceId(void 0), setPiWorkspaceId(void 0), setOpencodeWorkspaceId(void 0), setClaudeWorkspaceId(void 0), setHermesWorkspaceId(void 0), setDirectory(void 0), setPath(""), setAddingWorkspace(!1), setError(void 0);
       }, resetLoginFlow = () => {
         providerRequestRun.current += 1, qrFlowRun.current += 1, setQrSession(void 0), setQrImage(void 0), setQrExpired(!1), setOAuthProviders([]), setPairingServerUrl(void 0), setProvidersFailed(!1), setProvidersLoading(!1), setLoginMethod("password"), loginMethodManuallySelected.current = !1, setPassword(""), setError(void 0), setNotice(void 0);
       }, saveLoginServer = async (serverUrlOverride) => {
@@ -5550,39 +6002,8 @@ If a code was sent, recover the original submission without changing it.`,
             setError(messageOf(reason, t)), setBusy(!1);
           }
         }
-      }, reauth = status?.clientAuthRequired === !0, remoteLabel = reauth ? t("clientSignInAgain") : status?.mode === "remote" ? t("activeRemote", { name: status.target?.name ?? t("host") }) : t("remoteEntry"), remoteActionLabel = !reauth && status?.mode === "remote" ? `${remoteLabel} \xB7 ${t("exitRemote")}` : remoteLabel, visibleWorkspaces = showAllWorkspaces ? workspaces : workspaces.slice(0, 3), visibleCodexWorkspaces = showAllCodexWorkspaces ? codexWorkspaces : codexWorkspaces.slice(0, 3), visibleCursorWorkspaces = showAllCursorWorkspaces ? cursorWorkspaces : cursorWorkspaces.slice(0, 3), visibleAntigravityWorkspaces = showAllAntigravityWorkspaces ? antigravityWorkspaces : antigravityWorkspaces.slice(0, 3), visiblePiWorkspaces = showAllPiWorkspaces ? piWorkspaces : piWorkspaces.slice(0, 3), visibleOpencodeWorkspaces = showAllOpencodeWorkspaces ? opencodeWorkspaces : opencodeWorkspaces.slice(0, 3), visibleClaudeWorkspaces = showAllClaudeWorkspaces ? claudeWorkspaces : claudeWorkspaces.slice(0, 3), visibleHermesWorkspaces = showAllHermesWorkspaces ? hermesWorkspaces : hermesWorkspaces.slice(0, 3), codexAvailable = status?.remoteFeatures?.codex === !0, cursorAvailable = status?.remoteFeatures?.cursor === !0, antigravityAvailable = status?.remoteFeatures?.antigravity === !0, piAvailable = status?.remoteFeatures?.pi === !0, opencodeAvailable = status?.remoteFeatures?.opencode === !0, claudeAvailable = status?.remoteFeatures?.claude === !0, hermesAvailable = status?.remoteFeatures?.hermes === !0, rawUpdate = status?.update, updateInfo = rawUpdate !== void 0 && typeof rawUpdate.currentVersion == "string" && typeof rawUpdate.latestVersion == "string" ? rawUpdate : void 0, localUpdateAvailable = updateInfo !== void 0 && compareVersions(updateInfo.currentVersion, updateInfo.latestVersion) < 0, updateNotice = updateInfo !== void 0 && localUpdateAvailable ? t("updateAvailable", { latest: updateInfo.latestVersion, current: updateInfo.currentVersion }) : void 0, releasesUrl = "https://github.com/liguobao/ds-harness-remote/releases", canUpgradeInPlace = updateInfo?.upgrade === "ready", startLocalUpgrade = async () => {
-        if (!(!canUpgradeInPlace || updateInfo === void 0)) {
-          setUpgradePhase("running"), setUpgradeError(void 0);
-          try {
-            let result = await props.control("plugin.update", {
-              version: updateInfo.latestVersion
-            });
-            if (result.status === "started") {
-              setUpgradePhase("started");
-              return;
-            }
-            if (result.status === "manual") {
-              setUpgradePhase("idle"), window.open(releasesUrl, "_blank", "noopener");
-              return;
-            }
-            setUpgradePhase("failed"), setUpgradeError(typeof result.message == "string" && result.message !== "" ? result.message : t("pluginUpdateFailed"));
-          } catch (reason) {
-            if (setUpgradePhase("verifying"), await settleLostUpgrade(
-              () => props.control("status"),
-              updateInfo.latestVersion
-            ) === "upgraded") {
-              setUpgradePhase("started");
-              return;
-            }
-            setUpgradePhase("unknown"), setUpgradeError(messageOf(reason, t));
-          }
-        }
-      }, deviceUpdateAvailable = (device) => updateInfo !== void 0 && device.clientVersion !== void 0 && compareVersions(device.clientVersion, updateInfo.latestVersion) < 0, selectedHostDetails = selectedHost === void 0 ? void 0 : [
-        formatPlatform(selectedHost.platform),
-        selectedHost.harnessVersion === void 0 ? void 0 : t("harnessVersion", { version: selectedHost.harnessVersion }),
-        selectedHost.clientVersion === void 0 ? void 0 : t("pluginVersion", { version: selectedHost.clientVersion }),
-        deviceUpdateAvailable(selectedHost) ? t("updateAvailableTag") : void 0
-      ].filter(Boolean).join(" \xB7 "), connectedClients = status?.host?.connectedClients ?? [], connectedCount = connectedClients.length, connectedCountLabel = t("connectedClientCount", { count: connectedCount }), connectedMenu = !needsAuthorization && status?.hostAuthorizationAvailable === !0 ? React.createElement(
+      }, reauth = status?.clientAuthRequired === !0, remoteLabel = reauth ? t("clientSignInAgain") : status?.mode === "remote" ? t("activeRemote", { name: status.target?.name ?? t("host") }) : t("remoteEntry"), remoteActionLabel = !reauth && status?.mode === "remote" ? `${remoteLabel} \xB7 ${t("exitRemote")}` : remoteLabel, query = workspaceSearch.trim().toLocaleLowerCase(), matchingWorkspaces = (rows, expanded) => query !== "" ? rows.filter((row) => `${row.title}
+${row.path}`.toLocaleLowerCase().includes(query)) : expanded ? rows : rows.slice(0, 3), visibleWorkspaces = matchingWorkspaces(workspaces, showAllWorkspaces), visibleCodexWorkspaces = matchingWorkspaces(codexWorkspaces, showAllCodexWorkspaces), visibleCursorWorkspaces = matchingWorkspaces(cursorWorkspaces, showAllCursorWorkspaces), visibleAntigravityWorkspaces = matchingWorkspaces(antigravityWorkspaces, showAllAntigravityWorkspaces), visiblePiWorkspaces = matchingWorkspaces(piWorkspaces, showAllPiWorkspaces), visibleOpencodeWorkspaces = matchingWorkspaces(opencodeWorkspaces, showAllOpencodeWorkspaces), visibleClaudeWorkspaces = matchingWorkspaces(claudeWorkspaces, showAllClaudeWorkspaces), visibleHermesWorkspaces = matchingWorkspaces(hermesWorkspaces, showAllHermesWorkspaces), codexAvailable = status?.remoteFeatures?.codex === !0, cursorAvailable = status?.remoteFeatures?.cursor === !0, antigravityAvailable = status?.remoteFeatures?.antigravity === !0, piAvailable = status?.remoteFeatures?.pi === !0, opencodeAvailable = status?.remoteFeatures?.opencode === !0, claudeAvailable = status?.remoteFeatures?.claude === !0, hermesAvailable = status?.remoteFeatures?.hermes === !0, rawUpdate = status?.update, updateInfo = rawUpdate !== void 0 && typeof rawUpdate.currentVersion == "string" && typeof rawUpdate.latestVersion == "string" ? rawUpdate : void 0, localUpdateAvailable = updateInfo !== void 0 && compareVersions(updateInfo.currentVersion, updateInfo.latestVersion) < 0, updateNotice = updateInfo !== void 0 && localUpdateAvailable ? t("updateAvailable", { latest: updateInfo.latestVersion, current: updateInfo.currentVersion }) : void 0, deviceUpdateAvailable = (device) => updateInfo !== void 0 && device.clientVersion !== void 0 && compareVersions(device.clientVersion, updateInfo.latestVersion) < 0, connectedClients = status?.host?.connectedClients ?? [], connectedCount = connectedClients.length, connectedCountLabel = t("connectedClientCount", { count: connectedCount }), connectedMenu = !needsAuthorization && status?.hostAuthorizationAvailable === !0 ? React.createElement(
         "div",
         {
           className: `dshRemoteConnectedMenu${devicesOpen ? " isOpen" : ""}`
@@ -5645,7 +6066,99 @@ If a code was sent, recover the original submission without changing it.`,
             ))
           )
         ) : null
-      ) : null, serverUnavailable = discoveryUnavailable || status?.host?.online === !1 && status.host.reconnecting && (status.host.lastActiveAt !== void 0 || status.host.error === "CONNECTION_FAILED"), listedHosts = status?.host?.pairingHostOnly ? [] : connectingHost === void 0 ? devices : [connectingHost], computerIcon = React.createElement(
+      ) : null, serverUnavailable = discoveryUnavailable || status?.host?.online === !1 && status.host.reconnecting && (status.host.lastActiveAt !== void 0 || status.host.error === "CONNECTION_FAILED"), listedHosts = status?.host?.pairingHostOnly ? [] : connectingHost === void 0 ? devices.filter((device) => hostFilter === "all" || (hostFilter === "online" ? device.online && !serverUnavailable : !device.online || serverUnavailable)) : [connectingHost], hostFilterOptions = [
+        { value: "all", label: t("allHosts") },
+        { value: "online", label: t("onlineHosts") },
+        { value: "offline", label: t("offlineHosts") }
+      ], renderAccount = () => React.createElement(
+        "footer",
+        { className: "dshRemoteAccountFooter" },
+        React.createElement(
+          "div",
+          { className: `dshRemoteAccountIdentity dshRemoteAccountMenu${accountMenuOpen ? " isOpen" : ""}` },
+          React.createElement(
+            "button",
+            {
+              type: "button",
+              className: "dshRemoteAccountTrigger",
+              "aria-haspopup": "menu",
+              "aria-expanded": accountMenuOpen,
+              "aria-label": footerAccountName(status, t),
+              onClick: () => setAccountMenuOpen((current) => !current)
+            },
+            React.createElement("span", { className: "dshRemoteAccountAvatar", "aria-hidden": !0 }, accountInitial(footerAccountName(status, t))),
+            React.createElement(
+              "span",
+              { className: "dshRemoteAccountCopy" },
+              React.createElement("strong", null, footerAccountName(status, t))
+            ),
+            React.createElement("svg", {
+              className: "dshRemoteAccountChevron",
+              viewBox: "0 0 24 24",
+              width: 11,
+              height: 11,
+              fill: "none",
+              stroke: "currentColor",
+              strokeWidth: 2,
+              strokeLinecap: "round",
+              strokeLinejoin: "round",
+              "aria-hidden": !0
+            }, React.createElement("path", { d: "m6 9 6 6 6-6" }))
+          ),
+          accountMenuOpen ? React.createElement(
+            "div",
+            {
+              className: "dshRemoteAccountMenuPanel",
+              role: "menu",
+              ref: accountMenuPanelRef,
+              onKeyDown: (event) => {
+                event.key === "Tab" && setAccountMenuOpen(!1);
+              }
+            },
+            React.createElement("button", {
+              type: "button",
+              role: "menuitem",
+              className: "dshRemoteAccountMenuItem",
+              disabled: busy,
+              onClick: () => {
+                setAccountMenuOpen(!1), logoutRemote();
+              }
+            }, glyph(React, LogOut), React.createElement("span", null, t("exitRemoteAccount")))
+          ) : null
+        ),
+        updateNotice === void 0 ? null : React.createElement("a", {
+          className: "dshRemoteAccountUpdate",
+          href: "https://github.com/gaolin89898/ds-harness-remote/releases",
+          target: "_blank",
+          rel: "noreferrer",
+          title: updateNotice
+        }, t("updateAvailableShort", { version: updateInfo?.latestVersion ?? "" })),
+        props.openSettings === void 0 ? null : React.createElement("button", {
+          type: "button",
+          className: "dshRemoteAccountSettings",
+          onClick: props.openSettings,
+          "aria-label": t("settings"),
+          title: t("settings")
+        }, glyph(React, Settings2))
+      ), workspaceHeading = React.createElement(
+        "div",
+        { className: "dshRemoteWorkspaceSourceHeading" },
+        React.createElement("strong", null, t("existingWorkspaces")),
+        React.createElement("button", {
+          type: "button",
+          className: "dshRemoteAddWorkspace",
+          disabled: busy,
+          title: t("addRemoteWorkspace"),
+          "aria-label": t("addRemoteWorkspace"),
+          onClick: () => startAddingWorkspace("harness")
+        }, glyph(React, Plus))
+      ), workspaceIcon = React.createElement("svg", {
+        className: "dshRemoteWorkspaceIcon",
+        viewBox: whaleMarkViewBox,
+        fill: "currentColor",
+        "aria-hidden": !0,
+        focusable: !1
+      }, React.createElement("path", { d: whaleMarkPath })), computerIcon = React.createElement(
         "svg",
         {
           className: "dshRemoteComputerIcon",
@@ -5666,23 +6179,17 @@ If a code was sent, recover the original submission without changing it.`,
       }, t("updateShort", { version: updateInfo?.latestVersion ?? "" })) : null, updateDot = localUpdateAvailable ? React.createElement("span", { className: "dshRemoteUpdateDot", title: t("updateBadge"), "aria-hidden": !0 }) : null, entry = React.createElement(
         "div",
         { className: `dshRemoteSidebarEntry${remoteActive ? " isActive" : ""}${props.wide ? " isWide" : " isRail"}${localUpdateAvailable ? " hasUpdate" : ""}` },
-        React.createElement(remoteActive && props.wide && !reauth ? "div" : "button", {
-          ...remoteActive && props.wide && !reauth ? {} : {
-            type: "button",
-            disabled: remoteActive && busy,
-            onClick: () => void (remoteActive && !reauth ? openLocalWorkspaces() : show())
-          },
-          className: "dshRemoteModeButton",
-          title: props.wide ? remoteLabel : remoteActionLabel,
-          "aria-label": props.wide ? remoteLabel : remoteActionLabel
-        }, computerIcon, props.wide ? React.createElement("span", { className: "dshRemoteSidebarLabel" }, remoteLabel) : null, props.wide ? updateSuffix : updateDot),
-        remoteActive && props.wide ? React.createElement("button", {
+        props.wide ? React.createElement("span", { className: "dshRemoteSidebarLabel", title: remoteActionLabel }, remoteLabel) : null,
+        props.wide ? updateSuffix : null,
+        React.createElement("button", {
           type: "button",
-          className: "dshRemoteExitLink",
-          disabled: busy,
-          onClick: () => void openLocalWorkspaces()
-        }, t("exitRemote")) : null
-      ), accountEntry = remoteActive ? entry : React.createElement(
+          className: "dshRemoteModeButton",
+          disabled: remoteActive && busy,
+          title: remoteActionLabel,
+          "aria-label": props.wide ? remoteLabel : remoteActionLabel,
+          onClick: () => void (remoteActive && !reauth ? openLocalWorkspaces() : show())
+        }, computerIcon, props.wide ? null : updateDot)
+      ), accountEntry = React.createElement(
         "div",
         { className: `dshRemoteAccountEntry${remoteActive ? " isActive" : ""}` },
         React.createElement("button", {
@@ -5707,10 +6214,10 @@ If a code was sent, recover the original submission without changing it.`,
         }, React.createElement(
           "section",
           {
-            className: `dshRemotePage${selectedHost === void 0 ? "" : " hasSelectedHost"}`,
+            className: `dshRemotePage${needsAuthorization === !1 ? " isWorkbench" : ""}${selectedHost === void 0 ? "" : " hasSelectedHost"}`,
             role: "dialog",
             "aria-modal": !0,
-            "aria-label": selectedHost?.name ?? t("remoteTitle"),
+            "aria-label": t(selectedHost === void 0 ? "remoteTitle" : "chooseWorkspace"),
             tabIndex: -1,
             ref: pageRef
           },
@@ -5723,15 +6230,39 @@ If a code was sent, recover the original submission without changing it.`,
               React.createElement(
                 "div",
                 { className: "dshRemotePageTitleRow" },
-                React.createElement("strong", null, selectedHost?.name ?? t("remoteTitle")),
-                selectedHost === void 0 ? React.createElement("a", {
-                  className: "dshRemoteStarLink",
-                  href: "https://github.com/liguobao/ds-harness-remote",
-                  target: "_blank",
-                  rel: "noreferrer"
-                }, t("starProject")) : null
-              ),
-              React.createElement("p", null, selectedHostDetails ?? t(status?.host?.pairingHostOnly ? "pairingHostOnly" : "remoteDescription"))
+                React.createElement(
+                  "span",
+                  { className: "dshRemoteBrandMark", "aria-hidden": !0 },
+                  React.createElement("svg", {
+                    viewBox: whaleMarkViewBox,
+                    fill: "currentColor",
+                    "aria-hidden": !0,
+                    focusable: !1
+                  }, React.createElement("path", { d: whaleMarkPath }))
+                ),
+                React.createElement(
+                  "div",
+                  { className: "dshRemotePageTitles" },
+                  React.createElement(
+                    "div",
+                    { className: "dshRemotePageEyebrow" },
+                    React.createElement("span", { className: "dshRemotePageEyebrowLabel" }, "DSH Remote"),
+                    selectedHost === void 0 ? null : React.createElement(
+                      React.Fragment,
+                      null,
+                      glyph(React, ChevronRight),
+                      React.createElement("span", { className: "dshRemoteBreadcrumbHost", title: selectedHost.name }, selectedHost.name)
+                    ),
+                    selectedHost === void 0 ? React.createElement("a", {
+                      className: "dshRemoteStarLink",
+                      href: "https://github.com/gaolin89898/ds-harness-remote",
+                      target: "_blank",
+                      rel: "noreferrer"
+                    }, t("starProject")) : null
+                  ),
+                  React.createElement("strong", null, t(selectedHost === void 0 ? "remoteTitle" : "chooseWorkspace"))
+                )
+              )
             ),
             React.createElement(
               "div",
@@ -5741,8 +6272,9 @@ If a code was sent, recover the original submission without changing it.`,
                 className: "dshRemotePageBack",
                 disabled: busy,
                 title: t("backToHosts"),
+                "aria-label": t("backToHosts"),
                 onClick: chooseAnotherHost
-              }, t("backToHosts")),
+              }, glyph(React, ArrowLeftRight), React.createElement("span", null, t("backToHosts"))),
               React.createElement("button", {
                 type: "button",
                 className: "dshRemotePageRefresh",
@@ -5750,8 +6282,8 @@ If a code was sent, recover the original submission without changing it.`,
                 title: t("refreshRemote"),
                 "aria-label": t("refreshRemote"),
                 onClick: () => void refreshRemote()
-              }, t("refreshRemoteShort")),
-              React.createElement("button", { type: "button", className: "dshRemotePageClose", onClick: () => setOpen(!1), "aria-label": t("close") }, "\xD7")
+              }, glyph(React, RefreshCw)),
+              React.createElement("button", { type: "button", className: "dshRemotePageClose", onClick: () => setOpen(!1), "aria-label": t("close"), title: t("close") }, glyph(React, X))
             )
           ),
           React.createElement(
@@ -5776,7 +6308,7 @@ If a code was sent, recover the original submission without changing it.`,
                   React.createElement(
                     "a",
                     {
-                      href: "https://github.com/liguobao/ds-harness-remote",
+                      href: "https://github.com/gaolin89898/ds-harness-remote",
                       target: "_blank",
                       rel: "noopener noreferrer"
                     },
@@ -5897,16 +6429,6 @@ If a code was sent, recover the original submission without changing it.`,
                     ) : null,
                     React.createElement("strong", null, scanLabel),
                     React.createElement("p", null, t("scanLoginHint")),
-                    !qrExpired && (busy || qrSession !== void 0) ? React.createElement(
-                      "div",
-                      {
-                        className: "dshRemoteLoginProgress",
-                        role: "status",
-                        "aria-live": "polite"
-                      },
-                      React.createElement("span", { className: "dshRemoteLoginSpinner", "aria-hidden": !0 }),
-                      t(busy && qrSession !== void 0 ? "loginLoadingDevices" : "loginWaitingAuthorization")
-                    ) : null,
                     qrExpired ? React.createElement("button", {
                       type: "button",
                       disabled: busy,
@@ -5947,14 +6469,14 @@ If a code was sent, recover the original submission without changing it.`,
                       type: "button",
                       disabled: busy || savingServer,
                       onClick: () => {
-                        resetLoginFlow(), setLoginServerUrl("https://dsh.r2049.cn"), saveLoginServer("https://dsh.r2049.cn");
+                        resetLoginFlow(), setLoginServerUrl("https://remote.gaolin.ink"), saveLoginServer("https://remote.gaolin.ink");
                       }
                     }, t("restoreDefaultServiceAddress")),
                     React.createElement("button", {
                       type: "button",
                       disabled: busy || savingServer,
                       onClick: () => {
-                        setLoginServerUrl(status?.serverUrl ?? "https://dsh.r2049.cn"), setEditingServer(!1);
+                        setLoginServerUrl(status?.serverUrl ?? "https://remote.gaolin.ink"), setEditingServer(!1);
                       }
                     }, t("cancelServiceAddressEdit"))
                   ) : React.createElement(
@@ -6007,6 +6529,25 @@ If a code was sent, recover the original submission without changing it.`,
                       React.createElement("button", { type: "button", disabled: busy || hostRegistrationCode.trim() === "", onClick: () => void authorizeHost("code") }, t(busy ? "registering" : "useRegistrationCode"))
                     )
                   ) : null,
+                  status?.hostAuthorizationAvailable ? React.createElement(
+                    "div",
+                    { className: "dshRemotePermissionRow" },
+                    React.createElement("span", { className: "dshRemotePermissionIcon", "aria-hidden": !0 }, glyph(React, ShieldCheck)),
+                    React.createElement(
+                      "label",
+                      { className: "dshRemoteHostControlToggle" },
+                      React.createElement("span", null, t("allowControlDevice")),
+                      React.createElement("input", {
+                        type: "checkbox",
+                        role: "switch",
+                        disabled: busy,
+                        "aria-label": t("allowControlDevice"),
+                        checked: status.host?.authorized === !0,
+                        onChange: (event) => void setCurrentDeviceControl(event.target.checked)
+                      })
+                    ),
+                    connectedMenu
+                  ) : null,
                   React.createElement(
                     "div",
                     { className: "dshRemoteSectionHeading" },
@@ -6014,638 +6555,736 @@ If a code was sent, recover the original submission without changing it.`,
                       "div",
                       { className: "dshRemoteSectionTitle" },
                       React.createElement("strong", null, t(status?.host?.pairingHostOnly ? "thisMachineHost" : "chooseHost")),
-                      status?.serverUrl !== void 0 && !status.host?.pairingHostOnly ? React.createElement("a", {
-                        className: "dshRemoteManageHosts",
-                        href: `${status.serverUrl}/app/hosts`,
-                        target: "_blank",
-                        rel: "noreferrer",
-                        title: t("manageHosts")
-                      }, t("manageHosts")) : null,
-                      status?.hostAuthorizationAvailable ? React.createElement(
-                        "div",
-                        { className: "dshRemoteHostControlToggle" },
-                        React.createElement("span", null, t("allowControlDevice")),
-                        React.createElement("input", {
-                          type: "checkbox",
-                          role: "switch",
+                      status?.host?.pairingHostOnly ? null : React.createElement(
+                        "span",
+                        { className: "dshRemoteOnlineCount" },
+                        t("onlineHostCount", { count: serverUnavailable ? 0 : devices.filter((device) => device.online).length })
+                      )
+                    ),
+                    status?.host?.pairingHostOnly ? null : React.createElement(
+                      "div",
+                      { className: `dshRemoteHostFilter${hostFilterOpen ? " isOpen" : ""}` },
+                      React.createElement(
+                        "button",
+                        {
+                          type: "button",
+                          className: "dshRemoteHostFilterTrigger",
                           disabled: busy,
-                          "aria-label": t("allowControlDevice"),
-                          checked: status.host?.authorized === !0,
-                          onChange: (event) => void setCurrentDeviceControl(event.target.checked)
-                        })
-                      ) : null,
-                      connectedMenu
+                          "aria-haspopup": "listbox",
+                          "aria-expanded": hostFilterOpen,
+                          "aria-label": t("hostFilterLabel"),
+                          ref: hostFilterTriggerRef,
+                          onClick: () => setHostFilterOpen((current) => !current),
+                          onKeyDown: (event) => {
+                            event.key !== "ArrowDown" && event.key !== "ArrowUp" || (event.preventDefault(), setHostFilterOpen(!0));
+                          }
+                        },
+                        hostFilterOptions.find((option) => option.value === hostFilter)?.label ?? t("allHosts"),
+                        React.createElement("svg", {
+                          className: "dshRemoteHostFilterChevron",
+                          viewBox: "0 0 24 24",
+                          width: 11,
+                          height: 11,
+                          fill: "none",
+                          stroke: "currentColor",
+                          strokeWidth: 2,
+                          strokeLinecap: "round",
+                          strokeLinejoin: "round",
+                          "aria-hidden": !0
+                        }, React.createElement("path", { d: "m6 9 6 6 6-6" }))
+                      ),
+                      hostFilterOpen ? React.createElement("div", {
+                        className: "dshRemoteHostFilterMenu",
+                        role: "listbox",
+                        "aria-label": t("hostFilterLabel"),
+                        ref: hostFilterMenuRef,
+                        onKeyDown: (event) => {
+                          let menu = event.currentTarget;
+                          if (!(menu instanceof Element)) return;
+                          let options = Array.from(menu.querySelectorAll(".dshRemoteHostFilterOption"));
+                          if (event.key === "Escape" || event.key === "Tab") {
+                            setHostFilterOpen(!1), event.key === "Escape" && (event.stopPropagation(), hostFilterTriggerRef.current?.focus());
+                            return;
+                          }
+                          if (event.key !== "ArrowDown" && event.key !== "ArrowUp" && event.key !== "Home" && event.key !== "End") return;
+                          event.preventDefault();
+                          let index = options.findIndex((option) => option === document.activeElement), next = event.key === "Home" ? 0 : event.key === "End" ? options.length - 1 : event.key === "ArrowDown" ? index + 1 : index - 1;
+                          options[(next + options.length) % options.length]?.focus();
+                        }
+                      }, hostFilterOptions.map((option) => React.createElement("button", {
+                        type: "button",
+                        key: option.value,
+                        role: "option",
+                        "aria-selected": option.value === hostFilter,
+                        className: `dshRemoteHostFilterOption${option.value === hostFilter ? " isSelected" : ""}`,
+                        onClick: () => {
+                          setHostFilterOpen(!1), option.value !== hostFilter && setHostFilter(option.value);
+                        }
+                      }, option.label))) : null
                     )
                   ),
                   React.createElement("div", {
                     className: `dshRemoteHostList${connectingHost === void 0 ? "" : " isCollapsed"}`,
                     "aria-busy": connectingHost === void 0 ? void 0 : !0
-                  }, listedHosts.length === 0 ? error !== void 0 || refreshingHosts ? null : React.createElement("p", null, t(status?.host?.pairingHostOnly ? "pairingHostOnly" : "noRemoteHosts")) : listedHosts.map((device) => React.createElement(
-                    "button",
-                    {
-                      type: "button",
-                      key: device.deviceId,
-                      disabled: busy || serverUnavailable || !device.online,
-                      "aria-current": connectingHost?.deviceId === device.deviceId ? "true" : void 0,
-                      onClick: () => void selectHost(device)
-                    },
-                    React.createElement(
-                      "span",
-                      null,
-                      React.createElement("strong", null, device.name),
-                      React.createElement("small", null, [
-                        formatPlatform(device.platform),
-                        device.harnessVersion === void 0 ? void 0 : t("harnessVersion", { version: device.harnessVersion }),
-                        device.clientVersion === void 0 ? void 0 : t("pluginVersion", { version: device.clientVersion }),
-                        deviceUpdateAvailable(device) ? t("updateAvailableTag") : void 0
-                      ].filter(Boolean).join(" \xB7 "))
-                    ),
-                    React.createElement("small", null, t(serverUnavailable ? "unavailable" : device.online ? "online" : "offline"))
-                  )))
+                  }, listedHosts.length === 0 ? error !== void 0 ? null : React.createElement("p", null, t(busy ? "checkingConnection" : status?.host?.pairingHostOnly ? "pairingHostOnly" : devices.length > 0 ? "noHostMatches" : "noRemoteHosts")) : listedHosts.map((device) => {
+                    let rowRestarting = restartingHost === device.deviceId, rowDisabled = busy || serverUnavailable || !device.online || rowRestarting;
+                    return React.createElement(
+                      "div",
+                      {
+                        key: device.deviceId,
+                        // A real row button cannot hold the restart action: nested
+                        // buttons are invalid, so the row is a div with button
+                        // semantics and the action keeps its own native button.
+                        className: `dshRemoteHostRow${rowDisabled ? " isDisabled" : ""}`,
+                        role: "button",
+                        tabIndex: rowDisabled ? -1 : 0,
+                        "aria-disabled": rowDisabled ? !0 : void 0,
+                        "aria-current": connectingHost?.deviceId === device.deviceId ? "true" : void 0,
+                        onClick: () => {
+                          rowDisabled || selectHost(device);
+                        },
+                        onKeyDown: (event) => {
+                          rowDisabled || event.key !== "Enter" && event.key !== " " || (event.preventDefault(), selectHost(device));
+                        }
+                      },
+                      React.createElement(
+                        "span",
+                        { className: "dshRemoteHostItemLeft" },
+                        React.createElement(
+                          "span",
+                          { className: "dshRemoteHostItemIcon", "aria-hidden": !0 },
+                          hostDeviceGlyph(React, device.platform)
+                        ),
+                        React.createElement(
+                          "span",
+                          { className: "dshRemoteHostItemText" },
+                          React.createElement("strong", null, device.name),
+                          React.createElement("small", null, [
+                            formatPlatform(device.platform),
+                            device.harnessVersion === void 0 ? void 0 : t("harnessVersion", { version: device.harnessVersion }),
+                            device.clientVersion === void 0 ? void 0 : t("pluginVersion", { version: device.clientVersion }),
+                            deviceUpdateAvailable(device) ? t("updateAvailableTag") : void 0
+                          ].filter(Boolean).join(" \xB7 "))
+                        )
+                      ),
+                      React.createElement(
+                        "span",
+                        { className: "dshRemoteHostItemRight" },
+                        rowDisabled ? null : React.createElement("button", {
+                          type: "button",
+                          className: `dshRemoteHostRestart${restartingHost === device.deviceId ? " isBusy" : ""}`,
+                          disabled: busy || restartingHost !== void 0,
+                          title: t("restartHostTitle", { name: device.name }),
+                          "aria-label": t("restartHostTitle", { name: device.name }),
+                          onClick: (event) => {
+                            event.preventDefault(), event.stopPropagation(), restartHost(device);
+                          }
+                        }, glyph(React, Power)),
+                        React.createElement("small", {
+                          className: `dshRemoteHostStatus${rowRestarting ? " isRestarting" : serverUnavailable || !device.online ? " isOffline" : " isOnline"}`,
+                          "aria-busy": rowRestarting ? !0 : void 0
+                        }, t(rowRestarting ? "hostRestartingBadge" : serverUnavailable ? "unavailable" : device.online ? "online" : "offline")),
+                        React.createElement("span", { className: "dshRemoteHostItemChevron", "aria-hidden": !0 }, glyph(React, ChevronRight))
+                      )
+                    );
+                  }))
                 ) : null,
                 React.createElement(RemoteProgressView, { progress, t }),
-                selectedHost === void 0 ? connectingHost === void 0 ? React.createElement(
-                  React.Fragment,
-                  null,
-                  status?.host?.pairingHostOnly ? null : React.createElement("p", { className: "dshRemoteHint" }, t("selectHostHint")),
+                selectedHost === void 0 ? connectingHost === void 0 ? renderAccount() : null : React.createElement(
+                  "div",
+                  { className: "dshRemotePickerLayout" },
                   React.createElement(
-                    "footer",
-                    { className: "dshRemoteAccountFooter" },
-                    refreshingHosts ? React.createElement(
-                      "span",
-                      { className: "dshRemoteHostLoading", role: "status", "aria-label": t("checkingConnection") },
-                      React.createElement("span", { className: "dshRemoteLoginSpinner", "aria-hidden": !0 })
-                    ) : null,
+                    "aside",
+                    { className: "dshRemoteHostRail", "aria-label": selectedHost.name },
                     React.createElement(
-                      "span",
-                      { className: "dshRemoteHostNameLine" },
-                      React.createElement("span", null, status?.target?.name ?? status?.deviceName ?? (status?.host?.account === void 0 ? t("account") : displayRemoteAccount(status.host.account))),
-                      React.createElement(ServerNotice, {
-                        offline: discoveryUnavailable || status?.host?.online === !1 && status.host.reconnecting,
-                        linked: connectedCount > 0 || status?.connected === !0,
-                        expiresAt: status?.host?.recoveryExpiresAt ?? status?.network?.recoveryExpiresAt,
-                        t
-                      })
-                    ),
-                    updateNotice === void 0 ? null : canUpgradeInPlace ? React.createElement(
-                      React.Fragment,
-                      null,
-                      React.createElement("button", {
-                        type: "button",
-                        className: "dshRemoteAccountUpdate",
-                        disabled: upgradePhase === "running" || upgradePhase === "verifying" || upgradePhase === "started",
-                        title: upgradePhase === "failed" || upgradePhase === "unknown" ? upgradeError ?? updateNotice : updateNotice,
-                        onClick: () => void startLocalUpgrade()
-                      }, t(
-                        upgradePhase === "running" || upgradePhase === "verifying" ? "pluginUpdating" : upgradePhase === "started" ? "pluginUpdateReload" : upgradePhase === "failed" ? "pluginUpdateFailed" : upgradePhase === "unknown" ? "pluginUpdateUnknown" : "updateAvailableShort",
-                        { version: updateInfo?.latestVersion ?? "" }
-                      )),
-                      React.createElement("a", {
-                        className: "dshRemoteAccountUpdate",
-                        href: releasesUrl,
-                        target: "_blank",
-                        rel: "noreferrer",
-                        title: updateNotice
-                      }, t("pluginUpdateManual"))
-                    ) : React.createElement("a", {
-                      className: "dshRemoteAccountUpdate",
-                      href: releasesUrl,
-                      target: "_blank",
-                      rel: "noreferrer",
-                      title: updateNotice
-                    }, t("updateAvailableShort", { version: updateInfo?.latestVersion ?? "" })),
-                    props.openSettings === void 0 ? null : React.createElement("button", {
-                      type: "button",
-                      className: "dshRemoteAccountSettings",
-                      onClick: props.openSettings,
-                      "aria-label": t("settings"),
-                      title: t("settings")
-                    }, t("settings")),
-                    React.createElement("button", {
-                      type: "button",
-                      className: "dshRemoteAccountExit",
-                      disabled: busy,
-                      onClick: () => void logoutRemote()
-                    }, t("exitRemoteAccount"))
-                  )
-                ) : null : React.createElement(
-                  "section",
-                  { className: "dshRemoteBrowser", "aria-label": t("chooseDirectory") },
-                  React.createElement(
-                    "div",
-                    { className: "dshRemoteSectionHeading dshRemoteWorkspaceHeading" },
-                    React.createElement("strong", null, t(addingWorkspace ? workspaceBackend === "codex" ? "addCodexWorkspace" : workspaceBackend === "cursor" ? "addCursorWorkspace" : workspaceBackend === "antigravity" ? "addAntigravityWorkspace" : workspaceBackend === "pi" ? "addPiWorkspace" : workspaceBackend === "claude" ? "addClaudeWorkspace" : workspaceBackend === "hermes" ? "addHermesWorkspace" : workspaceBackend === "opencode" ? "addOpencodeWorkspace" : "addRemoteWorkspace" : "existingWorkspaces")),
-                    addingWorkspace ? React.createElement("button", {
-                      type: "button",
-                      className: "dshRemoteCancelWorkspace",
-                      disabled: busy,
-                      onClick: cancelAddingWorkspace
-                    }, t("cancelAddWorkspace")) : React.createElement("button", {
-                      type: "button",
-                      className: "dshRemoteAddWorkspace",
-                      disabled: busy,
-                      title: t("addRemoteWorkspace"),
-                      "aria-label": t("addRemoteWorkspace"),
-                      onClick: () => startAddingWorkspace("harness")
-                    }, React.createElement("svg", {
-                      className: "dshRemoteAddWorkspaceIcon",
-                      viewBox: "0 0 16 16",
-                      "aria-hidden": !0,
-                      focusable: !1
-                    }, React.createElement("path", { d: "M8 3v10M3 8h10", fill: "none", stroke: "currentColor", strokeWidth: 1.5, strokeLinecap: "round" })))
-                  ),
-                  addingWorkspace ? React.createElement(
-                    "div",
-                    { className: "dshRemoteFolderBrowser" },
-                    directory === void 0 ? React.createElement("p", null, t("loadingDirectory")) : React.createElement(
-                      React.Fragment,
-                      null,
-                      React.createElement(
-                        "nav",
-                        { className: "dshRemoteCrumbs", "aria-label": t("currentDirectory") },
-                        directory.crumbs.map((crumb) => React.createElement("button", {
-                          type: "button",
-                          key: crumb.path,
-                          disabled: busy || crumb.path === directory.path,
-                          onClick: () => void browseDirectory(crumb.path)
-                        }, crumb.path === directory.home ? "\u2302" : crumb.name))
-                      ),
-                      React.createElement("div", { className: "dshRemoteFolderList" }, directory.entries.filter((entry2) => !entry2.hidden).length === 0 ? React.createElement("p", null, t("emptyDirectory")) : directory.entries.filter((entry2) => !entry2.hidden).map((entry2) => React.createElement("button", {
-                        type: "button",
-                        key: entry2.path,
-                        disabled: busy,
-                        onClick: () => void browseDirectory(entry2.path)
-                      }, React.createElement("span", { "aria-hidden": !0 }, "\u25B1"), React.createElement("span", null, entry2.name)))),
-                      directory.truncated ? React.createElement("small", null, t("directoryTruncated")) : null
-                    )
-                  ) : React.createElement(
-                    "div",
-                    { className: "dshRemoteWorkspaceLists" },
-                    React.createElement(
-                      React.Fragment,
-                      null,
+                      "div",
+                      { className: "dshRemoteRailHost" },
+                      React.createElement("span", { className: "dshRemoteHostItemIcon", "aria-hidden": !0 }, hostDeviceGlyph(React, selectedHost.platform)),
                       React.createElement(
                         "div",
-                        { id: workspaceListId, className: "dshRemoteDirectoryList" },
-                        workspaces.length === 0 ? React.createElement("p", null, t("noRemoteWorkspaces")) : visibleWorkspaces.map((workspace) => React.createElement(
+                        null,
+                        React.createElement("strong", { title: selectedHost.name }, selectedHost.name),
+                        React.createElement("small", { className: `dshRemoteRailStatus${status?.connected ? " isOnline" : ""}` }, t(status?.connected ? "connected" : "offline"))
+                      )
+                    ),
+                    React.createElement(
+                      "dl",
+                      { className: "dshRemoteHostSpecs" },
+                      React.createElement("div", null, React.createElement("dt", null, t("platform")), React.createElement("dd", null, formatPlatform(selectedHost.platform))),
+                      selectedHost.harnessVersion === void 0 ? null : React.createElement(
+                        "div",
+                        null,
+                        React.createElement("dt", null, "Harness"),
+                        React.createElement("dd", null, selectedHost.harnessVersion)
+                      ),
+                      selectedHost.clientVersion === void 0 ? null : React.createElement(
+                        "div",
+                        null,
+                        React.createElement("dt", null, t("pluginVersion", { version: "" })),
+                        React.createElement(
+                          "dd",
+                          null,
+                          selectedHost.clientVersion,
+                          deviceUpdateAvailable(selectedHost) ? React.createElement("small", null, t("updateAvailableTag")) : null
+                        )
+                      )
+                    ),
+                    React.createElement(
+                      "div",
+                      { className: `dshRemoteSelectedDirectory${path === "" ? "" : " hasSelection"}` },
+                      React.createElement("span", null, glyph(React, FolderOpen), t("currentDirectory")),
+                      React.createElement("strong", { title: path || void 0 }, path || "\u2014")
+                    ),
+                    renderAccount()
+                  ),
+                  React.createElement(
+                    "section",
+                    { className: "dshRemoteBrowser", "aria-label": t("chooseDirectory") },
+                    addingWorkspace ? null : React.createElement(
+                      "label",
+                      { className: "dshRemoteWorkspaceSearch" },
+                      glyph(React, Search),
+                      React.createElement("input", {
+                        type: "search",
+                        value: workspaceSearch,
+                        placeholder: t("searchWorkspaces"),
+                        "aria-label": t("searchWorkspaces"),
+                        onChange: (event) => setWorkspaceSearch(event.target.value)
+                      })
+                    ),
+                    addingWorkspace ? React.createElement(
+                      "div",
+                      { className: "dshRemoteSectionHeading dshRemoteWorkspaceHeading" },
+                      React.createElement(
+                        "div",
+                        { className: "dshRemoteAddTitle" },
+                        React.createElement("strong", null, t(workspaceBackend === "codex" ? "addCodexWorkspace" : workspaceBackend === "cursor" ? "addCursorWorkspace" : workspaceBackend === "antigravity" ? "addAntigravityWorkspace" : workspaceBackend === "pi" ? "addPiWorkspace" : workspaceBackend === "claude" ? "addClaudeWorkspace" : workspaceBackend === "hermes" ? "addHermesWorkspace" : workspaceBackend === "opencode" ? "addOpencodeWorkspace" : "addRemoteWorkspace")),
+                        React.createElement("small", null, t("browseFolderHint"))
+                      ),
+                      directory === void 0 ? null : React.createElement(
+                        "span",
+                        { className: "dshRemoteDirectoryCount" },
+                        React.createElement(
+                          "svg",
+                          {
+                            viewBox: "0 0 24 24",
+                            width: 13,
+                            height: 13,
+                            fill: "none",
+                            stroke: "currentColor",
+                            strokeWidth: 1.7,
+                            strokeLinecap: "round",
+                            strokeLinejoin: "round",
+                            "aria-hidden": !0
+                          },
+                          React.createElement("path", { d: "M12 3 3 8l9 5 9-5-9-5Z" }),
+                          React.createElement("path", { d: "m3 13 9 5 9-5" })
+                        ),
+                        t("directoryCount", { count: directory.entries.filter((entry2) => !entry2.hidden).length })
+                      )
+                    ) : null,
+                    addingWorkspace ? React.createElement(
+                      "div",
+                      { className: "dshRemoteFolderBrowser" },
+                      directory === void 0 ? React.createElement("p", null, t("loadingDirectory")) : React.createElement(
+                        React.Fragment,
+                        null,
+                        React.createElement(
+                          "nav",
+                          { className: "dshRemoteCrumbs", "aria-label": t("currentDirectory") },
+                          React.createElement("button", {
+                            type: "button",
+                            key: "host",
+                            disabled: busy || directory.path === directory.home,
+                            onClick: () => void browseDirectory()
+                          }, selectedHost.name),
+                          ...directory.crumbs.filter((crumb) => crumb.path !== directory.home).map((crumb) => React.createElement("button", {
+                            type: "button",
+                            key: crumb.path,
+                            disabled: busy || crumb.path === directory.path,
+                            onClick: () => void browseDirectory(crumb.path)
+                          }, crumb.name))
+                        ),
+                        React.createElement("div", { className: "dshRemoteFolderList" }, directory.entries.filter((entry2) => !entry2.hidden).length === 0 ? React.createElement("p", null, t("emptyDirectory")) : directory.entries.filter((entry2) => !entry2.hidden).map((entry2) => React.createElement(
+                          "button",
+                          {
+                            type: "button",
+                            key: entry2.path,
+                            disabled: busy,
+                            className: pickedDirectoryPath === entry2.path ? "isSelected" : "",
+                            "aria-pressed": pickedDirectoryPath === entry2.path,
+                            // The first press picks the folder (the confirm
+                            // button opens it); pressing the picked row, or
+                            // double-clicking, descends into it.
+                            onClick: () => {
+                              pickedDirectoryPath === entry2.path ? browseDirectory(entry2.path) : setPickedDirectoryPath(entry2.path);
+                            }
+                          },
+                          glyph(React, FolderOpen),
+                          React.createElement("span", null, entry2.name),
+                          React.createElement(
+                            "span",
+                            { className: "dshRemoteFolderRowEnd", "aria-hidden": !0 },
+                            pickedDirectoryPath === entry2.path ? React.createElement(
+                              "span",
+                              { className: "dshRemoteFolderRowCheck" },
+                              React.createElement("svg", {
+                                viewBox: "0 0 24 24",
+                                width: 10,
+                                height: 10,
+                                fill: "none",
+                                stroke: "currentColor",
+                                strokeWidth: 3.2,
+                                strokeLinecap: "round",
+                                strokeLinejoin: "round"
+                              }, React.createElement("path", { d: "m5 13 4 4 10-10" }))
+                            ) : glyph(React, ChevronRight)
+                          )
+                        ))),
+                        directory.truncated ? React.createElement("small", null, t("directoryTruncated")) : null
+                      )
+                    ) : React.createElement(
+                      "div",
+                      { className: "dshRemoteWorkspaceLists" },
+                      React.createElement(
+                        "section",
+                        { className: "dshRemoteCodexWorkspaceGroup" },
+                        workspaceHeading,
+                        React.createElement(
+                          "div",
+                          { id: workspaceListId, className: "dshRemoteDirectoryList" },
+                          visibleWorkspaces.length === 0 ? React.createElement("p", null, t(query === "" ? "noRemoteWorkspaces" : "noWorkspaceMatches")) : visibleWorkspaces.map((workspace) => React.createElement(
+                            "button",
+                            {
+                              type: "button",
+                              key: workspace.workspaceId,
+                              disabled: busy,
+                              className: workspaceBackend === "harness" && path === workspace.path ? "isSelected" : "",
+                              "aria-pressed": workspaceBackend === "harness" && path === workspace.path,
+                              onClick: () => {
+                                setWorkspaceBackend("harness"), setCodexWorkspaceId(void 0), setCursorWorkspaceId(void 0), setPath(workspace.path);
+                              },
+                              onDoubleClick: () => void openWorkspace({ backend: "harness", path: workspace.path })
+                            },
+                            workspaceIcon,
+                            React.createElement("span", null, workspace.title),
+                            React.createElement("small", null, workspace.path)
+                          )),
+                          query !== "" || workspaces.length <= 3 || showAllWorkspaces ? null : React.createElement("button", {
+                            type: "button",
+                            className: "dshRemoteWorkspaceMore",
+                            disabled: busy,
+                            "aria-controls": workspaceListId,
+                            "aria-label": t("showAllWorkspaces"),
+                            onClick: () => setShowAllWorkspaces(!0)
+                          }, React.createElement("span", { "aria-hidden": !0 }, "\u2026"))
+                        )
+                      ),
+                      codexAvailable ? React.createElement(
+                        "section",
+                        { className: "dshRemoteCodexWorkspaceGroup" },
+                        React.createElement(
+                          "div",
+                          {
+                            id: codexWorkspaceHeadingId,
+                            className: "dshRemoteWorkspaceSourceHeading"
+                          },
+                          React.createElement(
+                            "span",
+                            { className: "dshRemoteWorkspaceSourceText" },
+                            React.createElement("strong", null, t("codexVirtualWorkspace"))
+                          ),
+                          codexAvailable ? React.createElement("button", {
+                            type: "button",
+                            className: "dshRemoteAddWorkspace",
+                            disabled: busy,
+                            title: t("addCodexWorkspace"),
+                            "aria-label": t("addCodexWorkspace"),
+                            onClick: () => startAddingWorkspace("codex")
+                          }, glyph(React, Plus)) : null
+                        ),
+                        React.createElement("div", {
+                          id: codexWorkspaceListId,
+                          className: "dshRemoteDirectoryList dshRemoteCodexWorkspaceList",
+                          "aria-labelledby": codexWorkspaceHeadingId
+                        }, visibleCodexWorkspaces.length === 0 ? React.createElement("p", null, t(query === "" ? "noCodexWorkspaces" : "noWorkspaceMatches")) : visibleCodexWorkspaces.map((workspace) => React.createElement(
                           "button",
                           {
                             type: "button",
                             key: workspace.workspaceId,
                             disabled: busy,
-                            className: workspaceBackend === "harness" && path === workspace.path ? "isSelected" : "",
-                            "aria-pressed": workspaceBackend === "harness" && path === workspace.path,
+                            className: workspaceBackend === "codex" && codexWorkspaceId === workspace.workspaceId ? "isSelected" : "",
+                            "aria-pressed": workspaceBackend === "codex" && codexWorkspaceId === workspace.workspaceId,
                             onClick: () => {
-                              setWorkspaceBackend("harness"), setCodexWorkspaceId(void 0), setCursorWorkspaceId(void 0), setPath(workspace.path);
+                              setWorkspaceBackend("codex"), setCodexWorkspaceId(workspace.workspaceId), setCursorWorkspaceId(void 0), setPath(workspace.path);
                             },
-                            onDoubleClick: () => void openWorkspace({ backend: "harness", path: workspace.path })
+                            onDoubleClick: () => void openWorkspace({
+                              backend: "codex",
+                              path: workspace.path,
+                              workspaceId: workspace.workspaceId
+                            })
                           },
-                          React.createElement("img", { className: "dshRemoteWorkspaceIcon", src: deepSeekWorkspaceIcon, alt: "", "aria-hidden": !0 }),
+                          React.createElement("img", { className: "dshRemoteWorkspaceIcon isGpt", src: gptWorkspaceIcon, alt: "", "aria-hidden": !0 }),
                           React.createElement("span", null, workspace.title),
-                          React.createElement("small", null, workspace.path)
-                        )),
-                        workspaces.length <= 3 || showAllWorkspaces ? null : React.createElement("button", {
+                          React.createElement("small", null, `${workspace.path} \xB7 ${workspace.sessionCount}`)
+                        ))),
+                        query !== "" || codexWorkspaces.length <= 3 || showAllCodexWorkspaces ? null : React.createElement("button", {
                           type: "button",
                           className: "dshRemoteWorkspaceMore",
                           disabled: busy,
-                          "aria-controls": workspaceListId,
-                          "aria-label": t("showAllWorkspaces"),
-                          onClick: () => setShowAllWorkspaces(!0)
+                          "aria-controls": codexWorkspaceListId,
+                          "aria-label": t("showAllCodexWorkspaces"),
+                          onClick: () => setShowAllCodexWorkspaces(!0)
                         }, React.createElement("span", { "aria-hidden": !0 }, "\u2026"))
-                      )
+                      ) : null,
+                      cursorAvailable ? React.createElement(
+                        "section",
+                        { className: "dshRemoteCodexWorkspaceGroup" },
+                        React.createElement(
+                          "div",
+                          {
+                            id: cursorWorkspaceHeadingId,
+                            className: "dshRemoteWorkspaceSourceHeading"
+                          },
+                          React.createElement(
+                            "span",
+                            { className: "dshRemoteWorkspaceSourceText" },
+                            React.createElement("strong", null, t("cursorVirtualWorkspace"))
+                          ),
+                          cursorAvailable ? React.createElement("button", {
+                            type: "button",
+                            className: "dshRemoteAddWorkspace",
+                            disabled: busy,
+                            title: t("addCursorWorkspace"),
+                            "aria-label": t("addCursorWorkspace"),
+                            onClick: () => startAddingWorkspace("cursor")
+                          }, glyph(React, Plus)) : null
+                        ),
+                        React.createElement("div", {
+                          id: cursorWorkspaceListId,
+                          className: "dshRemoteDirectoryList dshRemoteCodexWorkspaceList",
+                          "aria-labelledby": cursorWorkspaceHeadingId
+                        }, visibleCursorWorkspaces.length === 0 ? React.createElement("p", null, t(query === "" ? "noCursorWorkspaces" : "noWorkspaceMatches")) : visibleCursorWorkspaces.map((workspace) => React.createElement(
+                          "button",
+                          {
+                            type: "button",
+                            key: workspace.workspaceId,
+                            disabled: busy,
+                            className: workspaceBackend === "cursor" && cursorWorkspaceId === workspace.workspaceId ? "isSelected" : "",
+                            "aria-pressed": workspaceBackend === "cursor" && cursorWorkspaceId === workspace.workspaceId,
+                            onClick: () => {
+                              setWorkspaceBackend("cursor"), setCursorWorkspaceId(workspace.workspaceId), setCodexWorkspaceId(void 0), setAntigravityWorkspaceId(void 0), setPiWorkspaceId(void 0), setOpencodeWorkspaceId(void 0), setClaudeWorkspaceId(void 0), setHermesWorkspaceId(void 0), setPath(workspace.path);
+                            },
+                            onDoubleClick: () => void openWorkspace({
+                              backend: "cursor",
+                              path: workspace.path,
+                              workspaceId: workspace.workspaceId
+                            })
+                          },
+                          workspaceIcon,
+                          React.createElement("span", null, workspace.title),
+                          React.createElement("small", null, `${workspace.path} \xB7 ${workspace.sessionCount}`)
+                        ))),
+                        query !== "" || cursorWorkspaces.length <= 3 || showAllCursorWorkspaces ? null : React.createElement("button", {
+                          type: "button",
+                          className: "dshRemoteWorkspaceMore",
+                          disabled: busy,
+                          "aria-controls": cursorWorkspaceListId,
+                          "aria-label": t("showAllCursorWorkspaces"),
+                          onClick: () => setShowAllCursorWorkspaces(!0)
+                        }, React.createElement("span", { "aria-hidden": !0 }, "\u2026"))
+                      ) : null,
+                      antigravityAvailable ? React.createElement(
+                        "section",
+                        { className: "dshRemoteCodexWorkspaceGroup" },
+                        React.createElement(
+                          "div",
+                          {
+                            id: antigravityWorkspaceHeadingId,
+                            className: "dshRemoteWorkspaceSourceHeading"
+                          },
+                          React.createElement(
+                            "span",
+                            { className: "dshRemoteWorkspaceSourceText" },
+                            React.createElement("strong", null, t("antigravityVirtualWorkspace"))
+                          ),
+                          antigravityAvailable ? React.createElement("button", {
+                            type: "button",
+                            className: "dshRemoteAddWorkspace",
+                            disabled: busy,
+                            title: t("addAntigravityWorkspace"),
+                            "aria-label": t("addAntigravityWorkspace"),
+                            onClick: () => startAddingWorkspace("antigravity")
+                          }, glyph(React, Plus)) : null
+                        ),
+                        React.createElement("div", {
+                          id: antigravityWorkspaceListId,
+                          className: "dshRemoteDirectoryList dshRemoteCodexWorkspaceList",
+                          "aria-labelledby": antigravityWorkspaceHeadingId
+                        }, visibleAntigravityWorkspaces.length === 0 ? React.createElement("p", null, t(query === "" ? "noAntigravityWorkspaces" : "noWorkspaceMatches")) : visibleAntigravityWorkspaces.map((workspace) => React.createElement(
+                          "button",
+                          {
+                            type: "button",
+                            key: workspace.workspaceId,
+                            disabled: busy,
+                            className: workspaceBackend === "antigravity" && antigravityWorkspaceId === workspace.workspaceId ? "isSelected" : "",
+                            "aria-pressed": workspaceBackend === "antigravity" && antigravityWorkspaceId === workspace.workspaceId,
+                            onClick: () => {
+                              setWorkspaceBackend("antigravity"), setAntigravityWorkspaceId(workspace.workspaceId), setPiWorkspaceId(void 0), setOpencodeWorkspaceId(void 0), setClaudeWorkspaceId(void 0), setHermesWorkspaceId(void 0), setCodexWorkspaceId(void 0), setCursorWorkspaceId(void 0), setPath(workspace.path);
+                            },
+                            onDoubleClick: () => void openWorkspace({
+                              backend: "antigravity",
+                              path: workspace.path,
+                              workspaceId: workspace.workspaceId
+                            })
+                          },
+                          workspaceIcon,
+                          React.createElement("span", null, workspace.title),
+                          React.createElement("small", null, `${workspace.path} \xB7 ${workspace.sessionCount}`)
+                        ))),
+                        query !== "" || antigravityWorkspaces.length <= 3 || showAllAntigravityWorkspaces ? null : React.createElement("button", {
+                          type: "button",
+                          className: "dshRemoteWorkspaceMore",
+                          disabled: busy,
+                          "aria-controls": antigravityWorkspaceListId,
+                          "aria-label": t("showAllAntigravityWorkspaces"),
+                          onClick: () => setShowAllAntigravityWorkspaces(!0)
+                        }, React.createElement("span", { "aria-hidden": !0 }, "\u2026"))
+                      ) : null,
+                      piAvailable ? React.createElement(
+                        "section",
+                        { className: "dshRemoteCodexWorkspaceGroup" },
+                        React.createElement(
+                          "div",
+                          {
+                            id: piWorkspaceHeadingId,
+                            className: "dshRemoteWorkspaceSourceHeading"
+                          },
+                          React.createElement(
+                            "span",
+                            { className: "dshRemoteWorkspaceSourceText" },
+                            React.createElement("strong", null, t("piVirtualWorkspace"))
+                          ),
+                          piAvailable ? React.createElement("button", {
+                            type: "button",
+                            className: "dshRemoteAddWorkspace",
+                            disabled: busy,
+                            title: t("addPiWorkspace"),
+                            "aria-label": t("addPiWorkspace"),
+                            onClick: () => startAddingWorkspace("pi")
+                          }, glyph(React, Plus)) : null
+                        ),
+                        React.createElement("div", {
+                          id: piWorkspaceListId,
+                          className: "dshRemoteDirectoryList dshRemoteCodexWorkspaceList",
+                          "aria-labelledby": piWorkspaceHeadingId
+                        }, visiblePiWorkspaces.length === 0 ? React.createElement("p", null, t(query === "" ? "noPiWorkspaces" : "noWorkspaceMatches")) : visiblePiWorkspaces.map((workspace) => React.createElement(
+                          "button",
+                          {
+                            type: "button",
+                            key: workspace.workspaceId,
+                            disabled: busy,
+                            className: workspaceBackend === "pi" && piWorkspaceId === workspace.workspaceId ? "isSelected" : "",
+                            "aria-pressed": workspaceBackend === "pi" && piWorkspaceId === workspace.workspaceId,
+                            onClick: () => {
+                              setWorkspaceBackend("pi"), setPiWorkspaceId(workspace.workspaceId), setAntigravityWorkspaceId(void 0), setCodexWorkspaceId(void 0), setCursorWorkspaceId(void 0), setPath(workspace.path);
+                            },
+                            onDoubleClick: () => void openWorkspace({
+                              backend: "pi",
+                              path: workspace.path,
+                              workspaceId: workspace.workspaceId
+                            })
+                          },
+                          workspaceIcon,
+                          React.createElement("span", null, workspace.title),
+                          React.createElement("small", null, `${workspace.path} \xB7 ${workspace.sessionCount}`)
+                        ))),
+                        query !== "" || piWorkspaces.length <= 3 || showAllPiWorkspaces ? null : React.createElement("button", {
+                          type: "button",
+                          className: "dshRemoteWorkspaceMore",
+                          disabled: busy,
+                          "aria-controls": piWorkspaceListId,
+                          "aria-label": t("showAllPiWorkspaces"),
+                          onClick: () => setShowAllPiWorkspaces(!0)
+                        }, React.createElement("span", { "aria-hidden": !0 }, "\u2026"))
+                      ) : null,
+                      opencodeAvailable ? React.createElement(
+                        "section",
+                        { className: "dshRemoteCodexWorkspaceGroup" },
+                        React.createElement(
+                          "div",
+                          {
+                            id: opencodeWorkspaceHeadingId,
+                            className: "dshRemoteWorkspaceSourceHeading"
+                          },
+                          React.createElement("span", { className: "dshRemoteWorkspaceSourceText" }, React.createElement("strong", null, t("opencodeVirtualWorkspace"))),
+                          React.createElement("button", {
+                            type: "button",
+                            className: "dshRemoteAddWorkspace",
+                            disabled: busy,
+                            title: t("addOpencodeWorkspace"),
+                            "aria-label": t("addOpencodeWorkspace"),
+                            onClick: () => startAddingWorkspace("opencode")
+                          }, glyph(React, Plus))
+                        ),
+                        React.createElement("div", {
+                          id: opencodeWorkspaceListId,
+                          className: "dshRemoteDirectoryList dshRemoteCodexWorkspaceList",
+                          "aria-labelledby": opencodeWorkspaceHeadingId
+                        }, visibleOpencodeWorkspaces.length === 0 ? React.createElement("p", null, t(query === "" ? "noOpencodeWorkspaces" : "noWorkspaceMatches")) : visibleOpencodeWorkspaces.map((workspace) => React.createElement(
+                          "button",
+                          {
+                            type: "button",
+                            key: workspace.workspaceId,
+                            disabled: busy,
+                            className: workspaceBackend === "opencode" && opencodeWorkspaceId === workspace.workspaceId ? "isSelected" : "",
+                            "aria-pressed": workspaceBackend === "opencode" && opencodeWorkspaceId === workspace.workspaceId,
+                            onClick: () => {
+                              setWorkspaceBackend("opencode"), setOpencodeWorkspaceId(workspace.workspaceId), setPiWorkspaceId(void 0), setClaudeWorkspaceId(void 0), setHermesWorkspaceId(void 0), setAntigravityWorkspaceId(void 0), setCodexWorkspaceId(void 0), setCursorWorkspaceId(void 0), setPath(workspace.path);
+                            },
+                            onDoubleClick: () => void openWorkspace({
+                              backend: "opencode",
+                              path: workspace.path,
+                              workspaceId: workspace.workspaceId
+                            })
+                          },
+                          workspaceIcon,
+                          React.createElement("span", null, workspace.title),
+                          React.createElement("small", null, `${workspace.path} \xB7 ${workspace.sessionCount}`)
+                        ))),
+                        query !== "" || opencodeWorkspaces.length <= 3 || showAllOpencodeWorkspaces ? null : React.createElement("button", {
+                          type: "button",
+                          className: "dshRemoteWorkspaceMore",
+                          disabled: busy,
+                          "aria-controls": opencodeWorkspaceListId,
+                          "aria-label": t("showAllOpencodeWorkspaces"),
+                          onClick: () => setShowAllOpencodeWorkspaces(!0)
+                        }, React.createElement("span", { "aria-hidden": !0 }, "\u2026"))
+                      ) : null,
+                      hermesAvailable ? React.createElement(
+                        "section",
+                        { className: "dshRemoteCodexWorkspaceGroup" },
+                        React.createElement(
+                          "div",
+                          {
+                            id: hermesWorkspaceHeadingId,
+                            className: "dshRemoteWorkspaceSourceHeading"
+                          },
+                          React.createElement("span", { className: "dshRemoteWorkspaceSourceText" }, React.createElement("strong", null, t("hermesVirtualWorkspace"))),
+                          React.createElement("button", {
+                            type: "button",
+                            className: "dshRemoteAddWorkspace",
+                            disabled: busy,
+                            title: t("addHermesWorkspace"),
+                            "aria-label": t("addHermesWorkspace"),
+                            onClick: () => startAddingWorkspace("hermes")
+                          }, glyph(React, Plus))
+                        ),
+                        React.createElement("div", {
+                          id: hermesWorkspaceListId,
+                          className: "dshRemoteDirectoryList dshRemoteCodexWorkspaceList",
+                          "aria-labelledby": hermesWorkspaceHeadingId
+                        }, visibleHermesWorkspaces.length === 0 ? React.createElement("p", null, t(query === "" ? "noHermesWorkspaces" : "noWorkspaceMatches")) : visibleHermesWorkspaces.map((workspace) => React.createElement(
+                          "button",
+                          {
+                            type: "button",
+                            key: workspace.workspaceId,
+                            disabled: busy,
+                            className: workspaceBackend === "hermes" && hermesWorkspaceId === workspace.workspaceId ? "isSelected" : "",
+                            "aria-pressed": workspaceBackend === "hermes" && hermesWorkspaceId === workspace.workspaceId,
+                            onClick: () => {
+                              setWorkspaceBackend("hermes"), setClaudeWorkspaceId(void 0), setHermesWorkspaceId(workspace.workspaceId), setPiWorkspaceId(void 0), setOpencodeWorkspaceId(void 0), setAntigravityWorkspaceId(void 0), setCodexWorkspaceId(void 0), setCursorWorkspaceId(void 0), setPath(workspace.path);
+                            },
+                            onDoubleClick: () => void openWorkspace({
+                              backend: "hermes",
+                              path: workspace.path,
+                              workspaceId: workspace.workspaceId
+                            })
+                          },
+                          workspaceIcon,
+                          React.createElement("span", null, workspace.title),
+                          React.createElement("small", null, `${workspace.path} \xB7 ${workspace.sessionCount}`)
+                        ))),
+                        query !== "" || hermesWorkspaces.length <= 3 || showAllHermesWorkspaces ? null : React.createElement("button", {
+                          type: "button",
+                          className: "dshRemoteWorkspaceMore",
+                          disabled: busy,
+                          "aria-controls": hermesWorkspaceListId,
+                          "aria-label": t("showAllHermesWorkspaces"),
+                          onClick: () => setShowAllHermesWorkspaces(!0)
+                        }, React.createElement("span", { "aria-hidden": !0 }, "\u2026"))
+                      ) : null,
+                      claudeAvailable ? React.createElement(
+                        "section",
+                        { className: "dshRemoteCodexWorkspaceGroup" },
+                        React.createElement(
+                          "div",
+                          {
+                            id: claudeWorkspaceHeadingId,
+                            className: "dshRemoteWorkspaceSourceHeading"
+                          },
+                          React.createElement("span", { className: "dshRemoteWorkspaceSourceText" }, React.createElement("strong", null, t("claudeVirtualWorkspace"))),
+                          React.createElement("button", {
+                            type: "button",
+                            className: "dshRemoteAddWorkspace",
+                            disabled: busy,
+                            title: t("addClaudeWorkspace"),
+                            "aria-label": t("addClaudeWorkspace"),
+                            onClick: () => startAddingWorkspace("claude")
+                          }, glyph(React, Plus))
+                        ),
+                        React.createElement("div", {
+                          id: claudeWorkspaceListId,
+                          className: "dshRemoteDirectoryList dshRemoteCodexWorkspaceList",
+                          "aria-labelledby": claudeWorkspaceHeadingId
+                        }, visibleClaudeWorkspaces.length === 0 ? React.createElement("p", null, t(query === "" ? "noClaudeWorkspaces" : "noWorkspaceMatches")) : visibleClaudeWorkspaces.map((workspace) => React.createElement(
+                          "button",
+                          {
+                            type: "button",
+                            key: workspace.workspaceId,
+                            disabled: busy,
+                            className: workspaceBackend === "claude" && claudeWorkspaceId === workspace.workspaceId ? "isSelected" : "",
+                            "aria-pressed": workspaceBackend === "claude" && claudeWorkspaceId === workspace.workspaceId,
+                            onClick: () => {
+                              setWorkspaceBackend("claude"), setClaudeWorkspaceId(workspace.workspaceId), setHermesWorkspaceId(void 0), setPiWorkspaceId(void 0), setOpencodeWorkspaceId(void 0), setAntigravityWorkspaceId(void 0), setCodexWorkspaceId(void 0), setCursorWorkspaceId(void 0), setPath(workspace.path);
+                            },
+                            onDoubleClick: () => void openWorkspace({
+                              backend: "claude",
+                              path: workspace.path,
+                              workspaceId: workspace.workspaceId
+                            })
+                          },
+                          workspaceIcon,
+                          React.createElement("span", null, workspace.title),
+                          React.createElement("small", null, `${workspace.path} \xB7 ${workspace.sessionCount}`)
+                        ))),
+                        query !== "" || claudeWorkspaces.length <= 3 || showAllClaudeWorkspaces ? null : React.createElement("button", {
+                          type: "button",
+                          className: "dshRemoteWorkspaceMore",
+                          disabled: busy,
+                          "aria-controls": claudeWorkspaceListId,
+                          "aria-label": t("showAllClaudeWorkspaces"),
+                          onClick: () => setShowAllClaudeWorkspaces(!0)
+                        }, React.createElement("span", { "aria-hidden": !0 }, "\u2026"))
+                      ) : null
                     ),
-                    codexAvailable ? React.createElement(
-                      "section",
-                      { className: "dshRemoteCodexWorkspaceGroup" },
+                    React.createElement(
+                      "footer",
+                      { className: "dshRemoteOpenBar" },
+                      connectedMenu,
                       React.createElement(
                         "div",
-                        {
-                          id: codexWorkspaceHeadingId,
-                          className: "dshRemoteWorkspaceSourceHeading"
-                        },
-                        React.createElement(
-                          "span",
-                          { className: "dshRemoteWorkspaceSourceText" },
-                          React.createElement("strong", null, t("codexVirtualWorkspace"))
-                        ),
-                        codexAvailable ? React.createElement("button", {
-                          type: "button",
-                          className: "dshRemoteAddWorkspace",
-                          disabled: busy,
-                          title: t("addCodexWorkspace"),
-                          "aria-label": t("addCodexWorkspace"),
-                          onClick: () => startAddingWorkspace("codex")
-                        }, React.createElement("svg", {
-                          className: "dshRemoteAddWorkspaceIcon",
-                          viewBox: "0 0 16 16",
-                          "aria-hidden": !0,
-                          focusable: !1
-                        }, React.createElement("path", { d: "M8 3v10M3 8h10", fill: "none", stroke: "currentColor", strokeWidth: 1.5, strokeLinecap: "round" }))) : null
-                      ),
-                      React.createElement("div", {
-                        id: codexWorkspaceListId,
-                        className: "dshRemoteDirectoryList dshRemoteCodexWorkspaceList",
-                        "aria-labelledby": codexWorkspaceHeadingId
-                      }, visibleCodexWorkspaces.length === 0 ? React.createElement("p", null, t("noCodexWorkspaces")) : visibleCodexWorkspaces.map((workspace) => React.createElement(
-                        "button",
-                        {
-                          type: "button",
-                          key: workspace.workspaceId,
-                          disabled: busy,
-                          className: workspaceBackend === "codex" && codexWorkspaceId === workspace.workspaceId ? "isSelected" : "",
-                          "aria-pressed": workspaceBackend === "codex" && codexWorkspaceId === workspace.workspaceId,
-                          onClick: () => {
-                            setWorkspaceBackend("codex"), setCodexWorkspaceId(workspace.workspaceId), setCursorWorkspaceId(void 0), setPath(workspace.path);
-                          },
-                          onDoubleClick: () => void openWorkspace({
-                            backend: "codex",
-                            path: workspace.path,
-                            workspaceId: workspace.workspaceId
-                          })
-                        },
-                        React.createElement("img", { className: "dshRemoteWorkspaceIcon isGpt", src: gptWorkspaceIcon, alt: "", "aria-hidden": !0 }),
-                        React.createElement("span", null, workspace.title),
-                        React.createElement("small", null, `${workspace.path} \xB7 ${workspace.sessionCount}`)
-                      ))),
-                      codexWorkspaces.length <= 3 || showAllCodexWorkspaces ? null : React.createElement("button", {
-                        type: "button",
-                        className: "dshRemoteWorkspaceMore",
-                        disabled: busy,
-                        "aria-controls": codexWorkspaceListId,
-                        "aria-label": t("showAllCodexWorkspaces"),
-                        onClick: () => setShowAllCodexWorkspaces(!0)
-                      }, React.createElement("span", { "aria-hidden": !0 }, "\u2026"))
-                    ) : null,
-                    cursorAvailable ? React.createElement(
-                      "section",
-                      { className: "dshRemoteCodexWorkspaceGroup" },
-                      React.createElement(
-                        "div",
-                        {
-                          id: cursorWorkspaceHeadingId,
-                          className: "dshRemoteWorkspaceSourceHeading"
-                        },
-                        React.createElement(
-                          "span",
-                          { className: "dshRemoteWorkspaceSourceText" },
-                          React.createElement("strong", null, t("cursorVirtualWorkspace"))
-                        ),
-                        cursorAvailable ? React.createElement("button", {
-                          type: "button",
-                          className: "dshRemoteAddWorkspace",
-                          disabled: busy,
-                          title: t("addCursorWorkspace"),
-                          "aria-label": t("addCursorWorkspace"),
-                          onClick: () => startAddingWorkspace("cursor")
-                        }, React.createElement("svg", {
-                          className: "dshRemoteAddWorkspaceIcon",
-                          viewBox: "0 0 16 16",
-                          "aria-hidden": !0,
-                          focusable: !1
-                        }, React.createElement("path", { d: "M8 3v10M3 8h10", fill: "none", stroke: "currentColor", strokeWidth: 1.5, strokeLinecap: "round" }))) : null
-                      ),
-                      React.createElement("div", {
-                        id: cursorWorkspaceListId,
-                        className: "dshRemoteDirectoryList dshRemoteCodexWorkspaceList",
-                        "aria-labelledby": cursorWorkspaceHeadingId
-                      }, visibleCursorWorkspaces.length === 0 ? React.createElement("p", null, t("noCursorWorkspaces")) : visibleCursorWorkspaces.map((workspace) => React.createElement(
-                        "button",
-                        {
-                          type: "button",
-                          key: workspace.workspaceId,
-                          disabled: busy,
-                          className: workspaceBackend === "cursor" && cursorWorkspaceId === workspace.workspaceId ? "isSelected" : "",
-                          "aria-pressed": workspaceBackend === "cursor" && cursorWorkspaceId === workspace.workspaceId,
-                          onClick: () => {
-                            setWorkspaceBackend("cursor"), setCursorWorkspaceId(workspace.workspaceId), setCodexWorkspaceId(void 0), setAntigravityWorkspaceId(void 0), setPiWorkspaceId(void 0), setOpencodeWorkspaceId(void 0), setClaudeWorkspaceId(void 0), setHermesWorkspaceId(void 0), setPath(workspace.path);
-                          },
-                          onDoubleClick: () => void openWorkspace({
-                            backend: "cursor",
-                            path: workspace.path,
-                            workspaceId: workspace.workspaceId
-                          })
-                        },
-                        React.createElement("img", { className: "dshRemoteWorkspaceIcon", src: deepSeekWorkspaceIcon, alt: "", "aria-hidden": !0 }),
-                        React.createElement("span", null, workspace.title),
-                        React.createElement("small", null, `${workspace.path} \xB7 ${workspace.sessionCount}`)
-                      ))),
-                      cursorWorkspaces.length <= 3 || showAllCursorWorkspaces ? null : React.createElement("button", {
-                        type: "button",
-                        className: "dshRemoteWorkspaceMore",
-                        disabled: busy,
-                        "aria-controls": cursorWorkspaceListId,
-                        "aria-label": t("showAllCursorWorkspaces"),
-                        onClick: () => setShowAllCursorWorkspaces(!0)
-                      }, React.createElement("span", { "aria-hidden": !0 }, "\u2026"))
-                    ) : null,
-                    antigravityAvailable ? React.createElement(
-                      "section",
-                      { className: "dshRemoteCodexWorkspaceGroup" },
-                      React.createElement(
-                        "div",
-                        {
-                          id: antigravityWorkspaceHeadingId,
-                          className: "dshRemoteWorkspaceSourceHeading"
-                        },
-                        React.createElement(
-                          "span",
-                          { className: "dshRemoteWorkspaceSourceText" },
-                          React.createElement("strong", null, t("antigravityVirtualWorkspace"))
-                        ),
-                        antigravityAvailable ? React.createElement("button", {
-                          type: "button",
-                          className: "dshRemoteAddWorkspace",
-                          disabled: busy,
-                          title: t("addAntigravityWorkspace"),
-                          "aria-label": t("addAntigravityWorkspace"),
-                          onClick: () => startAddingWorkspace("antigravity")
-                        }, React.createElement("svg", {
-                          className: "dshRemoteAddWorkspaceIcon",
-                          viewBox: "0 0 16 16",
-                          "aria-hidden": !0,
-                          focusable: !1
-                        }, React.createElement("path", { d: "M8 3v10M3 8h10", fill: "none", stroke: "currentColor", strokeWidth: 1.5, strokeLinecap: "round" }))) : null
-                      ),
-                      React.createElement("div", {
-                        id: antigravityWorkspaceListId,
-                        className: "dshRemoteDirectoryList dshRemoteCodexWorkspaceList",
-                        "aria-labelledby": antigravityWorkspaceHeadingId
-                      }, visibleAntigravityWorkspaces.length === 0 ? React.createElement("p", null, t("noAntigravityWorkspaces")) : visibleAntigravityWorkspaces.map((workspace) => React.createElement(
-                        "button",
-                        {
-                          type: "button",
-                          key: workspace.workspaceId,
-                          disabled: busy,
-                          className: workspaceBackend === "antigravity" && antigravityWorkspaceId === workspace.workspaceId ? "isSelected" : "",
-                          "aria-pressed": workspaceBackend === "antigravity" && antigravityWorkspaceId === workspace.workspaceId,
-                          onClick: () => {
-                            setWorkspaceBackend("antigravity"), setAntigravityWorkspaceId(workspace.workspaceId), setPiWorkspaceId(void 0), setOpencodeWorkspaceId(void 0), setClaudeWorkspaceId(void 0), setHermesWorkspaceId(void 0), setCodexWorkspaceId(void 0), setCursorWorkspaceId(void 0), setPath(workspace.path);
-                          },
-                          onDoubleClick: () => void openWorkspace({
-                            backend: "antigravity",
-                            path: workspace.path,
-                            workspaceId: workspace.workspaceId
-                          })
-                        },
-                        React.createElement("img", { className: "dshRemoteWorkspaceIcon", src: deepSeekWorkspaceIcon, alt: "", "aria-hidden": !0 }),
-                        React.createElement("span", null, workspace.title),
-                        React.createElement("small", null, `${workspace.path} \xB7 ${workspace.sessionCount}`)
-                      ))),
-                      antigravityWorkspaces.length <= 3 || showAllAntigravityWorkspaces ? null : React.createElement("button", {
-                        type: "button",
-                        className: "dshRemoteWorkspaceMore",
-                        disabled: busy,
-                        "aria-controls": antigravityWorkspaceListId,
-                        "aria-label": t("showAllAntigravityWorkspaces"),
-                        onClick: () => setShowAllAntigravityWorkspaces(!0)
-                      }, React.createElement("span", { "aria-hidden": !0 }, "\u2026"))
-                    ) : null,
-                    piAvailable ? React.createElement(
-                      "section",
-                      { className: "dshRemoteCodexWorkspaceGroup" },
-                      React.createElement(
-                        "div",
-                        {
-                          id: piWorkspaceHeadingId,
-                          className: "dshRemoteWorkspaceSourceHeading"
-                        },
-                        React.createElement(
-                          "span",
-                          { className: "dshRemoteWorkspaceSourceText" },
-                          React.createElement("strong", null, t("piVirtualWorkspace"))
-                        ),
-                        piAvailable ? React.createElement("button", {
-                          type: "button",
-                          className: "dshRemoteAddWorkspace",
-                          disabled: busy,
-                          title: t("addPiWorkspace"),
-                          "aria-label": t("addPiWorkspace"),
-                          onClick: () => startAddingWorkspace("pi")
-                        }, React.createElement("svg", {
-                          className: "dshRemoteAddWorkspaceIcon",
-                          viewBox: "0 0 16 16",
-                          "aria-hidden": !0,
-                          focusable: !1
-                        }, React.createElement("path", { d: "M8 3v10M3 8h10", fill: "none", stroke: "currentColor", strokeWidth: 1.5, strokeLinecap: "round" }))) : null
-                      ),
-                      React.createElement("div", {
-                        id: piWorkspaceListId,
-                        className: "dshRemoteDirectoryList dshRemoteCodexWorkspaceList",
-                        "aria-labelledby": piWorkspaceHeadingId
-                      }, visiblePiWorkspaces.length === 0 ? React.createElement("p", null, t("noPiWorkspaces")) : visiblePiWorkspaces.map((workspace) => React.createElement(
-                        "button",
-                        {
-                          type: "button",
-                          key: workspace.workspaceId,
-                          disabled: busy,
-                          className: workspaceBackend === "pi" && piWorkspaceId === workspace.workspaceId ? "isSelected" : "",
-                          "aria-pressed": workspaceBackend === "pi" && piWorkspaceId === workspace.workspaceId,
-                          onClick: () => {
-                            setWorkspaceBackend("pi"), setPiWorkspaceId(workspace.workspaceId), setAntigravityWorkspaceId(void 0), setCodexWorkspaceId(void 0), setCursorWorkspaceId(void 0), setPath(workspace.path);
-                          },
-                          onDoubleClick: () => void openWorkspace({
-                            backend: "pi",
-                            path: workspace.path,
-                            workspaceId: workspace.workspaceId
-                          })
-                        },
-                        React.createElement("img", { className: "dshRemoteWorkspaceIcon", src: deepSeekWorkspaceIcon, alt: "", "aria-hidden": !0 }),
-                        React.createElement("span", null, workspace.title),
-                        React.createElement("small", null, `${workspace.path} \xB7 ${workspace.sessionCount}`)
-                      ))),
-                      piWorkspaces.length <= 3 || showAllPiWorkspaces ? null : React.createElement("button", {
-                        type: "button",
-                        className: "dshRemoteWorkspaceMore",
-                        disabled: busy,
-                        "aria-controls": piWorkspaceListId,
-                        "aria-label": t("showAllPiWorkspaces"),
-                        onClick: () => setShowAllPiWorkspaces(!0)
-                      }, React.createElement("span", { "aria-hidden": !0 }, "\u2026"))
-                    ) : null,
-                    opencodeAvailable ? React.createElement(
-                      "section",
-                      { className: "dshRemoteCodexWorkspaceGroup" },
-                      React.createElement(
-                        "div",
-                        {
-                          id: opencodeWorkspaceHeadingId,
-                          className: "dshRemoteWorkspaceSourceHeading"
-                        },
-                        React.createElement("span", { className: "dshRemoteWorkspaceSourceText" }, React.createElement("strong", null, t("opencodeVirtualWorkspace"))),
+                        { className: "dshRemoteOpenActions" },
+                        React.createElement("button", { type: "button", className: "dshRemotePickerCancel", onClick: () => {
+                          cancelAddingWorkspace(), chooseAnotherHost();
+                        } }, t("cancelAddWorkspace")),
                         React.createElement("button", {
                           type: "button",
-                          className: "dshRemoteAddWorkspace",
-                          disabled: busy,
-                          title: t("addOpencodeWorkspace"),
-                          "aria-label": t("addOpencodeWorkspace"),
-                          onClick: () => startAddingWorkspace("opencode")
-                        }, React.createElement("svg", {
-                          className: "dshRemoteAddWorkspaceIcon",
-                          viewBox: "0 0 16 16",
-                          "aria-hidden": !0,
-                          focusable: !1
-                        }, React.createElement("path", { d: "M8 3v10M3 8h10", fill: "none", stroke: "currentColor", strokeWidth: 1.5, strokeLinecap: "round" })))
-                      ),
-                      React.createElement("div", {
-                        id: opencodeWorkspaceListId,
-                        className: "dshRemoteDirectoryList dshRemoteCodexWorkspaceList",
-                        "aria-labelledby": opencodeWorkspaceHeadingId
-                      }, visibleOpencodeWorkspaces.length === 0 ? React.createElement("p", null, t("noOpencodeWorkspaces")) : visibleOpencodeWorkspaces.map((workspace) => React.createElement(
-                        "button",
-                        {
-                          type: "button",
-                          key: workspace.workspaceId,
-                          disabled: busy,
-                          className: workspaceBackend === "opencode" && opencodeWorkspaceId === workspace.workspaceId ? "isSelected" : "",
-                          "aria-pressed": workspaceBackend === "opencode" && opencodeWorkspaceId === workspace.workspaceId,
-                          onClick: () => {
-                            setWorkspaceBackend("opencode"), setOpencodeWorkspaceId(workspace.workspaceId), setPiWorkspaceId(void 0), setClaudeWorkspaceId(void 0), setHermesWorkspaceId(void 0), setAntigravityWorkspaceId(void 0), setCodexWorkspaceId(void 0), setCursorWorkspaceId(void 0), setPath(workspace.path);
-                          },
-                          onDoubleClick: () => void openWorkspace({
-                            backend: "opencode",
-                            path: workspace.path,
-                            workspaceId: workspace.workspaceId
-                          })
-                        },
-                        React.createElement("img", { className: "dshRemoteWorkspaceIcon", src: deepSeekWorkspaceIcon, alt: "", "aria-hidden": !0 }),
-                        React.createElement("span", null, workspace.title),
-                        React.createElement("small", null, `${workspace.path} \xB7 ${workspace.sessionCount}`)
-                      ))),
-                      opencodeWorkspaces.length <= 3 || showAllOpencodeWorkspaces ? null : React.createElement("button", {
-                        type: "button",
-                        className: "dshRemoteWorkspaceMore",
-                        disabled: busy,
-                        "aria-controls": opencodeWorkspaceListId,
-                        "aria-label": t("showAllOpencodeWorkspaces"),
-                        onClick: () => setShowAllOpencodeWorkspaces(!0)
-                      }, React.createElement("span", { "aria-hidden": !0 }, "\u2026"))
-                    ) : null,
-                    hermesAvailable ? React.createElement(
-                      "section",
-                      { className: "dshRemoteCodexWorkspaceGroup" },
-                      React.createElement(
-                        "div",
-                        {
-                          id: hermesWorkspaceHeadingId,
-                          className: "dshRemoteWorkspaceSourceHeading"
-                        },
-                        React.createElement("span", { className: "dshRemoteWorkspaceSourceText" }, React.createElement("strong", null, t("hermesVirtualWorkspace"))),
-                        React.createElement("button", {
-                          type: "button",
-                          className: "dshRemoteAddWorkspace",
-                          disabled: busy,
-                          title: t("addHermesWorkspace"),
-                          "aria-label": t("addHermesWorkspace"),
-                          onClick: () => startAddingWorkspace("hermes")
-                        }, React.createElement("svg", {
-                          className: "dshRemoteAddWorkspaceIcon",
-                          viewBox: "0 0 16 16",
-                          "aria-hidden": !0,
-                          focusable: !1
-                        }, React.createElement("path", { d: "M8 3v10M3 8h10", fill: "none", stroke: "currentColor", strokeWidth: 1.5, strokeLinecap: "round" })))
-                      ),
-                      React.createElement("div", {
-                        id: hermesWorkspaceListId,
-                        className: "dshRemoteDirectoryList dshRemoteCodexWorkspaceList",
-                        "aria-labelledby": hermesWorkspaceHeadingId
-                      }, visibleHermesWorkspaces.length === 0 ? React.createElement("p", null, t("noHermesWorkspaces")) : visibleHermesWorkspaces.map((workspace) => React.createElement(
-                        "button",
-                        {
-                          type: "button",
-                          key: workspace.workspaceId,
-                          disabled: busy,
-                          className: workspaceBackend === "hermes" && hermesWorkspaceId === workspace.workspaceId ? "isSelected" : "",
-                          "aria-pressed": workspaceBackend === "hermes" && hermesWorkspaceId === workspace.workspaceId,
-                          onClick: () => {
-                            setWorkspaceBackend("hermes"), setClaudeWorkspaceId(void 0), setHermesWorkspaceId(workspace.workspaceId), setPiWorkspaceId(void 0), setOpencodeWorkspaceId(void 0), setAntigravityWorkspaceId(void 0), setCodexWorkspaceId(void 0), setCursorWorkspaceId(void 0), setPath(workspace.path);
-                          },
-                          onDoubleClick: () => void openWorkspace({
-                            backend: "hermes",
-                            path: workspace.path,
-                            workspaceId: workspace.workspaceId
-                          })
-                        },
-                        React.createElement("img", { className: "dshRemoteWorkspaceIcon", src: deepSeekWorkspaceIcon, alt: "", "aria-hidden": !0 }),
-                        React.createElement("span", null, workspace.title),
-                        React.createElement("small", null, `${workspace.path} \xB7 ${workspace.sessionCount}`)
-                      ))),
-                      hermesWorkspaces.length <= 3 || showAllHermesWorkspaces ? null : React.createElement("button", {
-                        type: "button",
-                        className: "dshRemoteWorkspaceMore",
-                        disabled: busy,
-                        "aria-controls": hermesWorkspaceListId,
-                        "aria-label": t("showAllHermesWorkspaces"),
-                        onClick: () => setShowAllHermesWorkspaces(!0)
-                      }, React.createElement("span", { "aria-hidden": !0 }, "\u2026"))
-                    ) : null,
-                    claudeAvailable ? React.createElement(
-                      "section",
-                      { className: "dshRemoteCodexWorkspaceGroup" },
-                      React.createElement(
-                        "div",
-                        {
-                          id: claudeWorkspaceHeadingId,
-                          className: "dshRemoteWorkspaceSourceHeading"
-                        },
-                        React.createElement("span", { className: "dshRemoteWorkspaceSourceText" }, React.createElement("strong", null, t("claudeVirtualWorkspace"))),
-                        React.createElement("button", {
-                          type: "button",
-                          className: "dshRemoteAddWorkspace",
-                          disabled: busy,
-                          title: t("addClaudeWorkspace"),
-                          "aria-label": t("addClaudeWorkspace"),
-                          onClick: () => startAddingWorkspace("claude")
-                        }, React.createElement("svg", {
-                          className: "dshRemoteAddWorkspaceIcon",
-                          viewBox: "0 0 16 16",
-                          "aria-hidden": !0,
-                          focusable: !1
-                        }, React.createElement("path", { d: "M8 3v10M3 8h10", fill: "none", stroke: "currentColor", strokeWidth: 1.5, strokeLinecap: "round" })))
-                      ),
-                      React.createElement("div", {
-                        id: claudeWorkspaceListId,
-                        className: "dshRemoteDirectoryList dshRemoteCodexWorkspaceList",
-                        "aria-labelledby": claudeWorkspaceHeadingId
-                      }, visibleClaudeWorkspaces.length === 0 ? React.createElement("p", null, t("noClaudeWorkspaces")) : visibleClaudeWorkspaces.map((workspace) => React.createElement(
-                        "button",
-                        {
-                          type: "button",
-                          key: workspace.workspaceId,
-                          disabled: busy,
-                          className: workspaceBackend === "claude" && claudeWorkspaceId === workspace.workspaceId ? "isSelected" : "",
-                          "aria-pressed": workspaceBackend === "claude" && claudeWorkspaceId === workspace.workspaceId,
-                          onClick: () => {
-                            setWorkspaceBackend("claude"), setClaudeWorkspaceId(workspace.workspaceId), setHermesWorkspaceId(void 0), setPiWorkspaceId(void 0), setOpencodeWorkspaceId(void 0), setAntigravityWorkspaceId(void 0), setCodexWorkspaceId(void 0), setCursorWorkspaceId(void 0), setPath(workspace.path);
-                          },
-                          onDoubleClick: () => void openWorkspace({
-                            backend: "claude",
-                            path: workspace.path,
-                            workspaceId: workspace.workspaceId
-                          })
-                        },
-                        React.createElement("img", { className: "dshRemoteWorkspaceIcon", src: deepSeekWorkspaceIcon, alt: "", "aria-hidden": !0 }),
-                        React.createElement("span", null, workspace.title),
-                        React.createElement("small", null, `${workspace.path} \xB7 ${workspace.sessionCount}`)
-                      ))),
-                      claudeWorkspaces.length <= 3 || showAllClaudeWorkspaces ? null : React.createElement("button", {
-                        type: "button",
-                        className: "dshRemoteWorkspaceMore",
-                        disabled: busy,
-                        "aria-controls": claudeWorkspaceListId,
-                        "aria-label": t("showAllClaudeWorkspaces"),
-                        onClick: () => setShowAllClaudeWorkspaces(!0)
-                      }, React.createElement("span", { "aria-hidden": !0 }, "\u2026"))
-                    ) : null
-                  ),
-                  React.createElement(
-                    "footer",
-                    { className: "dshRemoteOpenBar" },
-                    React.createElement("div", null, React.createElement("span", null, t("currentDirectory")), React.createElement("strong", null, path || "\u2014")),
-                    React.createElement("button", {
-                      type: "button",
-                      disabled: busy || path.trim() === "" || !addingWorkspace && workspaceBackend === "codex" && codexWorkspaceId === void 0 || !addingWorkspace && workspaceBackend === "cursor" && cursorWorkspaceId === void 0 && path === "" || !addingWorkspace && workspaceBackend === "antigravity" && antigravityWorkspaceId === void 0 && path === "" || !addingWorkspace && workspaceBackend === "pi" && piWorkspaceId === void 0 && path === "" || !addingWorkspace && workspaceBackend === "opencode" && opencodeWorkspaceId === void 0 && path === "" || !addingWorkspace && workspaceBackend === "claude" && claudeWorkspaceId === void 0 && path === "" || !addingWorkspace && workspaceBackend === "hermes" && hermesWorkspaceId === void 0 && path === "",
-                      onClick: () => void openWorkspace()
-                    }, t(busy ? "openingWorkspace" : addingWorkspace ? "confirmAddWorkspace" : "openWorkspace"))
+                          disabled: busy || path.trim() === "" || !addingWorkspace && workspaceBackend === "codex" && codexWorkspaceId === void 0 || !addingWorkspace && workspaceBackend === "cursor" && cursorWorkspaceId === void 0 && path === "" || !addingWorkspace && workspaceBackend === "antigravity" && antigravityWorkspaceId === void 0 && path === "" || !addingWorkspace && workspaceBackend === "pi" && piWorkspaceId === void 0 && path === "" || !addingWorkspace && workspaceBackend === "opencode" && opencodeWorkspaceId === void 0 && path === "" || !addingWorkspace && workspaceBackend === "claude" && claudeWorkspaceId === void 0 && path === "" || !addingWorkspace && workspaceBackend === "hermes" && hermesWorkspaceId === void 0 && path === "",
+                          onClick: () => void openWorkspace()
+                        }, glyph(React, FolderOpen), t(busy ? "openingWorkspace" : addingWorkspace ? "confirmAddWorkspace" : "openWorkspace"))
+                      )
+                    )
                   )
                 )
               )
@@ -7475,3 +8114,27 @@ If a code was sent, recover the original submission without changing it.`,
     }
   });
 })();
+/*! Bundled license information:
+
+lucide/dist/esm/defaultAttributes.js:
+lucide/dist/esm/icons/arrow-left-right.js:
+lucide/dist/esm/icons/chevron-right.js:
+lucide/dist/esm/icons/folder-open.js:
+lucide/dist/esm/icons/log-out.js:
+lucide/dist/esm/icons/monitor.js:
+lucide/dist/esm/icons/plus.js:
+lucide/dist/esm/icons/power.js:
+lucide/dist/esm/icons/refresh-cw.js:
+lucide/dist/esm/icons/search.js:
+lucide/dist/esm/icons/settings-2.js:
+lucide/dist/esm/icons/shield-check.js:
+lucide/dist/esm/icons/smartphone.js:
+lucide/dist/esm/icons/x.js:
+lucide/dist/esm/lucide.js:
+  (**
+   * @license lucide v0.469.0 - ISC
+   *
+   * This source code is licensed under the ISC license.
+   * See the LICENSE file in the root directory of this source tree.
+   *)
+*/
