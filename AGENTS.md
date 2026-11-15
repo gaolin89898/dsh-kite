@@ -1,5 +1,12 @@
 # Repository Guide for Agents
 
+## dsh-kite 1.0.2 release (2026-11-15)
+
+合并 origin/main（dsh-kite 发布线）进本地 main 后按 v1.0.1 的模式发布 v1.0.2：版本号载体（root/plugin/tui/browser/vscode/dsh-plugin.json）全部 1.0.2，lockfile 的 tui specifier 手工同步（--lockfile-only 未按上游依赖树重算，经 --frozen-lockfile 验证一致）；release-notes 与 CHANGELOG 更新到 1.0.2，dist 本地重建提交（Version sync verified: 1.0.2）。
+
+tag push 在本仓库不会自动触发 Release（v1.0.1 也是手动 dispatch）；用 `gh workflow run release.yml -f tag=v1.0.2` 触发 run 43698755307，成功：版本校验、frozen 安装、全仓 build/check/test、bundle 一致性校验、发布 ds-harness-remote-1.0.2.tgz 与同字节 dsh-kite.tgz（SHA-256 `4e1658bc…`）及浏览器扩展 zip，GitHub Release 以 release-notes 为描述；按策略未发布 npm。
+
+服务器（火山引擎 118.196.78.91，dsh.gaolin.xin）：先备份 local-plugins 到 backups-dsh-kite-1.0.2-pre-20261115，再上传 12 个文件（hash 逐一核对）；web profile 经 release tgz 升级到 1.0.2（SHA 校验一致），dsh-cloud 重启 active、公网 200。dsh-better-sidebar@0.32.1 的不兼容警告为既有第三方插件问题，与本版本无关。dsh-remote-server 容器（apps/server）本轮未更新（本次仅含严格 JSON 与非规范公钥拒绝两项变更），需要时用合并后源码重建镜像。
 ## liguobao fork merge (2026-11-15)
 
 main 已合并 remote/main（liguobao fork，104 commits，plugin 0.6.5），按“保留本地裁剪”解冲突：
