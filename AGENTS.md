@@ -7,6 +7,36 @@ apps/android 保持删除（138 个文件）；README/locale/docs 冲突以本�
 plugin/server 功能代码双侧保留——fork host.restart 与上游异步压缩（remote.compaction）、DS-Bot v0.3.6 端点转发、LAN TCP 上传并存，RpcRouter 在 workspaceUpload 后新增 hostRestart 槽位。
 ru/uk locale 补 17 个 fork 侧缺失键（英文兜底）；lan-upload.test.ts 按新 RpcRouter 参数对齐；上游新增的 sidebar DS-Bot 行内嵌用例断言被 fork 设计取代的行为，删除该用例（同文件其余 7 例保留并通过）。
 验证：全 packages build、Plugin/server check、server 67 tests、verify-dsh-plugin、git diff --check 通过。Plugin 全量并发 735 passed / 18 failed / 5 skipped——失败均已分类：13 例为本机 Windows 无符号链接 EPERM（与合并前基线同类，codex 两例已用合并前源码复跑证实同样失败）、1 例 codex 路径分隔符平台断言（合并前同样失败）、1 例上游 DS-Bot 行为用例（已删除）、3 例 5s 超时仅在满载并发时出现、单独重跑通过。dist 已重建提交；合并前的未提交 dist 改动 stash 后丢弃。
+
+## dsh-kite distribution (2026-11-13)
+
+用户明确要求：只将 DSH 插件显示名称改为 `dsh-kite`，保留 npm 包名
+`ds-harness-remote`、内部 workspace 包名、插件标识、配置与凭据路径；安装来源改为
+`gaolin89898/dsh-kite` 的 GitHub Release。不得将本 fork 发布到 npm 同名包。
+Release workflow 仅构建并发布 GitHub 安装包，保留版本化 `.tgz`，另提供同字节的
+`dsh-kite.tgz` 供安装器的 `latest` URL 使用。更新检查和链接使用本仓库 Releases。
+dshfind 的推导优先 npm 同名包；保留包名时必须在市场侧单独覆盖安装命令，不能声称
+仅发布本仓库就会修正市场页面。
+
+本轮本地验证：Node 24.22.1 全仓类型检查、串行生产构建、DSH bundle 校验、安装器
+语法及 latest/固定版本下载地址烟测、GitHub Release 更新检查烟测、打包清单与 Host
+入口加载、CLI help 通过。Client runtime 与 Plugin lifecycle 共 32 tests 通过。
+生命周期测试初跑受终端继承的固定 Host/Client 身份环境变量影响，未改动基线也复现；
+仅清除测试子进程的这四个变量后通过，无源码或测试断言变更。真实 Desktop 交互与
+跨设备 E2E 未执行；GitHub 发布状态以 workflow 和实际 Release 为准。
+
+干净 Linux CI 暴露并修复两项发布验证问题：完整构建需先于 Server 嵌入页面测试；
+CodeX 能力矩阵显式禁用无关的 hostControl，避免 systemd runner 的重启能力污染精确
+能力断言。保留原断言，本地 multi-client runtime 9 tests 通过。候选升级为 `1.0.1`，
+不重写已创建的 `v1.0.0` 标签；Release 支持手动按既有标签触发。
+
+已发布 [dsh-kite v1.0.1](https://github.com/gaolin89898/dsh-kite/releases/tag/v1.0.1)，
+源码标签指向 `26f21261`；[Release workflow](https://github.com/gaolin89898/dsh-kite/actions/runs/43365127180)
+成功，全仓类型检查、生产构建、全套测试（Plugin 76 文件 / 646 tests）与 bundle 一致性
+校验通过。版本化安装包与 `dsh-kite.tgz` 公开下载均 HTTP 200，下载后 SHA-256 一致且
+匹配发布清单：`e205090a63de81b846653f19a1560dba1896d78046f2135e6f8689b3b06f4e0f`。
+下载包的名称/版本/显示文案/更新源及 Host 入口加载复验通过。未修改 dshfind 市场记录。
+
 ## Restart UX, picker redesign and account menu (2026-11-11)
 
 在 Host restart 功能之上完成四项 Remote 客户端界面改动：
@@ -553,7 +583,7 @@ macOS 仍使用普通用户，优先复用 Desktop 官方 launcher，否则已�
 Desktop 默认保留的 `desktop` profile，只能由其官方 launcher 管理。一次性 Token 复用官方身份/凭据与既有注册码接口，
 不得记录或作为持久设备凭据使用。Windows 用户使用官方插件管理或已有 Harness 的官方命令。
 卸载先按安装指南停用 Linux 系统服务，再通过官方插件管理或 `dsh plugin remove` 移除 Remote；不自动删除 runtime、
-凭据或迁移旧 service。当前版本为 `0.6.4`；Tag、npm 与 GitHub Release 的发布状态以实际发布结果为准。
+凭据或迁移旧 service。当前版本为 `1.0.1`；Tag 与 GitHub Release 的发布状态以实际发布结果为准。
 
 ## Validation Baseline
 

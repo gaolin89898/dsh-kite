@@ -1,12 +1,12 @@
-# DeepSeek Harness Remote
+# dsh-kite
 
 Continue DeepSeek Harness sessions and experimental Codex, Cursor, and Antigravity workspaces from another device over an end-to-end encrypted connection.
 
-[GitHub](https://github.com/gaolin89898/ds-harness-remote) · [Full guide](https://github.com/gaolin89898/ds-harness-remote/blob/main/README.md) · [中文说明](https://github.com/gaolin89898/ds-harness-remote/blob/main/README.md) · [Remote Web](https://dsh.r2049.cn/app) · [DSH Go](https://github.com/ccch1mneyyy/dsh-go)
+[GitHub](https://github.com/gaolin89898/dsh-kite) · [Full guide](https://github.com/gaolin89898/dsh-kite/blob/main/README.md) · [中文说明](https://github.com/gaolin89898/dsh-kite/blob/main/README.md) · [Remote Web](https://dsh.gaolin.ink/app) · [DSH Go](https://github.com/ccch1mneyyy/dsh-go)
 
 `ds-harness-remote` is the Remote Host and workspace plugin for DeepSeek Harness. Harness keeps running on your work computer with its existing workspaces, tools, and permission controls; Remote gives authorized devices another window into that environment.
 
-> Install the npm package through Desktop Plugin management or `dsh plugin`. Both manage the selected Harness profile and its bundle configuration.
+> Install this repository's GitHub Release archive through Desktop Plugin management or `dsh plugin`. The package name stays `ds-harness-remote`; the npm registry package is a separate distribution.
 
 ## Remote Agent tools
 
@@ -38,17 +38,16 @@ CodeX/ACP currently support workspace discovery only through these tools. This e
 
 ### DSH Desktop
 
-In DeepSeek Harness Desktop, open **Extensions / Plugin management**, choose installation
-from **npm**, and enter:
+In DeepSeek Harness Desktop, open **Extensions / Plugin management** and install this GitHub Release archive:
 
 ```text
-ds-harness-remote@0.6.4
+https://github.com/gaolin89898/dsh-kite/releases/download/v1.0.1/ds-harness-remote-1.0.1.tgz
 ```
 
 Restart Desktop after installation. Its official `dsh` launcher can also install the package:
 
 ```sh
-dsh plugin --profile desktop add -w ds-harness-remote@0.6.4
+dsh plugin --profile desktop add -w https://github.com/gaolin89898/dsh-kite/releases/download/v1.0.1/ds-harness-remote-1.0.1.tgz
 ```
 
 Use Desktop's official launcher to manage its reserved `desktop` profile.
@@ -58,7 +57,7 @@ Use Desktop's official launcher to manage its reserved `desktop` profile.
 Add the current package version to the `web` profile, then restart Harness:
 
 ```sh
-dsh plugin --profile web add -w ds-harness-remote@0.6.4
+dsh plugin --profile web add -w https://github.com/gaolin89898/dsh-kite/releases/download/v1.0.1/ds-harness-remote-1.0.1.tgz
 ```
 
 ## Highlights
@@ -82,7 +81,7 @@ The same package feature-detects the older settings registry and the `0.1.7-rc.1
 
 ## Self-hosted Server
 
-This repository includes a minimal, single-account self-hosted Relay Server in [`apps/server`](https://github.com/gaolin89898/ds-harness-remote/tree/main/apps/server). Configure `DSH_SERVER_ACCOUNT` and `DSH_SERVER_PASSWORD`, then point the Host and clients at the same server URL. It provides account login, device credentials, encrypted Control/Noise forwarding, Relay, and a device-status page. It does not provide the complete multi-account Server, Remote Web session UI, or WebRTC/TURN deployment.
+This repository includes a minimal, single-account self-hosted Relay Server in [`apps/server`](https://github.com/gaolin89898/dsh-kite/tree/main/apps/server). Configure `DSH_SERVER_ACCOUNT` and `DSH_SERVER_PASSWORD`, then point the Host and clients at the same server URL. It provides account login, device credentials, encrypted Control/Noise forwarding, Relay, and a device-status page. It does not provide the complete multi-account Server, Remote Web session UI, or WebRTC/TURN deployment.
 
 ## Security boundary
 
@@ -94,13 +93,13 @@ This repository includes a minimal, single-account self-hosted Relay Server in [
 
 ## Documentation
 
-- [Complete guide](https://github.com/gaolin89898/ds-harness-remote#readme)
-- [Codex Remote technical notes](https://github.com/gaolin89898/ds-harness-remote/blob/main/docs/codex-remote.md)
-- [Agent workspace integration guide](https://github.com/gaolin89898/ds-harness-remote/blob/main/docs/acp-integration.md)
-- [End-to-end encryption](https://github.com/gaolin89898/ds-harness-remote/blob/main/docs/end-to-end-encryption.md)
-- [Network and transport](https://github.com/gaolin89898/ds-harness-remote/blob/main/docs/network.md)
-- [Protocol reference](https://github.com/gaolin89898/ds-harness-remote/blob/main/docs/protocol.md)
-- [Changelog](https://github.com/gaolin89898/ds-harness-remote/blob/main/docs/CHANGELOG.md)
+- [Complete guide](https://github.com/gaolin89898/dsh-kite#readme)
+- [Codex Remote technical notes](https://github.com/gaolin89898/dsh-kite/blob/main/docs/codex-remote.md)
+- [Agent workspace integration guide](https://github.com/gaolin89898/dsh-kite/blob/main/docs/acp-integration.md)
+- [End-to-end encryption](https://github.com/gaolin89898/dsh-kite/blob/main/docs/end-to-end-encryption.md)
+- [Network and transport](https://github.com/gaolin89898/dsh-kite/blob/main/docs/network.md)
+- [Protocol reference](https://github.com/gaolin89898/dsh-kite/blob/main/docs/protocol.md)
+- [Changelog](https://github.com/gaolin89898/dsh-kite/blob/main/docs/CHANGELOG.md)
 
 This is an independent community project and is not an official DeepSeek product. Licensed under the [MIT License](./LICENSE).
 

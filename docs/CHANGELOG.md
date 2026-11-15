@@ -1,3 +1,29 @@
+## 1.0.1 — 2026-11-13
+
+- DSH 插件显示名称统一为 `dsh-kite`，安装与更新使用 `gaolin89898/dsh-kite` 的 GitHub Release。
+- 保留 `ds-harness-remote` 包名和已有设备身份；安装脚本不再从 npm 同名包安装旧版。
+
+## 1.0.0 — 2026-11-12
+
+### English
+
+- Display the DSH plugin as `dsh-kite` and install from `gaolin89898/dsh-kite` GitHub Releases. The internal package name `ds-harness-remote`, plugin ID and credential storage paths stay unchanged.
+- Use this repository for the installer, version checks and update links, avoiding the independently published npm package.
+- Restart version numbering at 1.0.0 for the new repository.
+- Add per-Host restart actions: platform-specific supervised restarts, a busy badge while restarting and one automatic device-refresh retry.
+- Redesign the Host filter dropdown, the workspace directory picker and the account menu in the Remote clients.
+- Remove the in-repo Android app; mobile access is provided by the external DSH Go client.
+- Ignore OS metadata files (`.DS_Store`, `desktop.ini`, `Thumbs.db`) during credential storage ownership checks and migration, and keep the password sign-in form visible when optional OAuth discovery fails.
+
+### 中文
+
+- DSH 插件显示为 `dsh-kite`，从 `gaolin89898/dsh-kite` 的 GitHub Release 安装；内部包名 `ds-harness-remote`、插件 ID 与凭据存储路径保持不变。
+- 安装脚本、版本检查与更新链接使用本仓库，避免误装 npm 上的同名旧包。
+- 新仓库版本号自 1.0.0 重新开始。
+- 新增主机行「重启」操作：按平台执行受监管的重启，重启期间显示忙碌徽标并禁用点击，设备刷新失败自动重试一次。
+- 重做远程客户端的主机筛选下拉、工作区目录选择器与账号菜单。
+- 移除仓库内置 Android 应用；移动端改由外部 DSH Go 客户端提供。
+- 凭据存储归属检查与迁移忽略 `.DS_Store`、`desktop.ini`、`Thumbs.db` 等系统元文件；可选 OAuth 发现失败时保持密码登录表单可见。
 # Changelog
 
 版本条目保留发布时的功能和验证范围；当前使用方式与限制见[文档入口](README.md)和[版本兼容](compatibility.zh.md)。

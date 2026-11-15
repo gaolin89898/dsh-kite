@@ -1,6 +1,6 @@
 {
   "name": "ds-harness-remote",
-  "version": "0.6.5",
+  "version": "1.0.1",
   "description": "P2P-based, end-to-end encrypted remote access to DeepSeek Harness, CodeX, Claude Code, Pi, and other workspaces from web and mobile clients.",
   "keywords": [
     "deepseek",
@@ -12,14 +12,14 @@
     "end-to-end-encryption",
     "webrtc"
   ],
-  "homepage": "https://github.com/gaolin89898/ds-harness-remote#readme",
+  "homepage": "https://github.com/gaolin89898/dsh-kite#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/gaolin89898/ds-harness-remote.git",
+    "url": "git+https://github.com/gaolin89898/dsh-kite.git",
     "directory": "packages/plugin"
   },
   "bugs": {
-    "url": "https://github.com/gaolin89898/ds-harness-remote/issues"
+    "url": "https://github.com/gaolin89898/dsh-kite/issues"
   },
   "author": "gl <3289149570@qq.com>",
   "license": "MIT",
@@ -64,7 +64,6 @@
     "client": {
       "inject": [
         "@deepseek-ai/dsh-client-connection",
-        "@deepseek-ai/dsh-client-file-upload",
         "@deepseek-ai/dsh-client-locale",
         "@deepseek-ai/dsh-client-ui-sidebar",
         "@deepseek-ai/dsh-client-ui-slots",

@@ -81,7 +81,7 @@ elif [[ "$os" = Linux ]]; then
   { printf '#!/usr/bin/env bash\n# ds-harness-remote managed private runtime\n'; printf 'export PATH=%q:"$PATH"\n' "$runtime/node/bin:$runtime/harness/node_modules/.bin"; printf 'exec %q "$@"\n' "$runtime/harness/node_modules/.bin/dsh"; } > "$DSH_COMMAND"
   chmod 755 "$DSH_COMMAND"
 else
-  fail "No existing dsh command found. Install via Desktop Extensions / Plugin management (https://github.com/gaolin89898/ds-harness-remote), or enable Desktop's official dsh launcher."
+  fail "No existing dsh command found. Install via Desktop Extensions / Plugin management (https://github.com/gaolin89898/dsh-kite), or enable Desktop's official dsh launcher."
 fi
 # plugin exec changes cwd; service ExecStart must also use an absolute executable.
 if [[ "$DSH_COMMAND" != /* ]]; then DSH_COMMAND="$(pwd -P)/$DSH_COMMAND"; fi
@@ -94,7 +94,13 @@ if [[ -z "$DSH_PROFILE" ]]; then
 fi
 [[ "$DSH_PROFILE" =~ ^[A-Za-z0-9_-]+$ ]] || fail 'Invalid DSH_PROFILE.'
 REMOTE_VERSION=${REMOTE_VERSION:-latest}
-[[ "$REMOTE_VERSION" != -* && "$REMOTE_VERSION" != *[[:space:]]* ]] || fail 'Invalid REMOTE_VERSION.'
+if [[ "$REMOTE_VERSION" = latest ]]; then
+  remote_package_url='https://github.com/gaolin89898/dsh-kite/releases/latest/download/dsh-kite.tgz'
+else
+  REMOTE_VERSION=${REMOTE_VERSION#v}
+  [[ "$REMOTE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || fail 'REMOTE_VERSION must be latest or a release version.'
+  remote_package_url="https://github.com/gaolin89898/dsh-kite/releases/download/v${REMOTE_VERSION}/ds-harness-remote-${REMOTE_VERSION}.tgz"
+fi
 # Optional companion: Intelligent UI renders natively in the Remote clients.
 INTELLIGENT_UI=${INTELLIGENT_UI:-0}
 [[ "$INTELLIGENT_UI" = 0 || "$INTELLIGENT_UI" = 1 ]] || fail 'INTELLIGENT_UI must be 0 or 1.'
@@ -216,7 +222,7 @@ function abort(message) { const error = new Error(message); error.installerSafe 
   // Reject paths the unit parser would trim or treat as line continuation.
   if(home.trim() !== home || /[\\\x00-\x1f\x7f]/.test(home)) abort('Unsupported service working directory');
   const workingDirectory = home.replace(/%/g, '%%');
-  const contents = [marker,'[Unit]','Description=DeepSeek Harness Remote Host','After=network-online.target','Wants=network-online.target','[Service]','Type=simple','User=root',`WorkingDirectory=${workingDirectory}`,...Object.entries(env).map(([key,value])=>`Environment=${quote(key+'='+value)}`),`ExecStart=${[command,'--profile',profile,'--no-open','--host','127.0.0.1'].map(x=>quote(x,true)).join(' ')}`,'Restart=on-failure','RestartSec=5','StandardOutput=null','StandardError=null','[Install]','WantedBy=multi-user.target',''].join('\n');
+  const contents = [marker,'[Unit]','Description=Kite Host','After=network-online.target','Wants=network-online.target','[Service]','Type=simple','User=root',`WorkingDirectory=${workingDirectory}`,...Object.entries(env).map(([key,value])=>`Environment=${quote(key+'='+value)}`),`ExecStart=${[command,'--profile',profile,'--no-open','--host','127.0.0.1'].map(x=>quote(x,true)).join(' ')}`,'Restart=on-failure','RestartSec=5','StandardOutput=null','StandardError=null','[Install]','WantedBy=multi-user.target',''].join('\n');
   fs.mkdirSync(systemdDir, {recursive:true});
   // Refuse a link swap or concurrent fresh creation; never truncate before verifying.
   let previous;
@@ -244,8 +250,8 @@ NODE
 run_helper() { "$DSH_COMMAND" plugin --profile "$DSH_PROFILE" exec node -e "$helper" "$DSH_COMMAND" "$DSH_PROFILE" "$1" "$autostart" "$DSH_SYSTEMD_DIR"; }
 # Check service ownership before changing packages, then capabilities before redemption.
 if [[ "$autostart" = 1 ]]; then run_helper owner; fi
-say "Installing ds-harness-remote@${REMOTE_VERSION} into profile ${DSH_PROFILE} using ${DSH_COMMAND}"
-"$DSH_COMMAND" plugin --profile "$DSH_PROFILE" add -w "ds-harness-remote@${REMOTE_VERSION}"
+say "Installing dsh-kite from ${remote_package_url} into profile ${DSH_PROFILE} using ${DSH_COMMAND}"
+"$DSH_COMMAND" plugin --profile "$DSH_PROFILE" add -w "$remote_package_url"
 if [[ "$INTELLIGENT_UI" = 1 ]]; then
   # Same profile as Remote, before any service restart picks up the new bundles.
   say "Installing deepseek-harness-intelligent-ui@${INTELLIGENT_UI_VERSION} into profile ${DSH_PROFILE}"
