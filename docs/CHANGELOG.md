@@ -1,3 +1,8 @@
+## 1.0.2 — 2026-11-15
+
+- 合并上游 ds-harness-remote 0.6.5：异步上下文压缩（断线可恢复、取消有生命周期确认）、LAN TCP 大文件上传通道、DS-Bot 0.3.6 全部 161 个端点转发、文件与图片上传修复、Desktop 内在线升级 npm 插件、Host Debug 日志抽屉、自托管 Server REST JSON 严格解析与非规范 X25519 公钥拒绝。
+- 保持 dsh-kite 显示名称与 GitHub Release 安装来源不变；内部包名与凭据路径不变。
+
 ## 1.0.1 — 2026-11-13
 
 - DSH 插件显示名称统一为 `dsh-kite`，安装与更新使用 `gaolin89898/dsh-kite` 的 GitHub Release。
