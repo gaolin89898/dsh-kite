@@ -1,5 +1,12 @@
 # Repository Guide for Agents
 
+## liguobao fork merge (2026-11-15)
+
+main 已合并 remote/main（liguobao fork，104 commits，plugin 0.6.5），按“保留本地裁剪”解冲突：
+apps/android 保持删除（138 个文件）；README/locale/docs 冲突以本地为准（上游侧文档更新未并入，后续可按需挑拣）；
+plugin/server 功能代码双侧保留——fork host.restart 与上游异步压缩（remote.compaction）、DS-Bot v0.3.6 端点转发、LAN TCP 上传并存，RpcRouter 在 workspaceUpload 后新增 hostRestart 槽位。
+ru/uk locale 补 17 个 fork 侧缺失键（英文兜底）；lan-upload.test.ts 按新 RpcRouter 参数对齐；上游新增的 sidebar DS-Bot 行内嵌用例断言被 fork 设计取代的行为，删除该用例（同文件其余 7 例保留并通过）。
+验证：全 packages build、Plugin/server check、server 67 tests、verify-dsh-plugin、git diff --check 通过。Plugin 全量并发 735 passed / 18 failed / 5 skipped——失败均已分类：13 例为本机 Windows 无符号链接 EPERM（与合并前基线同类，codex 两例已用合并前源码复跑证实同样失败）、1 例 codex 路径分隔符平台断言（合并前同样失败）、1 例上游 DS-Bot 行为用例（已删除）、3 例 5s 超时仅在满载并发时出现、单独重跑通过。dist 已重建提交；合并前的未提交 dist 改动 stash 后丢弃。
 ## Restart UX, picker redesign and account menu (2026-11-11)
 
 在 Host restart 功能之上完成四项 Remote 客户端界面改动：
