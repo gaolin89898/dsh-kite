@@ -156,7 +156,7 @@ it('retires real TCP listeners and partial files through controller replacement,
  for(const cause of ['replacement','disconnect','revocation']){
   const s=await setup()
   const controller=new ConnectionController({isTrusted:()=>true} as unknown as IdentityStore,
-   ()=>new RpcRouter(128,undefined,undefined,undefined,undefined,undefined,undefined,undefined,undefined,undefined,s.upload,undefined,s.host))
+   ()=>new RpcRouter(128,undefined,undefined,undefined,undefined,undefined,undefined,undefined,undefined,undefined,s.upload,undefined,undefined,s.host))
   const channel=(connectionId:string):AuthenticatedPeerChannel=>({
    security:{protocol:'Noise_IK_25519_ChaChaPoly_SHA256',connectionId,membershipId:'fixture-membership'},
    peerDeviceId:'fixture-phone',peerIdentityKey:s.client.publicKey,mode:'LAN',
