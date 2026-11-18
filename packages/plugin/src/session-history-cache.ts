@@ -633,39 +633,68 @@ export interface CachedAcpSessionHistory {
   permissionPreset?: AcpPermissionPreset
 }
 
+interface AcpHistoryEntry {
+  source: WeakRef<CachedAcpSessionHistory['events']>
+  sourceLength: number
+  events: CachedAcpSessionHistory['events']
+  oldest: number
+  metadata: Omit<CachedAcpSessionHistory, 'events'>
+}
+
 /**
  * Bounded LRU cache for ACP virtual session histories (Claude, Hermes,
  * OpenCode, Pi, Antigravity, Cursor) across project switches.
  */
 export class AcpSessionHistoryCache {
-  private readonly sessions = new Map<string, CachedAcpSessionHistory>()
+  private readonly sessions = new Map<string, AcpHistoryEntry>()
+
+  private snapshot(entry: AcpHistoryEntry): CachedAcpSessionHistory {
+    const events = entry.oldest === 0 ? entry.events : entry.events.slice(entry.oldest).concat(entry.events.slice(0, entry.oldest))
+    return cloneStructured({ ...entry.metadata, events })
+  }
+
+  hostUpdatedAt(sessionId: string): number | undefined {
+    return this.sessions.get(sessionId)?.metadata.hostUpdatedAt
+  }
 
   getFresh(sessionId: string): CachedAcpSessionHistory | undefined {
     const entry = this.sessions.get(sessionId)
-    if (entry === undefined || entry.stale || entry.truncated || !entry.hydrated || entry.events.length === 0) return undefined
+    if (entry === undefined || entry.metadata.stale || entry.metadata.truncated || !entry.metadata.hydrated || entry.events.length === 0) return undefined
     touchLru(this.sessions, sessionId, entry, MAX_CACHED_SESSIONS)
-    return cloneStructured(entry)
+    return this.snapshot(entry)
   }
 
   getStale(sessionId: string): CachedAcpSessionHistory | undefined {
     const entry = this.sessions.get(sessionId)
     if (entry === undefined) return undefined
-    return cloneStructured(entry)
+    return this.snapshot(entry)
   }
 
-  set(sessionId: string, value: CachedAcpSessionHistory): void {
-    const cloned = cloneStructured(value)
-    if (cloned.events.length > MAX_ACP_CACHED_EVENTS_PER_SESSION) {
-      cloned.events = cloned.events.slice(cloned.events.length - MAX_ACP_CACHED_EVENTS_PER_SESSION)
-      cloned.truncated = true
+  set(sessionId: string, { events, ...metadata }: CachedAcpSessionHistory): void {
+    const limit = MAX_ACP_CACHED_EVENTS_PER_SESSION
+    const previous = this.sessions.get(sessionId)
+    const entry: AcpHistoryEntry = previous?.source.deref() === events && previous.sourceLength <= events.length ? previous
+      : { source: new WeakRef(events), sourceLength: 0, events: [], oldest: 0, metadata }
+    entry.metadata = cloneStructured(metadata)
+    if (events.length > limit) entry.metadata.truncated = true
+    const start = Math.max(entry.sourceLength, events.length - limit)
+    if (start < events.length) {
+      for (const event of cloneStructured(events.slice(start))) {
+        if (entry.events.length < limit) entry.events.push(event)
+        else {
+          entry.events[entry.oldest] = event
+          entry.oldest = (entry.oldest + 1) % limit
+        }
+      }
     }
-    touchLru(this.sessions, sessionId, cloned, MAX_CACHED_SESSIONS)
+    entry.sourceLength = events.length
+    touchLru(this.sessions, sessionId, entry, MAX_CACHED_SESSIONS)
   }
 
   markStale(sessionId: string): void {
     const entry = this.sessions.get(sessionId)
     if (entry !== undefined) {
-      entry.stale = true
+      entry.metadata.stale = true
     }
   }
 

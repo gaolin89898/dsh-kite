@@ -189,6 +189,24 @@ const cleanupScenario2 = async () => {
 afterEach(cleanupScenario2)
 
 describe('account and device authorization', () => {
+  it('caches fingerprinted bundles but not the page, account responses or unversioned assets indefinitely', async () => {
+    const page = await fetch(base + '/app/remote')
+    expect(page.headers.get('cache-control')).toBe('no-cache')
+    const files = [...(await page.text()).matchAll(/(?:src|href)="(\/assets\/[^"\s]+\.(?:js|css))"/g)].map(match => match[1]!)
+    expect(files.some(file => file.endsWith('.js'))).toBe(true)
+    expect(files.some(file => file.endsWith('.css'))).toBe(true)
+    for (const file of files) {
+      const response = await fetch(base + file)
+      expect(response.status).toBe(200)
+      expect(response.headers.get('cache-control')).toBe('public, max-age=31536000, immutable')
+    }
+    expect((await fetch(base + '/icon.png')).headers.get('cache-control')).toBe('no-store')
+    expect((await request('/auth/me', 'GET', undefined, accountToken)).headers.get('cache-control')).toBe('no-store')
+    const missing = await fetch(base + '/assets/missing-12345678.js')
+    expect(missing.status).toBe(404)
+    expect(missing.headers.get('cache-control')).toBe('no-store')
+  })
+
   it('restricts embedding to configured ancestors and keeps embedded sessions separate', async () => {
     const embedHeaders = { 'X-DSH-Embedded': '1' }
     const crossSite = { 'Sec-Fetch-Site': 'cross-site', 'Sec-Fetch-Dest': 'iframe' }

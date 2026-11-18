@@ -30,6 +30,29 @@ function fakeAcp() {
 }
 
 describe('AcpVirtualHarness', () => {
+  it('copies only retained new ACP events and keeps cached history ordered and isolated', () => {
+    const cache = new AcpSessionHistoryCache()
+    const readDropped = vi.fn(() => 'dropped'), readKept = vi.fn(() => 'kept')
+    const events = Array.from({ length: 10_001 }, (_, seq) => ({ type: 'event' as const, event: {
+      seq, type: 'test', time: seq, get data() { return seq === 0 ? readDropped() : seq === 2 ? readKept() : 'text' },
+    } }))
+    const history = { events, blank: false, hydrated: true, hostUpdatedAt: 1 }
+    cache.set('session', history)
+    expect(readDropped).not.toHaveBeenCalled()
+    events.push({ type: 'event', event: { seq: 10_001, type: 'new', time: 1, data: 'new' } })
+    cache.set('session', history)
+    cache.set('session', { ...history, title: 'Updated' })
+    expect(readKept).toHaveBeenCalledTimes(1)
+    expect(cache.getFresh('session')).toBeUndefined()
+    const tail = cache.getStale('session')!
+    expect(tail.events.map(row => row.event.seq)).toEqual(events.slice(2).map(row => row.event.seq))
+    expect(tail.title).toBe('Updated')
+    tail.events[0]!.event.type = 'local edit'
+    expect(cache.getStale('session')!.events[0]!.event.type).toBe('test')
+    cache.set('session', { ...history, events: events.slice(-1) })
+    expect(cache.getFresh('session')?.events).toEqual(events.slice(-1))
+  })
+
   it('recovers delayed ACP titles without stale catalog reads replacing newer metadata', async () => {
     await runScenarios(['delayed catalog', 'live rename', 'workspace refresh', 'manual rename', 'closed projection', 'retry exhausted', 'read timeout'].map(name => ({ name, run: async () => {
       vi.useFakeTimers()

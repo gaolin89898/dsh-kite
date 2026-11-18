@@ -66875,29 +66875,47 @@ var CodexSessionHistoryCache = class _CodexSessionHistoryCache {
 };
 var AcpSessionHistoryCache = class {
   sessions = /* @__PURE__ */ new Map();
+  snapshot(entry) {
+    const events = entry.oldest === 0 ? entry.events : entry.events.slice(entry.oldest).concat(entry.events.slice(0, entry.oldest));
+    return cloneStructured({ ...entry.metadata, events });
+  }
+  hostUpdatedAt(sessionId) {
+    return this.sessions.get(sessionId)?.metadata.hostUpdatedAt;
+  }
   getFresh(sessionId) {
     const entry = this.sessions.get(sessionId);
-    if (entry === void 0 || entry.stale || entry.truncated || !entry.hydrated || entry.events.length === 0) return void 0;
+    if (entry === void 0 || entry.metadata.stale || entry.metadata.truncated || !entry.metadata.hydrated || entry.events.length === 0) return void 0;
     touchLru(this.sessions, sessionId, entry, MAX_CACHED_SESSIONS);
-    return cloneStructured(entry);
+    return this.snapshot(entry);
   }
   getStale(sessionId) {
     const entry = this.sessions.get(sessionId);
     if (entry === void 0) return void 0;
-    return cloneStructured(entry);
+    return this.snapshot(entry);
   }
-  set(sessionId, value) {
-    const cloned = cloneStructured(value);
-    if (cloned.events.length > MAX_ACP_CACHED_EVENTS_PER_SESSION) {
-      cloned.events = cloned.events.slice(cloned.events.length - MAX_ACP_CACHED_EVENTS_PER_SESSION);
-      cloned.truncated = true;
+  set(sessionId, { events, ...metadata }) {
+    const limit = MAX_ACP_CACHED_EVENTS_PER_SESSION;
+    const previous = this.sessions.get(sessionId);
+    const entry = previous?.source.deref() === events && previous.sourceLength <= events.length ? previous : { source: new WeakRef(events), sourceLength: 0, events: [], oldest: 0, metadata };
+    entry.metadata = cloneStructured(metadata);
+    if (events.length > limit) entry.metadata.truncated = true;
+    const start = Math.max(entry.sourceLength, events.length - limit);
+    if (start < events.length) {
+      for (const event of cloneStructured(events.slice(start))) {
+        if (entry.events.length < limit) entry.events.push(event);
+        else {
+          entry.events[entry.oldest] = event;
+          entry.oldest = (entry.oldest + 1) % limit;
+        }
+      }
     }
-    touchLru(this.sessions, sessionId, cloned, MAX_CACHED_SESSIONS);
+    entry.sourceLength = events.length;
+    touchLru(this.sessions, sessionId, entry, MAX_CACHED_SESSIONS);
   }
   markStale(sessionId) {
     const entry = this.sessions.get(sessionId);
     if (entry !== void 0) {
-      entry.stale = true;
+      entry.metadata.stale = true;
     }
   }
   delete(sessionId) {
@@ -68582,9 +68600,8 @@ var AcpVirtualHarness = class _AcpVirtualHarness {
   }
   syncSessionCache(session2) {
     if (this.backend === "cursor") return;
-    const existing = this.historyCache.getStale(session2.sessionId);
     const isStale = Boolean(session2.running || session2.staleHistory);
-    const hostUpdatedAt = session2.staleHistory && existing !== void 0 ? existing.hostUpdatedAt : session2.updatedAt;
+    const hostUpdatedAt = session2.staleHistory ? this.historyCache.hostUpdatedAt(session2.sessionId) ?? session2.updatedAt : session2.updatedAt;
     const selectedModel = this.selectedModels.get(session2.sessionId);
     const permissionPreset2 = this.selectedPermissions.get(session2.sessionId);
     this.historyCache.set(session2.sessionId, {
@@ -83869,7 +83886,7 @@ var RemoteSessionTools = class {
         const pending = Promise.resolve().then(() => this.connect(args.hostId, signal, async (remote, active2) => {
           const gateway = new RemoteTypertGateway2(remote.client);
           if (!remote.features.remoteGateway) fail4("HARNESS_SESSIONS_UNAVAILABLE");
-          await this.requireSession(gateway, args, active2);
+          await new HostSessionCatalog(gateway, active2).requireSession(args);
           const name2 = args.name ?? basename2(args.localPath);
           sessionToolInputs.remote_upload_file.parse({ ...args, name: name2 });
           uploaderEntered = true;
@@ -83887,7 +83904,7 @@ var RemoteSessionTools = class {
         const args = sessionToolInputs[operation].parse(input4);
         const generation = this.generation;
         return this.onHost(args, signal, async (gateway, active2) => {
-          await this.requireSession(gateway, args, active2);
+          await new HostSessionCatalog(gateway, active2).requireSession(args);
           return downloadRemoteFile(gateway, args.sessionId, args.path, active2, () => {
             if (generation !== this.generation) fail4("REMOTE_AUTHORITY_CHANGED");
           });
@@ -83904,7 +83921,7 @@ var RemoteSessionTools = class {
       case "remote_list_sessions": {
         const args = sessionToolInputs[operation].parse(input4);
         return this.onHost(args, signal, async (gateway, active2) => {
-          const rows = await this.catalog(gateway, args, active2);
+          const rows = await new HostSessionCatalog(gateway, active2).list(args.workspaceId);
           const sorted = rows.sort((a, b) => b.updatedAt - a.updatedAt || a.sessionId.localeCompare(b.sessionId));
           const items = sorted.slice(args.offset, args.offset + args.limit).map(summary);
           return {
@@ -83917,7 +83934,7 @@ var RemoteSessionTools = class {
       case "remote_read_session": {
         const args = sessionToolInputs[operation].parse(input4);
         return this.onHost(args, signal, async (gateway, active2) => {
-          const row = await this.requireSession(gateway, args, active2);
+          const row = await new HostSessionCatalog(gateway, active2).requireSession(args);
           const page = args.cursor === void 0 ? await first(gateway, "session/follow", { request: { address: address(args.sessionId), maxMessages: args.maxMessages } }, active2) : record7(await gateway.invoke({ namespace: "session", method: "page", args: { request: {
             address: address(args.sessionId),
             ...args.cursor,
@@ -83953,27 +83970,6 @@ var RemoteSessionTools = class {
       return query(new RemoteTypertGateway2(remote.client), active2);
     });
   }
-  async requireWorkspace(gateway, args, signal) {
-    const baseline = await first(gateway, "workspace/follow", {}, signal);
-    if (baseline.type !== "baseline") fail4("INVALID_WORKSPACE_BASELINE");
-    const rows = external_exports.array(workspaceRow).max(MAX_REMOTE_WORKSPACES).parse(record7(baseline.value).items);
-    const found = rows.find((row) => row.workspaceId === args.workspaceId);
-    if (!found) fail4("WORKSPACE_NOT_FOUND");
-    return found;
-  }
-  async catalog(gateway, args, signal) {
-    const found = await this.requireWorkspace(gateway, args, signal);
-    const response = record7(await gateway.invoke({ namespace: "session", method: "list", args: { _request: {} }, signal }));
-    const rows = external_exports.array(rowSchema).parse(response.items);
-    const allowed = new Set(found.sessionIds);
-    const owned = rows.filter((row) => allowed.has(row.sessionId) && row.parentSessionId === void 0 && row.origin !== "subagent");
-    return owned.length > MAX_REMOTE_SESSIONS ? owned.slice(0, MAX_REMOTE_SESSIONS) : owned;
-  }
-  async requireSession(gateway, args, signal) {
-    const row = (await this.catalog(gateway, args, signal)).find((row2) => row2.sessionId === args.sessionId);
-    if (!row) fail4("SESSION_NOT_IN_WORKSPACE");
-    return row;
-  }
   async mutate(operation, args, signal) {
     const fingerprint3 = createHash("sha256").update(JSON.stringify([
       operation,
@@ -84001,8 +83997,9 @@ var RemoteSessionTools = class {
     entry.pending = Promise.resolve().then(async () => {
       try {
         await this.onHost(args, signal, async (gateway, active2) => {
-          if (operation === "remote_create_session") await this.requireWorkspace(gateway, args, active2);
-          else await this.requireSession(gateway, args, active2);
+          const catalog = new HostSessionCatalog(gateway, active2);
+          if (operation === "remote_create_session") await catalog.requireWorkspace(args.workspaceId);
+          else await catalog.requireSession(args);
           active2.throwIfAborted();
           const endpoint = operation === "remote_create_session" ? "session/create" : operation === "remote_send_message" ? "session/prompt" : "session/cancel";
           const request = operation === "remote_create_session" ? { workspaceId: args.workspaceId } : operation === "remote_send_message" ? {
@@ -84049,36 +84046,31 @@ var RemoteSessionTools = class {
       timedOut = true;
       stop.abort();
     }, args.timeoutMs);
-    const workers = args.targets.map(async (item, index) => {
+    const hosts = /* @__PURE__ */ new Map();
+    for (const state2 of states) {
+      const group = hosts.get(state2.hostId);
+      if (group) group.push(state2);
+      else hosts.set(state2.hostId, [state2]);
+    }
+    const workers = [...hosts.values()].map(async (group) => {
       try {
-        await this.onHost(item, active2, async (gateway, current) => {
-          const row = await this.requireSession(gateway, item, current);
-          const source = await gateway.open("session/follow", { args: { request: { address: address(item.sessionId), maxMessages: 20 } } }, current);
-          const iterator = source[Symbol.asyncIterator]();
+        await this.onHost(group[0], active2, async (gateway, current) => {
+          const groupStop = new AbortController();
+          const watching = AbortSignal.any([current, groupStop.signal]);
+          const catalog = new HostSessionCatalog(gateway, watching);
+          const watches = group.map((state2) => watchSession(gateway, catalog, state2, watching, args.timeoutMs === 0).catch(() => {
+            if (!watching.aborted) state2.status = "unavailable";
+          }));
           try {
-            const observed = new ObservedState(row);
-            const snapshot2 = await iterator.next();
-            if (snapshot2.done || record7(snapshot2.value).type !== "snapshot") fail4("INVALID_SESSION_SNAPSHOT");
-            observed.snapshot(record7(snapshot2.value));
-            states[index].status = observed.status;
-            if (args.timeoutMs === 0 || observed.status !== "running") return;
-            while (!current.aborted) {
-              const next = await iterator.next();
-              if (next.done) {
-                current.throwIfAborted();
-                fail4("SESSION_STREAM_CLOSED");
-              }
-              observed.frame(record7(next.value));
-              states[index].status = observed.status;
-              if (observed.status !== "running") return;
-            }
-            current.throwIfAborted();
+            if (args.timeoutMs === 0) await Promise.all(watches);
+            else await Promise.race(watches);
           } finally {
-            await iterator.return?.();
+            groupStop.abort();
+            await Promise.allSettled(watches);
           }
         });
       } catch {
-        if (!active2.aborted) states[index].status = "unavailable";
+        if (!active2.aborted) for (const state2 of group) state2.status = "unavailable";
       }
     });
     try {
@@ -84093,6 +84085,64 @@ var RemoteSessionTools = class {
     return { sessions: states, timedOut };
   }
 };
+var HostSessionCatalog = class {
+  constructor(gateway, signal) {
+    this.gateway = gateway;
+    this.signal = signal;
+  }
+  workspaces;
+  sessions;
+  owned = /* @__PURE__ */ new Map();
+  async requireWorkspace(workspaceId) {
+    this.workspaces ??= first(this.gateway, "workspace/follow", {}, this.signal).then((baseline) => {
+      if (baseline.type !== "baseline") fail4("INVALID_WORKSPACE_BASELINE");
+      return external_exports.array(external_exports.unknown()).max(MAX_REMOTE_WORKSPACES).parse(record7(baseline.value).items);
+    });
+    const found = (await this.workspaces).find((item) => record7(item).workspaceId === workspaceId);
+    if (found === void 0) fail4("WORKSPACE_NOT_FOUND");
+    return workspaceRow.parse(found);
+  }
+  list(workspaceId) {
+    const prior = this.owned.get(workspaceId);
+    if (prior) return prior;
+    const rows = this.readOwned(workspaceId);
+    this.owned.set(workspaceId, rows);
+    return rows;
+  }
+  async readOwned(workspaceId) {
+    const workspace2 = await this.requireWorkspace(workspaceId);
+    this.sessions ??= this.gateway.invoke({ namespace: "session", method: "list", args: { _request: {} }, signal: this.signal }).then((response) => external_exports.array(rowSchema).parse(record7(response).items));
+    const allowed = new Set(workspace2.sessionIds);
+    return (await this.sessions).filter((row) => allowed.has(row.sessionId) && row.parentSessionId === void 0 && row.origin !== "subagent").slice(0, MAX_REMOTE_SESSIONS);
+  }
+  async requireSession(target3) {
+    return (await this.list(target3.workspaceId)).find((row) => row.sessionId === target3.sessionId) ?? fail4("SESSION_NOT_IN_WORKSPACE");
+  }
+};
+async function watchSession(gateway, catalog, state2, signal, snapshotOnly) {
+  const row = await catalog.requireSession(state2);
+  const source = await gateway.open("session/follow", { args: { request: { address: address(state2.sessionId), maxMessages: 20 } } }, signal);
+  const iterator = source[Symbol.asyncIterator]();
+  try {
+    const observed = new ObservedState(row);
+    const snapshot2 = await iterator.next();
+    if (snapshot2.done || record7(snapshot2.value).type !== "snapshot") fail4("INVALID_SESSION_SNAPSHOT");
+    observed.snapshot(record7(snapshot2.value));
+    state2.status = observed.status;
+    while (!snapshotOnly && state2.status === "running") {
+      signal.throwIfAborted();
+      const next = await iterator.next();
+      if (next.done) {
+        signal.throwIfAborted();
+        fail4("SESSION_STREAM_CLOSED");
+      }
+      observed.frame(record7(next.value));
+      state2.status = observed.status;
+    }
+  } finally {
+    await iterator.return?.();
+  }
+}
 function target2(args) {
   return { hostId: args.hostId, backend: "harness", workspaceId: args.workspaceId };
 }
@@ -85574,7 +85624,7 @@ function parseIpv6(value) {
 }
 
 // packages/plugin/src/version.ts
-var PLUGIN_VERSION = "1.0.2";
+var PLUGIN_VERSION = "1.0.3";
 
 // packages/plugin/src/server-api.ts
 var TERMINAL_CONTROL_CHARACTERS = /[\u0000-\u001f\u007f-\u009f]/u;

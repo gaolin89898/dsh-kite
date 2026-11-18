@@ -650,10 +650,9 @@ export class AcpVirtualHarness implements RemoteTypertGatewayTarget {
 
   private syncSessionCache(session: AcpSessionState): void {
     if (this.backend === 'cursor') return
-    const existing = this.historyCache.getStale(session.sessionId)
     const isStale = Boolean(session.running || session.staleHistory)
-    const hostUpdatedAt = session.staleHistory && existing !== undefined
-      ? existing.hostUpdatedAt
+    const hostUpdatedAt = session.staleHistory
+      ? this.historyCache.hostUpdatedAt(session.sessionId) ?? session.updatedAt
       : session.updatedAt
     const selectedModel = this.selectedModels.get(session.sessionId)
     const permissionPreset = this.selectedPermissions.get(session.sessionId)

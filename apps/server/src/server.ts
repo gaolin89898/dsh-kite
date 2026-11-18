@@ -270,6 +270,7 @@ export function createRemoteServer(config: Config) {
       if (!asset) throw new ApiError('METHOD_NOT_FOUND', 404)
       const contentType = name.endsWith('.js') ? 'text/javascript; charset=utf-8' : name.endsWith('.css') ? 'text/css; charset=utf-8' : name.endsWith('.png') ? 'image/png' : name.endsWith('.webp') ? 'image/webp' : 'text/html; charset=utf-8'
       if (!staticAsset) res.setHeader('Cache-Control', 'no-cache')
+      else if (/^assets\/[^/]+-[A-Za-z0-9_-]{8}\.(?:js|css)$/.test(name)) res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
       res.setHeader('Content-Type', contentType)
       res.end(asset); return
     }

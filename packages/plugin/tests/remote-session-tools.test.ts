@@ -16,6 +16,8 @@ function fixture() {
   const state = {
     rows: [{ sessionId: 'session', title: 'Session', running: false, blank: false, updatedAt: 1 }] as Record<string, unknown>[],
     ids: ['session'],
+    otherWorkspaces: [] as Record<string, unknown>[],
+    connections: [] as string[],
     history: [event(1, 'user/message', { content: [{ type: 'text', text: 'Hello' }] })],
     hasMore: false,
     cursor: 1,
@@ -35,7 +37,7 @@ function fixture() {
     return (async function* () {
       try {
         if (endpoint === 'workspace/follow') {
-          yield { type: 'baseline', value: { items: [{ workspaceId: 'workspace', path: '/project', title: 'Project', sessionIds: state.ids }] } }
+          yield { type: 'baseline', value: { items: [{ workspaceId: 'workspace', path: '/project', title: 'Project', sessionIds: state.ids }, ...state.otherWorkspaces] } }
         } else if (endpoint === 'session/follow') {
           yield { type: 'snapshot', cursor: state.cursor, records: state.history, hasMore: state.hasMore, projections: { values: {} } }
           for (const frame of state.frames) yield frame
@@ -45,7 +47,8 @@ function fixture() {
     })()
   })
   const dispatch = vi.spyOn(RemoteTypertGateway.prototype, 'dispatch').mockResolvedValue({ ok: true, value: { accepted: true } })
-  const connect: RemoteToolConnection = async (_host, active, query) => {
+  const connect: RemoteToolConnection = async (host, active, query) => {
+    state.connections.push(host)
     active.throwIfAborted()
     return query({ features: { remoteGateway: state.supported }, client: {} } as ConnectedRemote, active)
   }
@@ -54,6 +57,43 @@ function fixture() {
 }
 
 describe('Native Remote session tool boundaries', () => {
+  it('isolates unrelated oversized workspaces but still validates the selected membership', async () => {
+    const fixtureState = fixture()
+    const { sessionId: _, ...workspace } = target
+    fixtureState.state.otherWorkspaces.push({ workspaceId: 'archive', path: '/archive', title: 'Archive', sessionIds: Array.from({ length: 2049 }, (_, index) => `archived-${index}`) })
+    await expect(fixtureState.tools.run('remote_list_sessions', workspace, signal())).resolves.toMatchObject({ sessions: [{ sessionId: target.sessionId }] })
+    await expect(fixtureState.tools.run('remote_list_sessions', { ...workspace, workspaceId: 'archive' }, signal())).rejects.toThrow()
+    expect(fixtureState.state.queries.filter(query => query === 'session/list')).toHaveLength(1)
+  })
+
+  it('shares one carrier and catalogue while keeping independent session subscriptions and membership', async () => {
+    const { tools, state } = fixture()
+    state.ids.push('second')
+    state.rows.push({ ...state.rows[0], sessionId: 'second', running: true })
+    state.otherWorkspaces.push({ workspaceId: 'other', path: '/other', title: 'Other', sessionIds: [] })
+    const targets = [{ ...target, sessionId: 'second' }, target, { ...target, workspaceId: 'other' }]
+    await expect(tools.run('remote_wait_sessions', { targets, timeoutMs: 0 }, signal())).resolves.toEqual({
+      sessions: [{ ...targets[0], status: 'running' }, { ...target, status: 'idle' }, { ...targets[2], status: 'unavailable' }], timedOut: false,
+    })
+    expect(state.connections).toEqual(['host'])
+    expect(state.queries.filter(query => query === 'workspace/follow')).toHaveLength(1)
+    expect(state.queries.filter(query => query === 'session/list')).toHaveLength(1)
+    expect(state.queries.filter(query => query === 'session/follow')).toHaveLength(2)
+    expect(state.closed).toBe(3)
+  })
+
+  it('returns after the first idle sibling and closes the still-running subscription', async () => {
+    const { tools, state } = fixture()
+    state.ids.push('busy')
+    state.rows.push({ ...state.rows[0], sessionId: 'busy', running: true })
+    const busy = { ...target, sessionId: 'busy' }
+    await expect(tools.run('remote_wait_sessions', { targets: [busy, target], timeoutMs: 1500 }, signal())).resolves.toEqual({
+      sessions: [{ ...busy, status: 'running' }, { ...target, status: 'idle' }], timedOut: false,
+    })
+    expect(state.connections).toEqual(['host'])
+    expect(state.closed).toBe(3)
+  })
+
   it('uses workspace membership and excludes foreign and subagent sessions before mutation', async () => {
     await runScenarios(['foreign', 'subagent', 'workspace', 'unsupported'].map(kind => ({ name: kind, run: async () => {
       const f = fixture()

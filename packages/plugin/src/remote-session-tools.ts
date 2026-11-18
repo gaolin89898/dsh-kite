@@ -87,7 +87,7 @@ export class RemoteSessionTools {
         const pending = Promise.resolve().then(() => this.connect(args.hostId, signal, async (remote, active) => {
           const gateway = new RemoteTypertGateway(remote.client)
           if (!remote.features.remoteGateway) fail('HARNESS_SESSIONS_UNAVAILABLE')
-          await this.requireSession(gateway, args, active)
+          await new HostSessionCatalog(gateway, active).requireSession(args)
           const name = args.name ?? basename(args.localPath)
           sessionToolInputs.remote_upload_file.parse({ ...args, name })
           uploaderEntered = true
@@ -107,7 +107,7 @@ export class RemoteSessionTools {
         const args = sessionToolInputs[operation].parse(input)
         const generation = this.generation
         return this.onHost(args, signal, async (gateway, active) => {
-          await this.requireSession(gateway, args, active)
+          await new HostSessionCatalog(gateway, active).requireSession(args)
           return downloadRemoteFile(gateway, args.sessionId, args.path, active, () => {
             if (generation !== this.generation) fail('REMOTE_AUTHORITY_CHANGED')
           })
@@ -121,7 +121,7 @@ export class RemoteSessionTools {
       case 'remote_list_sessions': {
         const args = sessionToolInputs[operation].parse(input)
         return this.onHost(args, signal, async (gateway, active) => {
-          const rows = await this.catalog(gateway, args, active)
+          const rows = await new HostSessionCatalog(gateway, active).list(args.workspaceId)
           const sorted = rows.sort((a, b) => b.updatedAt - a.updatedAt || a.sessionId.localeCompare(b.sessionId))
           const items = sorted.slice(args.offset, args.offset + args.limit).map(summary)
           return { ...target(args), sessions: items,
@@ -131,7 +131,7 @@ export class RemoteSessionTools {
       case 'remote_read_session': {
         const args = sessionToolInputs[operation].parse(input)
         return this.onHost(args, signal, async (gateway, active) => {
-          const row = await this.requireSession(gateway, args, active)
+          const row = await new HostSessionCatalog(gateway, active).requireSession(args)
           const page = args.cursor === undefined
             ? await first(gateway, 'session/follow', { request: { address: address(args.sessionId), maxMessages: args.maxMessages } }, active)
             : record(await gateway.invoke({ namespace: 'session', method: 'page', args: { request: {
@@ -162,36 +162,6 @@ export class RemoteSessionTools {
     })
   }
 
-  private async requireWorkspace(gateway: RemoteTypertGateway, args: WorkspaceTarget, signal: AbortSignal) {
-    const baseline = await first(gateway, 'workspace/follow', {}, signal)
-    if (baseline.type !== 'baseline') fail('INVALID_WORKSPACE_BASELINE')
-    const rows = z.array(workspaceRow).max(MAX_REMOTE_WORKSPACES).parse(record(baseline.value).items)
-    const found = rows.find(row => row.workspaceId === args.workspaceId)
-    if (!found) fail('WORKSPACE_NOT_FOUND')
-    return found!
-  }
-
-  private async catalog(gateway: RemoteTypertGateway, args: WorkspaceTarget, signal: AbortSignal): Promise<SessionRow[]> {
-    const found = await this.requireWorkspace(gateway, args, signal)
-    const response = record(await gateway.invoke({ namespace: 'session', method: 'list', args: { _request: {} }, signal }))
-    // The Host catalogue covers the whole account while one workspace owns a
-    // small slice of it, so the row bound must apply after workspace ownership
-    // and the subagent filter: bound-then-filter rejects a large account
-    // outright (measured 5 431 rows against a 2 048 bound) instead of listing
-    // the handful of sessions this workspace actually owns.
-    const rows = z.array(rowSchema).parse(response.items)
-    const allowed = new Set(found.sessionIds)
-    // Workspace ownership comes from the official catalog, never a guessed cwd.
-    const owned = rows.filter(row => allowed.has(row.sessionId) && row.parentSessionId === undefined && row.origin !== 'subagent')
-    return owned.length > MAX_REMOTE_SESSIONS ? owned.slice(0, MAX_REMOTE_SESSIONS) : owned
-  }
-
-  private async requireSession(gateway: RemoteTypertGateway, args: SessionTarget, signal: AbortSignal) {
-    const row = (await this.catalog(gateway, args, signal)).find(row => row.sessionId === args.sessionId)
-    if (!row) fail('SESSION_NOT_IN_WORKSPACE')
-    return row!
-  }
-
   private async mutate(operation: Mutation,
     args: WorkspaceTarget & { operationId: string; sessionId?: string; message?: string }, signal: AbortSignal): Promise<Receipt> {
     const fingerprint = createHash('sha256').update(JSON.stringify([operation, args.hostId, args.backend,
@@ -211,8 +181,9 @@ export class RemoteSessionTools {
     entry.pending = Promise.resolve().then(async () => {
       try {
         await this.onHost(args, signal, async (gateway, active) => {
-          if (operation === 'remote_create_session') await this.requireWorkspace(gateway, args, active)
-          else await this.requireSession(gateway, args as SessionTarget, active)
+          const catalog = new HostSessionCatalog(gateway, active)
+          if (operation === 'remote_create_session') await catalog.requireWorkspace(args.workspaceId)
+          else await catalog.requireSession(args as SessionTarget)
           active.throwIfAborted()
           const endpoint = operation === 'remote_create_session' ? 'session/create'
             : operation === 'remote_send_message' ? 'session/prompt' : 'session/cancel'
@@ -256,31 +227,30 @@ export class RemoteSessionTools {
     // A zero timeout is an immediate snapshot, not a zero-budget connection attempt.
     let timer: ReturnType<typeof setTimeout> | undefined
     if (args.timeoutMs > 0) timer = setTimeout(() => { timedOut = true; stop.abort() }, args.timeoutMs)
-    const workers = args.targets.map(async (item, index) => {
+    const hosts = new Map<string, typeof states>()
+    for (const state of states) {
+      const group = hosts.get(state.hostId)
+      if (group) group.push(state)
+      else hosts.set(state.hostId, [state])
+    }
+    const workers = [...hosts.values()].map(async group => {
       try {
-        await this.onHost(item, active, async (gateway, current) => {
-          const row = await this.requireSession(gateway, item, current)
-          const source = await gateway.open('session/follow', { args: { request: { address: address(item.sessionId), maxMessages: 20 } } }, current)
-          const iterator = source[Symbol.asyncIterator]()
+        await this.onHost(group[0]!, active, async (gateway, current) => {
+          const groupStop = new AbortController()
+          const watching = AbortSignal.any([current, groupStop.signal])
+          const catalog = new HostSessionCatalog(gateway, watching)
+          const watches = group.map(state => watchSession(gateway, catalog, state, watching, args.timeoutMs === 0)
+            .catch(() => { if (!watching.aborted) state.status = 'unavailable' }))
           try {
-            const observed = new ObservedState(row)
-            const snapshot = await iterator.next()
-            if (snapshot.done || record(snapshot.value).type !== 'snapshot') fail('INVALID_SESSION_SNAPSHOT')
-            observed.snapshot(record(snapshot.value))
-            states[index]!.status = observed.status
-            if (args.timeoutMs === 0 || observed.status !== 'running') return
-            while (!current.aborted) {
-              const next = await iterator.next()
-              if (next.done) { current.throwIfAborted(); fail('SESSION_STREAM_CLOSED') }
-              observed.frame(record(next.value))
-              states[index]!.status = observed.status
-              if (observed.status !== 'running') return
-            }
-            current.throwIfAborted()
-          } finally { await iterator.return?.() }
+            if (args.timeoutMs === 0) await Promise.all(watches)
+            else await Promise.race(watches)
+          } finally {
+            groupStop.abort()
+            await Promise.allSettled(watches)
+          }
         })
       } catch {
-        if (!active.aborted) states[index]!.status = 'unavailable'
+        if (!active.aborted) for (const state of group) state.status = 'unavailable'
       }
     })
     try {
@@ -294,6 +264,65 @@ export class RemoteSessionTools {
     signal.throwIfAborted()
     return { sessions: states, timedOut }
   }
+}
+
+class HostSessionCatalog {
+  private workspaces?: Promise<unknown[]>
+  private sessions?: Promise<SessionRow[]>
+  private readonly owned = new Map<string, Promise<SessionRow[]>>()
+
+  constructor(private readonly gateway: RemoteTypertGateway, private readonly signal: AbortSignal) {}
+
+  async requireWorkspace(workspaceId: string) {
+    this.workspaces ??= first(this.gateway, 'workspace/follow', {}, this.signal).then(baseline => {
+      if (baseline.type !== 'baseline') fail('INVALID_WORKSPACE_BASELINE')
+      return z.array(z.unknown()).max(MAX_REMOTE_WORKSPACES).parse(record(baseline.value).items)
+    })
+    const found = (await this.workspaces).find(item => record(item).workspaceId === workspaceId)
+    if (found === undefined) fail('WORKSPACE_NOT_FOUND')
+    return workspaceRow.parse(found)
+  }
+
+  list(workspaceId: string): Promise<SessionRow[]> {
+    const prior = this.owned.get(workspaceId)
+    if (prior) return prior
+    const rows = this.readOwned(workspaceId)
+    this.owned.set(workspaceId, rows)
+    return rows
+  }
+
+  private async readOwned(workspaceId: string): Promise<SessionRow[]> {
+    const workspace = await this.requireWorkspace(workspaceId)
+    this.sessions ??= this.gateway.invoke({ namespace: 'session', method: 'list', args: { _request: {} }, signal: this.signal })
+      .then(response => z.array(rowSchema).parse(record(response).items))
+    const allowed = new Set(workspace.sessionIds)
+    return (await this.sessions).filter(row => allowed.has(row.sessionId) && row.parentSessionId === undefined && row.origin !== 'subagent')
+      .slice(0, MAX_REMOTE_SESSIONS)
+  }
+
+  async requireSession(target: SessionTarget): Promise<SessionRow> {
+    return (await this.list(target.workspaceId)).find(row => row.sessionId === target.sessionId) ?? fail('SESSION_NOT_IN_WORKSPACE')
+  }
+}
+
+async function watchSession(gateway: RemoteTypertGateway, catalog: HostSessionCatalog, state: SessionTarget & { status: Status }, signal: AbortSignal, snapshotOnly: boolean) {
+  const row = await catalog.requireSession(state)
+  const source = await gateway.open('session/follow', { args: { request: { address: address(state.sessionId), maxMessages: 20 } } }, signal)
+  const iterator = source[Symbol.asyncIterator]()
+  try {
+    const observed = new ObservedState(row)
+    const snapshot = await iterator.next()
+    if (snapshot.done || record(snapshot.value).type !== 'snapshot') fail('INVALID_SESSION_SNAPSHOT')
+    observed.snapshot(record(snapshot.value))
+    state.status = observed.status
+    while (!snapshotOnly && state.status === 'running') {
+      signal.throwIfAborted()
+      const next = await iterator.next()
+      if (next.done) { signal.throwIfAborted(); fail('SESSION_STREAM_CLOSED') }
+      observed.frame(record(next.value))
+      state.status = observed.status
+    }
+  } finally { await iterator.return?.() }
 }
 
 function target(args: WorkspaceTarget): WorkspaceTarget {
