@@ -6,15 +6,15 @@
 
 本分支在 DSH 中显示为 **dsh-kite**，内部包名仍为 `ds-harness-remote`。安装与更新使用 `gaolin89898/dsh-kite` 的 GitHub Release，不从 npm 同名包获取版本。
 
-在 Desktop 的官方 `dsh` 启动器中执行：
+首次安装最新发布版，在 Desktop 的官方 `dsh` 启动器中执行：
 
 ```sh
-dsh plugin --profile desktop add -w https://github.com/gaolin89898/dsh-kite/releases/download/v1.0.1/ds-harness-remote-1.0.1.tgz
+dsh plugin --profile desktop add -w https://github.com/gaolin89898/dsh-kite/releases/latest/download/dsh-kite.tgz
 ```
 
 Web Host 改用实际启动它的 `dsh`、`DSH_HOME` 和 profile（通常为 `web`）。已有同名插件时，在同一 profile 重新执行上述命令以切换来源，按宿主提示重启；不要删除 profile 或 Remote 凭据目录。
 
-侧栏版本提示检查本仓库的 GitHub Releases。GitHub 安装不提供 DSH 的 npm 在线更新入口；后续版本从[发布页](https://github.com/gaolin89898/dsh-kite/releases)获取新的 `.tgz` 地址，并在本机安装。更新会中断该插件承载的远程连接。
+侧栏版本提示检查本仓库的 GitHub Releases，不会自动升级。升级已有安装时，从[发布页](https://github.com/gaolin89898/dsh-kite/releases)复制带版本号的 `.tgz` 地址，替换命令中的 `latest` 安装包地址，避免锁文件继续使用旧包。更新会中断该插件承载的远程连接。
 
 若插件市场仍显示 `dsh plugin … add ds-harness-remote` 或 0.6.4，它仍在推导 npm 同名包。请使用本页的 GitHub Release 地址；市场需要单独更新安装命令，仓库改动不会自动覆盖其记录。
 
@@ -116,7 +116,7 @@ Desktop 默认 `desktop` profile，独立 CLI 默认 `web`，可用 `DSH_COMMAND
 Desktop 也可打开 **扩展 / 插件管理**，使用本仓库的安装包地址：
 
 ```text
-https://github.com/gaolin89898/dsh-kite/releases/download/v1.0.1/ds-harness-remote-1.0.1.tgz
+https://github.com/gaolin89898/dsh-kite/releases/latest/download/dsh-kite.tgz
 ```
 
 普通独立 CLI 不能管理保留的 `desktop` profile，必须使用 Desktop 官方 launcher。
@@ -128,7 +128,7 @@ https://github.com/gaolin89898/dsh-kite/releases/download/v1.0.1/ds-harness-remo
 | `DSH_COMMAND` | 已有 launcher 路径；显式指定却找不到时失败，不静默换实例 |
 | `DSH_PROFILE` | 所选 profile；独立默认 `web`，Desktop 默认 `desktop` |
 | `DSH_HOME` | 保留已有值，注册凭据与运行实例使用同一 home；Linux 通常为 root 的 home 下 `.dsh` |
-| `REMOTE_VERSION` | 本仓库 GitHub Release 版本，默认 `latest`；可指定 `1.0.1` 或 `v1.0.1` |
+| `REMOTE_VERSION` | 本仓库 GitHub Release 版本，默认 `latest`；固定版本示例：`1.0.3` 或 `v1.0.3` |
 | `INTELLIGENT_UI` | 为 `1` 时同时把 Intelligent UI 安装到同一 profile；默认 `0` |
 | `INTELLIGENT_UI_VERSION` | `INTELLIGENT_UI=1` 时的 Intelligent UI 版本，默认 npm `latest` |
 | `DSH_VERSION` | Linux 缺少 DSH 时的新安装版本，默认 npm `latest`，不升级已有 DSH |

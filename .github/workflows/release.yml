@@ -68,6 +68,15 @@ jobs:
           }
           NODE
 
+      - name: Verify install commands
+        run: |
+          releases=https://github.com/gaolin89898/dsh-kite/releases
+          install='dsh plugin --profile desktop add -w'
+          for doc in README.md docs/installation.md packages/plugin/README.md; do
+            grep -Fqx "$install $releases/latest/download/dsh-kite.tgz" "$doc" || { echo "Missing latest install command in $doc"; exit 1; }
+          done
+          grep -Fqx "$install $releases/download/$RELEASE_TAG/ds-harness-remote-${RELEASE_TAG#v}.tgz" .github/release-notes.md
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
