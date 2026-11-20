@@ -54,9 +54,9 @@ export function LoginPanel({
       {!embedded && (
         <aside className="dx-auth-brand">
           <div className="dx-brand-row">
-            <a className="dx-brand-lockup" href="/" aria-label="DSH Remote 首页">
+            <a className="dx-brand-lockup" href="/" aria-label="dsh-kite 首页">
               <img src="/brand-whale.webp" alt="" width="26" height="19" />
-              <span>DSH Remote</span>
+              <span>dsh-kite</span>
             </a>
             <span className="dx-self-badge"><i />SELF-HOSTED</span>
           </div>
@@ -97,7 +97,7 @@ export function LoginPanel({
           </div>
 
           <div className="dx-brand-foot">
-            <span>DSH REMOTE · SELF-HOSTED</span>
+            <span>dsh-kite · SELF-HOSTED</span>
             <span><i />ALL SYSTEMS NORMAL</span>
           </div>
         </aside>
@@ -193,7 +193,7 @@ export function LoginPanel({
 
         {!embedded && (
           <div className="dx-form-foot">
-            <span>© 2025 DSH REMOTE · SELF-HOSTED</span>
+            <span>© 2025 dsh-kite · SELF-HOSTED</span>
             <nav>
               <a href="https://github.com/gaolin89898/dsh-kite/blob/main/docs" target="_blank" rel="noreferrer">文档</a>
               <a href="https://github.com/gaolin89898/dsh-kite" target="_blank" rel="noreferrer">GitHub</a>

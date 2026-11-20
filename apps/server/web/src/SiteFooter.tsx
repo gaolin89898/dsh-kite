@@ -7,7 +7,7 @@ const DOWNLOAD_URL = `${REPOSITORY}/releases/latest`
 
 export function SiteFooter() {
   return <footer className="site-footer app-footer">
-    <span>© DSH Remote</span>
+    <span>© dsh-kite</span>
     <div className="site-footer-links">
       <a href="/" className="site-footer-link" aria-label="返回首页"><LinkOutlined aria-hidden="true" /><span>返回首页</span></a>
       <a href={CHANGELOG_URL} target="_blank" rel="noreferrer" className="site-footer-link" aria-label="更新日志"><HistoryOutlined aria-hidden="true" /><span>更新日志</span></a>

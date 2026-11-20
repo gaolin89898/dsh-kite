@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Kite",
+  "name": "dsh-kite",
   "description": "__MSG_extensionDescription__",
   "default_locale": "en",
   "version": "1.0.3",
@@ -8,7 +8,7 @@
     "128": "media/icon.png"
   },
   "action": {
-    "default_title": "Kite",
+    "default_title": "dsh-kite",
     "default_popup": "popup.html",
     "default_icon": {
       "128": "media/icon.png"

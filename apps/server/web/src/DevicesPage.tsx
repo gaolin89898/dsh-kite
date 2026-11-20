@@ -134,7 +134,7 @@ export function DevicesPage({ account, onSignedOut, embedded = false }: { accoun
         <header className="dx-topbar">
           <div className="dx-topbar-brand">
             <img src="/brand-whale.webp" alt="" width="22" height="16" />
-            <strong>DSH Remote</strong>
+            <strong>dsh-kite</strong>
             <i />
             <span>CONSOLE</span>
           </div>
@@ -381,7 +381,7 @@ export function DevicesPage({ account, onSignedOut, embedded = false }: { accoun
 
       {!embedded && (
         <footer className="dx-foot">
-          <span>© 2025 DSH REMOTE · SELF-HOSTED</span>
+          <span>© 2025 dsh-kite · SELF-HOSTED</span>
           <nav>
             <span className="dx-foot-status"><i />ALL SYSTEMS NORMAL</span>
             <a href="https://github.com/gaolin89898/dsh-kite/blob/main/docs" target="_blank" rel="noreferrer">文档</a>

@@ -1,6 +1,6 @@
 <p align="center">
 
-  <img src="docs/logo.svg" alt="Kite · 风筝" width="600">
+  <img src="docs/logo.svg" alt="dsh-kite" width="360">
 </p>
 
 <p align="center">
@@ -21,7 +21,7 @@
 
 从手机、电脑、浏览器继续使用你的 DeepSeek Harness 实例。无论使用哪台设备，都可以回到同一个 Harness 会话。
 
-Harness 始终运行在工作电脑上，原有的工作区、工具和项目配置保持不变。Kite 只是通往这个工作环境的另一个窗口。
+Harness 始终运行在工作电脑上，原有的工作区、工具和项目配置保持不变。通过 dsh-kite，你可以从其他设备回到这个工作环境。
 
 已支持 DeepSeek Harness 桌面版，使用最新版本安装即可：
 

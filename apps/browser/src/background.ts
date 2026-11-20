@@ -1,5 +1,5 @@
 /**
- * Kite browser launcher service worker.
+ * dsh-kite browser launcher service worker.
  *
  * The extension reads the current Web authorization only for the exchange call,
  * replaces it with an isolated Browser device credential, and
