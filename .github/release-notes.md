@@ -1,23 +1,17 @@
 ## 中文
 
-**dsh-kite v1.0.3**
+**dsh-kite v1.0.4**
 
-- 修复其他工作区会话过多时，当前工作区也无法列出会话的问题。
-- 同时等待同一主机上的多个会话时复用连接，避免重复建连中断等待。
-- ACP 长会话仅增量缓存新的历史事件，降低持续运行时的复制开销。
-- 自托管 Server 允许浏览器长期缓存带内容哈希的 JS/CSS；账号接口保持不缓存。
+- 修复 Desktop 顶栏「远程模式」状态条的垂直对齐：状态条现在在 40px 标题栏行内垂直居中，与「应用/编辑」菜单、窗口控制按钮齐平；此前整体偏低约 6px，与顶栏其他元素视觉错位。
 
 ```sh
-dsh plugin --profile desktop add -w https://github.com/gaolin89898/dsh-kite/releases/download/v1.0.3/ds-harness-remote-1.0.3.tgz
+dsh plugin --profile desktop add -w https://github.com/gaolin89898/dsh-kite/releases/download/v1.0.4/ds-harness-remote-1.0.4.tgz
 ```
 
-Web 用户将 `desktop` 换为实际 profile。静态资源缓存改进需要更新自托管 Server。
+Web 用户将 `desktop` 换为实际 profile。
 
 ## English
 
-**dsh-kite v1.0.3**
+**dsh-kite v1.0.4**
 
-- A large, unrelated workspace no longer prevents the selected workspace from listing sessions.
-- Waiting on multiple sessions on one Host shares a connection without interrupting sibling subscriptions.
-- Long-running ACP sessions copy only new history events into the cache.
-- The self-hosted Server allows browsers to reuse fingerprinted JS and CSS across visits. Account responses remain uncached.
+- Fix the vertical alignment of the remote-mode status strip in the Desktop caption row: the strip is now vertically centered within the 40px caption row, level with the App/Edit menus and the window control buttons, instead of sitting about 6px low.
