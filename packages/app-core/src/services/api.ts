@@ -1,7 +1,7 @@
 import { connectionLog } from './connection-log'
 // The shared package carries the release version; a release requires it to
-// equal expo.version in both apps/android/app.json and apps/ios/app.json, so
-// this stays correct for either platform without importing an app's config.
+// equal expo.version in apps/android/app.json, so this stays correct without
+// importing an app's config.
 import appPackage from '../../package.json'
 import { MAX_DEVICE_NAME_LENGTH, attentionDigestSchema, deviceTokenPairSchema, type AttentionDigest, type DeviceTokenPair as TokenPair } from '@dsh-remote/protocol'
 import { RemoteApiError } from '../lib/errors'
