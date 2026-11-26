@@ -483,7 +483,7 @@ importers:
         specifier: 0.2.3-alpha.2
         version: 0.2.3-alpha.2(omm22cdhzilsu4p2xfrhatxbku)
       ds-harness-remote:
-        specifier: workspace:1.0.6
+        specifier: workspace:1.0.7
         version: link:../plugin
 
   packages/tui-plugin:

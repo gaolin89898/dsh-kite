@@ -1,13 +1,13 @@
 ## 中文
 
-**dsh-kite v1.0.6**
+**dsh-kite v1.0.7**
 
-- 修复 Remote 入口与 Magpie 用量卡同时显示时，工作区和会话列表被挤出侧栏的问题。较长的主机名会显示省略号，Remote 按钮仍可见。
+- 修复 Harness `0.2.2-rc.5` 中本机所有者打开「远程设置」时收到 HTTP 403 的问题。设置入口也兼容 `0.2.3-alpha.2`，共享会话访客仍无法访问。
 
 **Windows Desktop** · 在 PowerShell 中运行 Desktop 自带的启动器，安装后重新打开 Desktop。自定义安装目录需相应修改路径。
 
 ```powershell
-& "$env:LOCALAPPDATA\Programs\DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd" plugin --profile desktop add -w https://github.com/gaolin89898/dsh-kite/releases/download/v1.0.6/ds-harness-remote-1.0.6.tgz
+& "$env:LOCALAPPDATA\Programs\DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd" plugin --profile desktop add -w https://github.com/gaolin89898/dsh-kite/releases/download/v1.0.7/ds-harness-remote-1.0.7.tgz
 ```
 
 也可以在 Desktop 的「插件 → 添加插件」中粘贴上述 `.tgz` 地址。
@@ -15,11 +15,11 @@
 **Web** · 在启动 Web 实例的环境中运行以下命令，按需替换 profile 名称。
 
 ```sh
-dsh plugin --profile web add -w https://github.com/gaolin89898/dsh-kite/releases/download/v1.0.6/ds-harness-remote-1.0.6.tgz
+dsh plugin --profile web add -w https://github.com/gaolin89898/dsh-kite/releases/download/v1.0.7/ds-harness-remote-1.0.7.tgz
 ```
 
 ## English
 
-**dsh-kite v1.0.6**
+**dsh-kite v1.0.7**
 
-- Fix the workspace and session lists disappearing when the Remote entry shares the sidebar with the Magpie usage card. Long host names now truncate so the Remote button stays visible.
+- Fix HTTP 403 when the local owner opens Remote settings in Harness `0.2.2-rc.5`. Remote settings also support `0.2.3-alpha.2` and remain restricted to the owner.

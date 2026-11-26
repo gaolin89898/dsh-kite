@@ -279,7 +279,8 @@ describe('loopback status event stream', () => {
     type Route = Parameters<HostWebServerLike['register']>[0]
     const register = vi.fn((_route: Route) => () => {})
     const stream = new ControlStatusStream(async () => ({ mode: 'local' }))
-    const dispose = registerControlRoute({ admit: () => {}, rpc: {} }, vi.fn(), { register }, stream)
+    const admit = vi.fn(() => ({ rejection: 401 }))
+    const dispose = registerControlRoute({ admit, rpc: {} }, vi.fn(), { register }, stream)
     const route = register.mock.calls[0]![0]
     expect(route.auth).toBe('required')
     const req = { method: 'GET', url: STATUS_STREAM_PATH } as IncomingMessage
@@ -288,6 +289,33 @@ describe('loopback status event stream', () => {
       await route.handler(req, res.response, peer)
       expect(res.statusCode).toBe(peer?.principal.kind === 'owner' ? 200 : 403)
     }
+    expect(admit).not.toHaveBeenCalled()
+    await dispose()
+  })
+
+  it('reads settings with request admission on the 0.2.2 WebServer', async () => {
+    const route = captureRoute()
+    const admit = vi.fn()
+      .mockReturnValueOnce({ peer: { principal: { kind: 'owner' } } })
+      .mockReturnValueOnce({ peer: { principal: { kind: 'guest' } } })
+      .mockReturnValueOnce({ rejection: 401 })
+      .mockReturnValueOnce({ rejection: 403 })
+    const requestRejection = vi.fn(() => undefined)
+    const handler = vi.fn<ControlRouteHandler>().mockResolvedValue({ ok: true, value: { writable: true } })
+    const dispose = registerControlRoute({ admit, requestRejection, rpc: {} }, handler, route.webServer)
+    const base = await listen(route.handle)
+    const readSettings = () => fetch(`${base}${CONTROL_RPC_PREFIX}/settings.get`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ type: 'client-request', rpcId: 'settings', method: 'settings.get', payload: {} }),
+    })
+
+    const owner = await readSettings()
+    expect(owner.status).toBe(200)
+    await expect(owner.json()).resolves.toMatchObject({ result: { ok: true, value: { writable: true } } })
+    for (const status of [403, 401, 403]) expect((await readSettings()).status).toBe(status)
+    expect(handler).toHaveBeenCalledTimes(1)
+    expect(admit).toHaveBeenCalledTimes(4)
+    expect(requestRejection).not.toHaveBeenCalled()
     await dispose()
   })
 

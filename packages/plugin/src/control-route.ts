@@ -13,9 +13,12 @@ export const STATUS_STREAM_PATH = `${CONTROL_RPC_PREFIX}/${STATUS_STREAM_ENDPOIN
 const ENDPOINT_SEGMENT_PATTERN = /^[A-Za-z0-9_$.-]+$/
 const INVALID_REQUEST_RPC_ID = 'invalid-request'
 
+interface ControlPeer {
+  principal: { kind: string }
+}
+
 interface HostConnectionHandleLike {
-  /** Present on Hosts that admit a Peer before invoking WebServer handlers. */
-  admit?: unknown
+  admit?(request: IncomingMessage): { peer: ControlPeer } | { rejection: number }
   requestRejection?(request: { headers: IncomingHttpHeaders }): number | undefined
   rpc: {
     handle?(
@@ -31,7 +34,7 @@ export interface HostWebServerLike {
     kind: 'prefix'
     path: string
     auth?: 'required'
-    handler(req: IncomingMessage, res: ServerResponse, peer?: { principal: { kind: string } }): void | Promise<void>
+    handler(req: IncomingMessage, res: ServerResponse, peer?: ControlPeer): void | Promise<void>
   }): () => void | Promise<void>
 }
 
@@ -53,18 +56,18 @@ export function registerControlRoute(
   webServer?: HostWebServerLike,
   statusStream?: ControlStatusStreamLike,
 ): () => Promise<void> {
-  const peerAdmission = typeof connection.admit === 'function'
-  if (webServer !== undefined && (peerAdmission || connection.requestRejection !== undefined)) {
+  if (webServer !== undefined && (typeof connection.admit === 'function' || connection.requestRejection !== undefined)) {
     const dispose = webServer.register({
       kind: 'prefix',
       path: CONTROL_RPC_PREFIX,
       auth: 'required',
       handler: (req, res, peer) => {
-        if (peerAdmission && peer?.principal.kind !== 'owner') {
-          writeText(res, 403, 'forbidden')
+        const rejection = controlRequestRejection(connection, req, peer)
+        if (rejection !== undefined) {
+          writeText(res, rejection, rejection === 401 ? 'unauthorized' : 'forbidden')
           return
         }
-        return handleControlRequest(connection, handler, req, res, statusStream)
+        return handleControlRequest(handler, req, res, statusStream)
       },
     })
     return async () => {
@@ -86,20 +89,23 @@ export function registerControlRoute(
   })
 }
 
+function controlRequestRejection(connection: HostConnectionHandleLike, req: IncomingMessage, peer?: ControlPeer): number | undefined {
+  // 0.2.3 supplies the admitted peer to an auth-required route.
+  if (peer !== undefined) return peer.principal.kind === 'owner' ? undefined : 403
+  // 0.2.2 exposes requestRejection and leaves admission to the route handler.
+  if (connection.requestRejection === undefined) return 403
+  if (connection.admit === undefined) return connection.requestRejection(req)
+  const admission = connection.admit(req)
+  if ('rejection' in admission) return admission.rejection
+  return admission.peer.principal.kind === 'owner' ? undefined : 403
+}
+
 async function handleControlRequest(
-  connection: HostConnectionHandleLike,
   handler: ControlRouteHandler,
   req: IncomingMessage,
   res: ServerResponse,
   statusStream?: ControlStatusStreamLike,
 ): Promise<void> {
-  const rejection = connection.requestRejection?.(req)
-  if (rejection !== undefined) {
-    res.writeHead(rejection)
-    res.end(rejection === 401 ? 'unauthorized' : 'forbidden')
-    return
-  }
-
   const endpoint = endpointFromPath(CONTROL_RPC_PREFIX, new URL(req.url ?? '/', 'http://dsh.internal').pathname)
   if (req.method === 'GET' && endpoint === STATUS_STREAM_ENDPOINT && statusStream !== undefined) {
     await statusStream.handle(res)

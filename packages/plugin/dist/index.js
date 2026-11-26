@@ -82614,18 +82614,18 @@ var STATUS_STREAM_PATH = `${CONTROL_RPC_PREFIX}/${STATUS_STREAM_ENDPOINT}`;
 var ENDPOINT_SEGMENT_PATTERN = /^[A-Za-z0-9_$.-]+$/;
 var INVALID_REQUEST_RPC_ID = "invalid-request";
 function registerControlRoute(connection, handler, webServer, statusStream) {
-  const peerAdmission = typeof connection.admit === "function";
-  if (webServer !== void 0 && (peerAdmission || connection.requestRejection !== void 0)) {
+  if (webServer !== void 0 && (typeof connection.admit === "function" || connection.requestRejection !== void 0)) {
     const dispose = webServer.register({
       kind: "prefix",
       path: CONTROL_RPC_PREFIX,
       auth: "required",
       handler: (req, res, peer) => {
-        if (peerAdmission && peer?.principal.kind !== "owner") {
-          writeText(res, 403, "forbidden");
+        const rejection = controlRequestRejection(connection, req, peer);
+        if (rejection !== void 0) {
+          writeText(res, rejection, rejection === 401 ? "unauthorized" : "forbidden");
           return;
         }
-        return handleControlRequest(connection, handler, req, res, statusStream);
+        return handleControlRequest(handler, req, res, statusStream);
       }
     });
     return async () => {
@@ -82639,13 +82639,15 @@ function registerControlRoute(connection, handler, webServer, statusStream) {
     authority: "loopback"
   });
 }
-async function handleControlRequest(connection, handler, req, res, statusStream) {
-  const rejection = connection.requestRejection?.(req);
-  if (rejection !== void 0) {
-    res.writeHead(rejection);
-    res.end(rejection === 401 ? "unauthorized" : "forbidden");
-    return;
-  }
+function controlRequestRejection(connection, req, peer) {
+  if (peer !== void 0) return peer.principal.kind === "owner" ? void 0 : 403;
+  if (connection.requestRejection === void 0) return 403;
+  if (connection.admit === void 0) return connection.requestRejection(req);
+  const admission = connection.admit(req);
+  if ("rejection" in admission) return admission.rejection;
+  return admission.peer.principal.kind === "owner" ? void 0 : 403;
+}
+async function handleControlRequest(handler, req, res, statusStream) {
   const endpoint = endpointFromPath(CONTROL_RPC_PREFIX, new URL(req.url ?? "/", "http://dsh.internal").pathname);
   if (req.method === "GET" && endpoint === STATUS_STREAM_ENDPOINT && statusStream !== void 0) {
     await statusStream.handle(res);
@@ -85632,7 +85634,7 @@ function parseIpv6(value) {
 }
 
 // packages/plugin/src/version.ts
-var PLUGIN_VERSION = "1.0.6";
+var PLUGIN_VERSION = "1.0.7";
 
 // packages/plugin/src/server-api.ts
 var TERMINAL_CONTROL_CHARACTERS = /[\u0000-\u001f\u007f-\u009f]/u;
