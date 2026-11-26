@@ -1,5 +1,49 @@
 # Repository Guide for Agents
 
+## liguobao fork merge 2 and mobile restore (2026-11-26)
+
+upstream/main（liguobao，0.6.8，486 commits，分叉点 f214c5ab 2026-11-15）已合并进
+main，本次按用户决策**恢复移动端**：apps/android、apps/ios、apps/harmony 与
+packages/app-core 整目录取上游（app-core 本地侧零改动，无损失）；上游新增
+patches/、.oxlintrc.json、CONTRIBUTING、README.zh/ja 维持本地删除策略。
+peerDependencies 全部取上游 0.2.3-0 区间式（接纳全部 DSH 0.2.3 预发布）并新增
+dsh-client-file-upload optional peer；root 与 npm package.json 的
+dsh.client.inject 同步补入 file-upload（verify-dsh-plugin 会强制两侧统一）。
+
+冲突裁决原则：**样式不能变**——plugin client 的 UI 冲突以本地为准（shell.ts 上游
+改动 100% 是 installStyle 内 CSS，整文件取本地；settings.ts ACP 区块取本地，
+上游自定义 ACP 功能管道（control-runtime settings.acp.add、acpDiagnostics 类型）
+随自动合并保留但无 UI 入口；workspaces.ts 主机行/目录浏览器/heading 整段以
+ef28a9c 之前的 main 原文回填）。**功能不丢**——rpc-router 同时保留本地 host.restart
+槽位与上游 remote.transport.upgrade.*、attention.*、session.transfer 兜底；
+index.ts、remote-session-tools.ts（上游 preset 方法 + 本地 HostSessionCatalog 并存）、
+control-route.ts（上游 handleControlRequest 结构 + **本地默认拒绝准入语义**：
+requestRejection 缺失一律 403 且不探 admit，requestRejection+admit 双链时 admit
+优先且 requestRejection 不调）、vscode extension（上游 2FA + 本地 dsh-kite 文案）、
+web DevicesPage/api（本地 embedded 版）按此融合。上游 sidebar portal/footer-lane
+渲染用例（sidebar-account-entry 两条）与本地渲染语义互斥，按先例删除。
+
+遗留冲突修复：admit 旧重载删除、deepSeekWorkspaceIcon import 补齐、presence 定时器
+改 `globalThis.setTimeout/clearTimeout`（timer 类型 `ReturnType<typeof setTimeout>`，
+测试 shim 无 window 定时器）、remote-session-tools 测试 connect 补回
+`state.connections.push(host)`。
+
+验证：全仓 tsc 通过（含 android/ios 单独 tsc）；`pnpm --filter
+'!@dsh-remote/android' --filter '!@dsh-remote/ios' --filter '!@dsh-remote/harmony'
+-r build` 全绿（移动端 prepare:workspace 用 POSIX `$PWD`，Windows 不展开，为上游
+固有平台项，android/ios tsc 单独通过）；verify-dsh-plugin 通过
+（ds-harness-remote@1.0.7）；plugin 测试在清除
+DSH_REMOTE_{HOST,CLIENT}_{DEVICE_ID,DEVICE_KEY} 四个身份固定变量后全部通过
+（identity-store 的 pinning 会让身份固定环境变量泄漏进测试，属已知环境项，
+非代码回归）；仅 virtual-history-pagination 4MiB 深嵌套用例与 control-runtime
+"updates the Server address" 超时在纯上游 worktree 基线上同样失败
+（Windows 栈/计时差异，非融合回归）。pnpm-lock 以上游为基重算
+（--no-frozen-lockfile），含上游 patches/ 的 patchedDependencies。
+
+提交链：efd28a9c presence 轮询 → d660efea merge → c3729cb1 准入语义修复 →
+99e8b4e5 inject 补项 + timer 类型。未发布、未升版本、未做真实跨设备 E2E；
+worktree ../dshr-upstream-check 仅作上游基线对照，验证后删除。
+
 ## Workbench presence refresh (2026-11-26)
 
 远程工作台的主机列表只在打开面板或手动刷新时读一次 `devices`。Host 重启重连后
