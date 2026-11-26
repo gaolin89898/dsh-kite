@@ -71,7 +71,7 @@ jobs:
       - name: Verify install commands
         run: |
           releases=https://github.com/gaolin89898/dsh-kite/releases
-          install='dsh plugin --profile desktop add -w'
+          install='& "$env:LOCALAPPDATA\Programs\DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd" plugin --profile desktop add -w'
           for doc in README.md docs/installation.md packages/plugin/README.md; do
             grep -Fqx "$install $releases/latest/download/dsh-kite.tgz" "$doc" || { echo "Missing latest install command in $doc"; exit 1; }
           done

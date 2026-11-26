@@ -23,10 +23,10 @@
 
 Harness 始终运行在工作电脑上，原有的工作区、工具和项目配置保持不变。通过 dsh-kite，你可以从其他设备回到这个工作环境。
 
-已支持 DeepSeek Harness 桌面版，使用最新版本安装即可：
+在 Desktop 的「插件 → 添加插件」中粘贴此地址，安装最新发布版。
 
-```sh
-dsh plugin --profile desktop add -w https://github.com/gaolin89898/dsh-kite/releases/latest/download/dsh-kite.tgz
+```text
+https://github.com/gaolin89898/dsh-kite/releases/latest/download/dsh-kite.tgz
 ```
 
 ## 主要特性
@@ -63,8 +63,13 @@ dsh plugin --profile desktop add -w https://github.com/gaolin89898/dsh-kite/rele
 
 `https://github.com/gaolin89898/dsh-kite/releases/latest/download/dsh-kite.tgz`
 
-安装后重启 Desktop。需要固定版本时，使用 Desktop 官方 `dsh` 启动器指定带版本号的安装包，例如 `v1.0.3`：
-`dsh plugin --profile desktop add -w https://github.com/gaolin89898/dsh-kite/releases/download/v1.0.3/ds-harness-remote-1.0.3.tgz`。
+Windows 默认安装目录下，也可以在 PowerShell 中调用 Desktop 自带的启动器。安装后重新打开 Desktop。
+
+```powershell
+& "$env:LOCALAPPDATA\Programs\DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd" plugin --profile desktop add -w https://github.com/gaolin89898/dsh-kite/releases/latest/download/dsh-kite.tgz
+```
+
+升级已有安装时，将地址换为发布页提供的带版本号的 `.tgz` 地址。
 
 内部包名仍为 `ds-harness-remote`；请使用本仓库的 Release 地址，直接按包名从 npm 安装会得到另一个发布源的版本。后续更新从[本仓库 Releases](https://github.com/gaolin89898/dsh-kite/releases)下载，见[更新说明](docs/installation.md#dsh-插件页在线更新)。
 

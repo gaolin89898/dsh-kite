@@ -44,13 +44,13 @@ In DeepSeek Harness Desktop, open **Extensions / Plugin management** and install
 https://github.com/gaolin89898/dsh-kite/releases/latest/download/dsh-kite.tgz
 ```
 
-Restart Desktop after installation. Its official `dsh` launcher can also install the package:
+For the default Windows installation, run the bundled launcher from PowerShell:
 
-```sh
-dsh plugin --profile desktop add -w https://github.com/gaolin89898/dsh-kite/releases/latest/download/dsh-kite.tgz
+```powershell
+& "$env:LOCALAPPDATA\Programs\DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd" plugin --profile desktop add -w https://github.com/gaolin89898/dsh-kite/releases/latest/download/dsh-kite.tgz
 ```
 
-Use Desktop's official launcher to manage its reserved `desktop` profile.
+Adjust the path if you chose a custom installation directory. Restart Desktop after installation.
 
 ### Existing DSH installation
 

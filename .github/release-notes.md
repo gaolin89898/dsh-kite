@@ -6,11 +6,19 @@
 - Remote 控制接口仅允许所有者访问。共享会话的访客请求由本机 Gateway 鉴权，即使所有者已切换到远程工作区。
 - TUI 配套依赖同步到该 alpha 版本。Linux 安装器使用 Node.js `24.22.3`。
 
-```sh
-dsh plugin --profile desktop add -w https://github.com/gaolin89898/dsh-kite/releases/download/v1.0.5/ds-harness-remote-1.0.5.tgz
+**Windows Desktop** · 在 PowerShell 中运行 Desktop 自带的启动器，安装后重新打开 Desktop。自定义安装目录需相应修改路径。
+
+```powershell
+& "$env:LOCALAPPDATA\Programs\DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd" plugin --profile desktop add -w https://github.com/gaolin89898/dsh-kite/releases/download/v1.0.5/ds-harness-remote-1.0.5.tgz
 ```
 
-Web 用户将 `desktop` 换为实际 profile。
+也可以在 Desktop 的「插件 → 添加插件」中粘贴上述 `.tgz` 地址。
+
+**Web** · 在启动 Web 实例的环境中运行以下命令，按需替换 profile 名称。
+
+```sh
+dsh plugin --profile web add -w https://github.com/gaolin89898/dsh-kite/releases/download/v1.0.5/ds-harness-remote-1.0.5.tgz
+```
 
 ## English
 

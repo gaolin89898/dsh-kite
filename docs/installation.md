@@ -6,13 +6,19 @@
 
 本分支在 DSH 中显示为 **dsh-kite**，内部包名仍为 `ds-harness-remote`。安装与更新使用 `gaolin89898/dsh-kite` 的 GitHub Release，不从 npm 同名包获取版本。
 
-首次安装最新发布版，在 Desktop 的官方 `dsh` 启动器中执行：
+在 Desktop 的「插件 → 添加插件」中粘贴 GitHub Release 的 `.tgz` 地址即可安装。Windows 使用默认安装目录时，也可以在 PowerShell 中直接调用 Desktop 自带的启动器。
 
-```sh
-dsh plugin --profile desktop add -w https://github.com/gaolin89898/dsh-kite/releases/latest/download/dsh-kite.tgz
+```powershell
+& "$env:LOCALAPPDATA\Programs\DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd" plugin --profile desktop add -w https://github.com/gaolin89898/dsh-kite/releases/latest/download/dsh-kite.tgz
 ```
 
-Web Host 改用实际启动它的 `dsh`、`DSH_HOME` 和 profile（通常为 `web`）。已有同名插件时，在同一 profile 重新执行上述命令以切换来源，按宿主提示重启；不要删除 profile 或 Remote 凭据目录。
+若提示 `profile "desktop" is managed exclusively by the Electron application`，请使用上面的 `dsh.cmd` 完整路径。自定义安装目录需相应修改路径。安装后重新打开 Desktop。
+
+Web Host 使用启动它的 `dsh`、`DSH_HOME` 和 profile。例如使用 `web` 的实例可执行以下命令并重启 Harness。
+
+```sh
+dsh plugin --profile web add -w https://github.com/gaolin89898/dsh-kite/releases/latest/download/dsh-kite.tgz
+```
 
 侧栏版本提示检查本仓库的 GitHub Releases，不会自动升级。升级已有安装时，从[发布页](https://github.com/gaolin89898/dsh-kite/releases)复制带版本号的 `.tgz` 地址，替换命令中的 `latest` 安装包地址，避免锁文件继续使用旧包。更新会中断该插件承载的远程连接。
 
