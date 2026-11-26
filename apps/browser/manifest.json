@@ -3,7 +3,7 @@
   "name": "dsh-kite",
   "description": "__MSG_extensionDescription__",
   "default_locale": "en",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "icons": {
     "128": "media/icon.png"
   },

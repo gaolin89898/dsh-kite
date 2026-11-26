@@ -1,15 +1,13 @@
 ## 中文
 
-**dsh-kite v1.0.5**
+**dsh-kite v1.0.6**
 
-- 适配 Harness `0.2.3-alpha.2` 和 Cordis 4.2。可从 Web 侧栏打开 Remote，在插件详情页查看设置并接收实时状态更新。
-- Remote 控制接口仅允许所有者访问。共享会话的访客请求由本机 Gateway 鉴权，即使所有者已切换到远程工作区。
-- TUI 配套依赖同步到该 alpha 版本。Linux 安装器使用 Node.js `24.22.3`。
+- 修复 Remote 入口与 Magpie 用量卡同时显示时，工作区和会话列表被挤出侧栏的问题。较长的主机名会显示省略号，Remote 按钮仍可见。
 
 **Windows Desktop** · 在 PowerShell 中运行 Desktop 自带的启动器，安装后重新打开 Desktop。自定义安装目录需相应修改路径。
 
 ```powershell
-& "$env:LOCALAPPDATA\Programs\DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd" plugin --profile desktop add -w https://github.com/gaolin89898/dsh-kite/releases/download/v1.0.5/ds-harness-remote-1.0.5.tgz
+& "$env:LOCALAPPDATA\Programs\DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd" plugin --profile desktop add -w https://github.com/gaolin89898/dsh-kite/releases/download/v1.0.6/ds-harness-remote-1.0.6.tgz
 ```
 
 也可以在 Desktop 的「插件 → 添加插件」中粘贴上述 `.tgz` 地址。
@@ -17,13 +15,11 @@
 **Web** · 在启动 Web 实例的环境中运行以下命令，按需替换 profile 名称。
 
 ```sh
-dsh plugin --profile web add -w https://github.com/gaolin89898/dsh-kite/releases/download/v1.0.5/ds-harness-remote-1.0.5.tgz
+dsh plugin --profile web add -w https://github.com/gaolin89898/dsh-kite/releases/download/v1.0.6/ds-harness-remote-1.0.6.tgz
 ```
 
 ## English
 
-**dsh-kite v1.0.5**
+**dsh-kite v1.0.6**
 
-- Add support for Harness `0.2.3-alpha.2` and Cordis 4.2. Open Remote from the Web sidebar and view its settings and live status in the plugin details.
-- Restrict the Remote control API to the owner. The local Gateway authorizes shared-session guests even while the owner is using a remote workspace.
-- Align the TUI dependencies with this Harness alpha and update the Linux installer to Node.js `24.22.3`.
+- Fix the workspace and session lists disappearing when the Remote entry shares the sidebar with the Magpie usage card. Long host names now truncate so the Remote button stays visible.
