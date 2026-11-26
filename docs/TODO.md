@@ -12,8 +12,8 @@
 
 构建与测试基线见 AGENTS.md 的验证记录；本轮移除移动端后重新执行了全仓 check、生产 build 与打包检查。Metro noble/hashes exports fallback 警告仍保留。
 
-Harness `0.2.2-rc.1` 为开发基线（Node.js `>=24.9`）。保留 `0.2.1-rc.5`、`0.2.0-rc.2` / rc.1 的官方 Typert Session V3。
-peer range 接纳 `0.2.1` 与 `0.2.2` 预发布版。0.2.2 的 runtime 适配范围与验证边界见兼容性说明。
+Harness `0.2.3-alpha.2` 为开发基线（Node.js `^24.22.3 || >=26.13.1`）。保留 `0.2.2-rc.1`、`0.2.1-rc.5`、`0.2.0-rc.2` / rc.1 的官方 Typert Session V3。
+peer range 接纳 `0.2.1` 与 `0.2.2` 预发布版及 `0.2.3-alpha.2`。验证范围见[兼容性说明](compatibility.md)。
 Host 插件与随包 Remote 客户端已移除 Harness `0.1.1-rc.2` ApiProxy 兼容。请使用提供官方 Typert Remote carrier 的 Host；仅提供 ApiProxy 或不支持能力发现的旧 Host 会被拒绝，不再降级。CodeX/ACP 保留独立数据面，Desktop 内存投影统一使用 Typert。本轮不改独立 VS Code Client 或独立 Remote Web 仓库。
 完整 Server、Remote Web 和 Admin 在独立 Server 仓库实现。
 本仓库 `apps/server` 提供最小单账号 Relay Server。

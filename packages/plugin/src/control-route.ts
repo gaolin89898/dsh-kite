@@ -14,6 +14,8 @@ const ENDPOINT_SEGMENT_PATTERN = /^[A-Za-z0-9_$.-]+$/
 const INVALID_REQUEST_RPC_ID = 'invalid-request'
 
 interface HostConnectionHandleLike {
+  /** Present on Hosts that admit a Peer before invoking WebServer handlers. */
+  admit?: unknown
   requestRejection?(request: { headers: IncomingHttpHeaders }): number | undefined
   rpc: {
     handle?(
@@ -28,7 +30,8 @@ export interface HostWebServerLike {
   register(route: {
     kind: 'prefix'
     path: string
-    handler(req: IncomingMessage, res: ServerResponse): void | Promise<void>
+    auth?: 'required'
+    handler(req: IncomingMessage, res: ServerResponse, peer?: { principal: { kind: string } }): void | Promise<void>
   }): () => void | Promise<void>
 }
 
@@ -50,11 +53,19 @@ export function registerControlRoute(
   webServer?: HostWebServerLike,
   statusStream?: ControlStatusStreamLike,
 ): () => Promise<void> {
-  if (webServer !== undefined && connection.requestRejection !== undefined) {
+  const peerAdmission = typeof connection.admit === 'function'
+  if (webServer !== undefined && (peerAdmission || connection.requestRejection !== undefined)) {
     const dispose = webServer.register({
       kind: 'prefix',
       path: CONTROL_RPC_PREFIX,
-      handler: (req, res) => handleControlRequest(connection, handler, req, res, statusStream),
+      auth: 'required',
+      handler: (req, res, peer) => {
+        if (peerAdmission && peer?.principal.kind !== 'owner') {
+          writeText(res, 403, 'forbidden')
+          return
+        }
+        return handleControlRequest(connection, handler, req, res, statusStream)
+      },
     })
     return async () => {
       statusStream?.close()

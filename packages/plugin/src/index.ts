@@ -271,7 +271,8 @@ async function activate(
     listener => {
       // The manager emits on its own context. Desktop puts that service on the
       // profile root; a nested context with its own bus still needs to hear it.
-      const buses = ctx.events === ctx.root.events ? [ctx.root.events] : [ctx.root.events, ctx.events]
+      const rootEvents = rootContext(ctx).events
+      const buses = ctx.events === rootEvents ? [rootEvents] : [rootEvents, ctx.events]
       const dispose = buses.map(events => events.on('plugin-manager/update-state', listener, { global: true }))
       return () => { for (const stop of dispose) stop() }
     },
@@ -325,7 +326,7 @@ async function activate(
   // when this plugin's own context cannot see it. Absent service = explicit
   // FEATURE_NOT_SUPPORTED from the bridge, never a fabricated one.
   const schedule = (ctx.get('schedule', false)
-    ?? (ctx.root === undefined ? undefined : ctx.root.get('schedule', false))) as ScheduleCreateService | undefined
+    ?? rootContext(ctx).get('schedule', false)) as ScheduleCreateService | undefined
 
   const createRuntimes = (config: ResolvedConfig) => {
     const hostIdentities = new IdentityStore({
@@ -507,6 +508,11 @@ async function activate(
   if (config.remoteTools?.enabled) installRemoteDiscoveryTools(ctx, () => closed || !clientActive ? undefined : clientRuntime)
 }
 
+/** Cordis 4.2 uses a global symbol. Older releases expose the root as a property. */
+function rootContext(ctx: Context): Context & { baseDir?: string } {
+  return Reflect.get(ctx, Symbol.for('cordis.root')) ?? Reflect.get(ctx, 'root') ?? ctx
+}
+
 /**
  * Read the plugin entry's config. The Loader passes the resolved
  * {@link EntryConfig} (a live `Volatile` reference); a direct `ctx.plugin()`
@@ -515,7 +521,8 @@ async function activate(
 function resolveLogProfileName(ctx: Context): string | undefined {
   const envProfile = process.env.DSH_PROFILE?.trim()
   if (envProfile) return envProfile
-  const baseDir = (ctx.root as { baseDir?: unknown } | undefined)?.baseDir
+  const root = rootContext(ctx)
+  const baseDir = 'baseDir' in root ? root.baseDir : undefined
   if (typeof baseDir === 'string' && baseDir.trim().length > 0) {
     const trimmed = baseDir.trim()
     if (basename(dirname(trimmed)) === 'profiles') {
@@ -540,7 +547,7 @@ function isEntryConfig(value: EntryConfig | ConfigShape): value is EntryConfig {
  * lookup misses it when the service is isolated to the root.
  */
 function readPluginManager(ctx: Context): PluginManagerUpdate | undefined {
-  const candidate = ctx.get('pluginManager', false) ?? ctx.root.get('pluginManager', false)
+  const candidate = ctx.get('pluginManager', false) ?? rootContext(ctx).get('pluginManager', false)
   if (
     typeof candidate !== 'object'
     || candidate === null

@@ -2,7 +2,7 @@
   "name": "@dsh-remote/browser",
   "displayName": "dsh-kite",
   "description": "Browser launcher for dsh-kite: authorize from Web, see online Hosts and open the selected machine.",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "private": true,
   "license": "MIT",
   "repository": {

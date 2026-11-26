@@ -126,7 +126,7 @@ export class TypertGatewaySwitch {
     if (this.installed) return
     this.runtime.invoke = request => this.selectInvoke(request)
     if (this.originalStream !== undefined) {
-      this.runtime.stream = request => this.remoteTarget === undefined || isLocalOnlyEndpoint(endpointOf(request))
+      this.runtime.stream = request => this.remoteTarget === undefined || staysOnLocalGateway(endpointOf(request), request.peer)
         ? this.localStream!(request)
         : this.openRemote(endpointOf(request), { args: request.args }, request.signal ?? new AbortController().signal, request.uplink)
     }
@@ -135,7 +135,7 @@ export class TypertGatewaySwitch {
         const [endpoint, payload, signal] = args
         // The local Gateway owns the caller's Peer and its lifetime. Preserve
         // every carrier argument; Peer objects never cross the Remote tunnel.
-        return this.remoteTarget === undefined || isLocalOnlyEndpoint(endpoint)
+        return this.remoteTarget === undefined || staysOnLocalGateway(endpoint, args[3])
           ? this.localDispatch!(...args)
           : this.remoteTarget.dispatch(endpoint, payload, signal).then(
             result => workspaceConnectionResult(endpoint, result),
@@ -148,7 +148,7 @@ export class TypertGatewaySwitch {
       const rc1 = usesRc1Arity(open)
       this.runtime.openWireStream = (...callArgs: unknown[]) => {
         const endpoint = callArgs[0] as string
-        if (this.remoteTarget === undefined || isLocalOnlyEndpoint(endpoint)) {
+        if (this.remoteTarget === undefined || staysOnLocalGateway(endpoint, rc1 ? callArgs[3] : undefined)) {
           return rc1
             ? Reflect.apply(open, this.runtime, callArgs) as Promise<AsyncIterable<unknown>>
             : (open as CarrierOpen).call(this.runtime, endpoint, callArgs[1], callArgs[2] as AbortSignal)
@@ -212,7 +212,7 @@ export class TypertGatewaySwitch {
   }
 
   private selectInvoke(request: TypertGatewayRequest): Promise<unknown> {
-    if (isLocalOnlyEndpoint(endpointOf(request))) return this.localInvoke(request)
+    if (staysOnLocalGateway(endpointOf(request), request.peer)) return this.localInvoke(request)
     if (this.remoteTarget !== undefined) return this.remoteTarget.invoke(request).then(value => normalizeTerminalEnvironment(endpointOf(request), value))
     if (request.namespace !== 'commands' || !isRemoteCommandMethod(request.method) || this.remoteInvoke === undefined) {
       return this.localInvoke(request)
@@ -329,7 +329,10 @@ function endpointOf(request: TypertGatewayRequest): string {
   return `${request.namespace}/${request.method}`
 }
 
-function isLocalOnlyEndpoint(endpoint: string): boolean {
+function staysOnLocalGateway(endpoint: string, peer: unknown): boolean {
+  // Shared-session peers are authorized by the local Gateway. The selected
+  // Remote connection represents its owner and cannot carry a guest identity.
+  if (isRecord(peer) && isRecord(peer.principal) && peer.principal.kind !== 'owner') return true
   const separator = endpoint.indexOf('/')
   return separator > 0 && LOCAL_ONLY_NAMESPACES.has(endpoint.slice(0, separator))
 }

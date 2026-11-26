@@ -275,6 +275,22 @@ describe('loopback status event stream', () => {
     await expect(response.text()).resolves.toBe('unauthorized')
   })
 
+  it('only serves an admitted owner on peer-aware WebServer routes', async () => {
+    type Route = Parameters<HostWebServerLike['register']>[0]
+    const register = vi.fn((_route: Route) => () => {})
+    const stream = new ControlStatusStream(async () => ({ mode: 'local' }))
+    const dispose = registerControlRoute({ admit: () => {}, rpc: {} }, vi.fn(), { register }, stream)
+    const route = register.mock.calls[0]![0]
+    expect(route.auth).toBe('required')
+    const req = { method: 'GET', url: STATUS_STREAM_PATH } as IncomingMessage
+    for (const peer of [undefined, { principal: { kind: 'guest' } }, { principal: { kind: 'owner' } }]) {
+      const res = fakeResponse()
+      await route.handler(req, res.response, peer)
+      expect(res.statusCode).toBe(peer?.principal.kind === 'owner' ? 200 : 403)
+    }
+    await dispose()
+  })
+
   it('does not throw when a carrier has no web server or rpc handle', async () => {
     const dispose = registerControlRoute(
       { rpc: {} } as unknown as HostConnectionHandle,

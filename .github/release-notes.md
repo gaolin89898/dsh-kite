@@ -1,17 +1,21 @@
 ## 中文
 
-**dsh-kite v1.0.4**
+**dsh-kite v1.0.5**
 
-- 修复 Desktop 顶栏「远程模式」状态条的垂直对齐：状态条现在在 40px 标题栏行内垂直居中，与「应用/编辑」菜单、窗口控制按钮齐平；此前整体偏低约 6px，与顶栏其他元素视觉错位。
+- 适配 Harness `0.2.3-alpha.2` 和 Cordis 4.2。可从 Web 侧栏打开 Remote，在插件详情页查看设置并接收实时状态更新。
+- Remote 控制接口仅允许所有者访问。共享会话的访客请求由本机 Gateway 鉴权，即使所有者已切换到远程工作区。
+- TUI 配套依赖同步到该 alpha 版本。Linux 安装器使用 Node.js `24.22.3`。
 
 ```sh
-dsh plugin --profile desktop add -w https://github.com/gaolin89898/dsh-kite/releases/download/v1.0.4/ds-harness-remote-1.0.4.tgz
+dsh plugin --profile desktop add -w https://github.com/gaolin89898/dsh-kite/releases/download/v1.0.5/ds-harness-remote-1.0.5.tgz
 ```
 
 Web 用户将 `desktop` 换为实际 profile。
 
 ## English
 
-**dsh-kite v1.0.4**
+**dsh-kite v1.0.5**
 
-- Fix the vertical alignment of the remote-mode status strip in the Desktop caption row: the strip is now vertically centered within the 40px caption row, level with the App/Edit menus and the window control buttons, instead of sitting about 6px low.
+- Add support for Harness `0.2.3-alpha.2` and Cordis 4.2. Open Remote from the Web sidebar and view its settings and live status in the plugin details.
+- Restrict the Remote control API to the owner. The local Gateway authorizes shared-session guests even while the owner is using a remote workspace.
+- Align the TUI dependencies with this Harness alpha and update the Linux installer to Node.js `24.22.3`.

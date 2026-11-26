@@ -82614,11 +82614,19 @@ var STATUS_STREAM_PATH = `${CONTROL_RPC_PREFIX}/${STATUS_STREAM_ENDPOINT}`;
 var ENDPOINT_SEGMENT_PATTERN = /^[A-Za-z0-9_$.-]+$/;
 var INVALID_REQUEST_RPC_ID = "invalid-request";
 function registerControlRoute(connection, handler, webServer, statusStream) {
-  if (webServer !== void 0 && connection.requestRejection !== void 0) {
+  const peerAdmission = typeof connection.admit === "function";
+  if (webServer !== void 0 && (peerAdmission || connection.requestRejection !== void 0)) {
     const dispose = webServer.register({
       kind: "prefix",
       path: CONTROL_RPC_PREFIX,
-      handler: (req, res) => handleControlRequest(connection, handler, req, res, statusStream)
+      auth: "required",
+      handler: (req, res, peer) => {
+        if (peerAdmission && peer?.principal.kind !== "owner") {
+          writeText(res, 403, "forbidden");
+          return;
+        }
+        return handleControlRequest(connection, handler, req, res, statusStream);
+      }
     });
     return async () => {
       statusStream?.close();
@@ -85624,7 +85632,7 @@ function parseIpv6(value) {
 }
 
 // packages/plugin/src/version.ts
-var PLUGIN_VERSION = "1.0.4";
+var PLUGIN_VERSION = "1.0.5";
 
 // packages/plugin/src/server-api.ts
 var TERMINAL_CONTROL_CHARACTERS = /[\u0000-\u001f\u007f-\u009f]/u;
@@ -86567,12 +86575,12 @@ var TypertGatewaySwitch = class {
     if (this.installed) return;
     this.runtime.invoke = (request) => this.selectInvoke(request);
     if (this.originalStream !== void 0) {
-      this.runtime.stream = (request) => this.remoteTarget === void 0 || isLocalOnlyEndpoint(endpointOf(request)) ? this.localStream(request) : this.openRemote(endpointOf(request), { args: request.args }, request.signal ?? new AbortController().signal, request.uplink);
+      this.runtime.stream = (request) => this.remoteTarget === void 0 || staysOnLocalGateway(endpointOf(request), request.peer) ? this.localStream(request) : this.openRemote(endpointOf(request), { args: request.args }, request.signal ?? new AbortController().signal, request.uplink);
     }
     if (this.originalDispatch !== void 0) {
       this.runtime.dispatchRpc = (...args) => {
         const [endpoint, payload, signal] = args;
-        return this.remoteTarget === void 0 || isLocalOnlyEndpoint(endpoint) ? this.localDispatch(...args) : this.remoteTarget.dispatch(endpoint, payload, signal).then(
+        return this.remoteTarget === void 0 || staysOnLocalGateway(endpoint, args[3]) ? this.localDispatch(...args) : this.remoteTarget.dispatch(endpoint, payload, signal).then(
           (result) => workspaceConnectionResult(endpoint, result),
           (error62) => ({ ok: false, error: this.failure(error62) })
         );
@@ -86583,7 +86591,7 @@ var TypertGatewaySwitch = class {
       const rc1 = usesRc1Arity(open7);
       this.runtime.openWireStream = (...callArgs) => {
         const endpoint = callArgs[0];
-        if (this.remoteTarget === void 0 || isLocalOnlyEndpoint(endpoint)) {
+        if (this.remoteTarget === void 0 || staysOnLocalGateway(endpoint, rc1 ? callArgs[3] : void 0)) {
           return rc1 ? Reflect.apply(open7, this.runtime, callArgs) : open7.call(this.runtime, endpoint, callArgs[1], callArgs[2]);
         }
         const signal = rc1 ? callArgs[4] : callArgs[2];
@@ -86637,7 +86645,7 @@ var TypertGatewaySwitch = class {
     return endpoint === "terminal/attach" ? openRemoteTerminal(this.remoteTarget, payload, signal, uplink ?? endedUplink()) : this.remoteTarget.open(endpoint, payload, signal);
   }
   selectInvoke(request) {
-    if (isLocalOnlyEndpoint(endpointOf(request))) return this.localInvoke(request);
+    if (staysOnLocalGateway(endpointOf(request), request.peer)) return this.localInvoke(request);
     if (this.remoteTarget !== void 0) return this.remoteTarget.invoke(request).then((value) => normalizeTerminalEnvironment(endpointOf(request), value));
     if (request.namespace !== "commands" || !isRemoteCommandMethod(request.method) || this.remoteInvoke === void 0) {
       return this.localInvoke(request);
@@ -86715,7 +86723,8 @@ function requestFromCarrier(endpoint, payload, signal) {
 function endpointOf(request) {
   return `${request.namespace}/${request.method}`;
 }
-function isLocalOnlyEndpoint(endpoint) {
+function staysOnLocalGateway(endpoint, peer) {
+  if (isRecord11(peer) && isRecord11(peer.principal) && peer.principal.kind !== "owner") return true;
   const separator = endpoint.indexOf("/");
   return separator > 0 && LOCAL_ONLY_NAMESPACES.has(endpoint.slice(0, separator));
 }
@@ -105272,7 +105281,8 @@ async function activate(ctx, readConfig, entryId, requireRemoteEvents = false) {
     updateChecker,
     () => readPluginManager(ctx),
     (listener) => {
-      const buses = ctx.events === ctx.root.events ? [ctx.root.events] : [ctx.root.events, ctx.events];
+      const rootEvents = rootContext(ctx).events;
+      const buses = ctx.events === rootEvents ? [rootEvents] : [rootEvents, ctx.events];
       const dispose = buses.map((events) => events.on("plugin-manager/update-state", listener, { global: true }));
       return () => {
         for (const stop of dispose) stop();
@@ -105308,7 +105318,7 @@ async function activate(ctx, readConfig, entryId, requireRemoteEvents = false) {
   };
   if (requireRemoteEvents) await assertRemoteEventSource(localTypertGateway);
   const subprocess = ctx.get("subprocess", false);
-  const schedule = ctx.get("schedule", false) ?? (ctx.root === void 0 ? void 0 : ctx.root.get("schedule", false));
+  const schedule = ctx.get("schedule", false) ?? rootContext(ctx).get("schedule", false);
   const createRuntimes = (config3) => {
     const hostIdentities = new IdentityStore({
       directory: config3.serverUrl === void 0 ? defaultIdentityDirectory : serverStorageDirectory(defaultIdentityDirectory, config3.serverUrl, "host"),
@@ -105474,10 +105484,14 @@ async function activate(ctx, readConfig, entryId, requireRemoteEvents = false) {
   }, "ds-harness-remote lifecycle");
   if (config2.remoteTools?.enabled) installRemoteDiscoveryTools(ctx, () => closed || !clientActive ? void 0 : clientRuntime);
 }
+function rootContext(ctx) {
+  return Reflect.get(ctx, Symbol.for("cordis.root")) ?? Reflect.get(ctx, "root") ?? ctx;
+}
 function resolveLogProfileName(ctx) {
   const envProfile = process.env.DSH_PROFILE?.trim();
   if (envProfile) return envProfile;
-  const baseDir = ctx.root?.baseDir;
+  const root2 = rootContext(ctx);
+  const baseDir = "baseDir" in root2 ? root2.baseDir : void 0;
   if (typeof baseDir === "string" && baseDir.trim().length > 0) {
     const trimmed = baseDir.trim();
     if (basename9(dirname9(trimmed)) === "profiles") {
@@ -105495,7 +105509,7 @@ function isEntryConfig(value) {
   return typeof value.get === "function";
 }
 function readPluginManager(ctx) {
-  const candidate = ctx.get("pluginManager", false) ?? ctx.root.get("pluginManager", false);
+  const candidate = ctx.get("pluginManager", false) ?? rootContext(ctx).get("pluginManager", false);
   if (typeof candidate !== "object" || candidate === null || typeof candidate.listBundles !== "function" || typeof candidate.updateBundle !== "function") return void 0;
   return candidate;
 }

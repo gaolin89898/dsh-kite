@@ -44,7 +44,7 @@ assert.equal(pluginManifest.license, manifest.license, 'root and npm package lic
 assert.equal(manifest.dsh?.bundle?.patch, './cordis.patch.yml', 'root package must declare a DSH bundle patch')
 assert.equal(manifest.dsh?.client?.platform, 'web', 'root package must declare its browser client face')
 assert.ok(
-  manifest.dsh?.client?.inject?.includes('@deepseek-ai/dsh-client-ui-settings-plugins'),
+  manifest.dsh?.client?.inject?.includes('@deepseek-ai/dsh-client-ui-plugin-manager'),
   'root browser client must load after the official plugin settings surface',
 )
 assert.equal(manifest.main, './index.js', 'root package must expose a prebuilt Host entry at package root')

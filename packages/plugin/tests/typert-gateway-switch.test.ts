@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
-import { HostConnectionService } from '@deepseek-ai/dsh-client-connection'
+import { apply as applyConnection, type HostConnectionService } from '@deepseek-ai/dsh-client-connection'
 import type { RemoteClientCore } from '@dsh-remote/client-core'
 import { runScenarios } from '../../../scripts/test-scenarios.mjs'
 import { RemoteTypertGateway } from '../src/remote-typert-gateway.js'
@@ -8,6 +8,27 @@ import type { TypertGatewayLike } from '../src/typert-gateway-contract.js'
 import { TypertGatewaySwitch } from '../src/typert-gateway-switch.js'
 
 describe('TypertGatewaySwitch', () => {
+  it('keeps shared-session calls on the Gateway that authorizes their peer', async () => {
+    const peer = { principal: { kind: 'guest' } }
+    const signal = new AbortController().signal
+    const local = vi.fn(async (..._args: unknown[]) => ({ ok: true as const, value: 'local' }))
+    const frames = (async function* () {})()
+    const gateway = { invoke: local, dispatchRpc: local, stream: vi.fn(async (_request: unknown) => frames),
+      openWireStream: vi.fn(async (_endpoint: string, _payload: unknown, _uplink: AsyncIterable<unknown>, _peer: unknown, _signal: AbortSignal, _control: AbortController) => frames) }
+    const remote = { invoke: vi.fn(), dispatch: vi.fn(), open: vi.fn() }
+    const target = new TypertGatewaySwitch(gateway)
+    target.install()
+    target.selectRemote(remote)
+    try {
+      const request = { namespace: 'session', method: 'list', args: {}, peer, signal }
+      await gateway.invoke(request)
+      await gateway.dispatchRpc('session/list', { args: {} }, signal, peer)
+      await gateway.stream(request)
+      await gateway.openWireStream('session/control', { args: {} }, frames, peer, signal, new AbortController())
+      expect(local).toHaveBeenCalledTimes(2)
+      for (const call of Object.values(remote)) expect(call).not.toHaveBeenCalled()
+    } finally { target.restore() }
+  })
   it('preserves the calling peer on local RPC paths without forwarding it to a remote Host', async () => {
     const signal = new AbortController().signal
     const peer = { signal: new AbortController().signal }
@@ -76,7 +97,7 @@ describe('TypertGatewaySwitch', () => {
   it('returns remote RPC refusals in the official HTTP envelope without calling local services', async () => {
     const ctx = new Context()
     try {
-      await ctx.plugin(owner => { new HostConnectionService(owner, [], {} as never) }).await()
+      await ctx.plugin(applyConnection).await()
       const connection = ctx.get('connection') as HostConnectionService
       const localDispatch = vi.fn(async (_endpoint: string, _payload: unknown, _signal: AbortSignal) => ({ ok: true as const, value: 'local' }))
       const gateway = { invoke: vi.fn(async () => 'local'), dispatchRpc: localDispatch }
@@ -111,7 +132,7 @@ describe('TypertGatewaySwitch', () => {
   it('preserves preview bytes through the native Connection HTTP hop', async () => {
     const ctx = new Context()
     try {
-      await ctx.plugin(owner => { new HostConnectionService(owner, [], {} as never) }).await()
+      await ctx.plugin(applyConnection).await()
       const connection = ctx.get('connection') as HostConnectionService
       const gateway = {
         invoke: vi.fn(async (_request: Parameters<TypertGatewayLike['invoke']>[0]) => 'local'),
