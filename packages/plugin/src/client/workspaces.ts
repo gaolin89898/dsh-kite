@@ -31,6 +31,36 @@ import type {
   SidebarEntryStyle,
 } from './types.js'
 
+/**
+ * How often an open workbench re-reads Host presence. Presence is a Server-side
+ * WebSocket fact: a restarted Host flips back to online the moment it
+ * reconnects, but nothing pushes that change to this client, so an open list
+ * would otherwise keep the pre-restart snapshot until the next manual refresh.
+ */
+export const HOST_PRESENCE_POLL_INTERVAL_MS = 5_000
+
+/** How long the one-shot "Host is back online" notice stays on screen. */
+export const HOST_PRESENCE_NOTICE_MS = 6_000
+
+/**
+ * Compare two Host lists by every field the list renders. A poll that changes
+ * nothing must return the current reference, so the open page does not re-render
+ * every interval.
+ */
+export function sameDeviceList(current: RemoteDevice[], next: RemoteDevice[]): boolean {
+  if (current.length !== next.length) return false
+  return current.every((device, index) => {
+    const other = next[index]
+    return other !== undefined
+      && other.deviceId === device.deviceId
+      && other.name === device.name
+      && other.platform === device.platform
+      && other.online === device.online
+      && other.clientVersion === device.clientVersion
+      && other.harnessVersion === device.harnessVersion
+  })
+}
+
 function glyph(React: ClientReact, icon: typeof Monitor): unknown {
   return React.createElement('svg', {
     viewBox: '0 0 24 24', width: 18, height: 18, fill: 'none',
@@ -238,6 +268,19 @@ export function createRemoteWorkspaceAction(React: ClientReact, portal?: PortalR
       return () => window.cancelAnimationFrame(frame)
     }, [hostFilterOpen])
     const [notice, setNotice] = React.useState<string | undefined>(undefined)
+    // One-shot line for a Host that reconnected while the page stayed open.
+    const [presenceNotice, setPresenceNotice] = React.useState<string | undefined>(undefined)
+    // Latest values the presence timer reads without re-arming itself.
+    const devicesRef = React.useRef<RemoteDevice[]>(devices)
+    devicesRef.current = devices
+    const busyRef = React.useRef(busy)
+    busyRef.current = busy
+    // The timer must survive status/devices renders: read the current control
+    // and dictionary through refs instead of re-arming on every identity change.
+    const controlRef = React.useRef(props.control)
+    controlRef.current = props.control
+    const translateRef = React.useRef(t)
+    translateRef.current = t
     const [error, setError] = React.useState<string | undefined>(undefined)
     const [sidebarEntry, setSidebarEntry] = React.useState<SidebarEntryStyle>(() => props.sidebarEntry.read())
 
@@ -967,6 +1010,55 @@ export function createRemoteWorkspaceAction(React: ClientReact, portal?: PortalR
         }
       })
     }, [props.statusFeed])
+
+    // Presence is not pushed: the Server derives it from each Host's live
+    // WebSocket, and a Host that restarts mid-session reconnects without
+    // telling this client. Poll discovery while the page is open so its row
+    // stops showing the pre-restart state, and announce the first
+    // offline -> online transition once.
+    React.useEffect(() => {
+      if (!open || needsAuthorization !== false) return undefined
+      let disposed = false
+      let timer: number | undefined
+      let reading = false
+      let known = new Map<string, boolean>(devicesRef.current.map(device => [device.deviceId, device.online]))
+      function schedule(): void {
+        if (disposed) return
+        timer = window.setTimeout(() => { void read() }, HOST_PRESENCE_POLL_INTERVAL_MS)
+      }
+      async function read(): Promise<void> {
+        if (disposed || reading) return
+        // A manual refresh already re-reads the list; do not race its result.
+        if (busyRef.current) { schedule(); return }
+        reading = true
+        try {
+          const readDevices = controlRef.current
+          const next = await readDevices<RemoteDevice[]>('devices')
+          if (disposed) return
+          setDevices(current => sameDeviceList(current, next) ? current : next)
+          setDiscoveryUnavailable(false)
+          const restored = next.find(device => device.online && known.get(device.deviceId) === false)
+          known = new Map(next.map(device => [device.deviceId, device.online]))
+          if (restored !== undefined) setPresenceNotice(translateRef.current('hostCameOnline', { name: restored.name }))
+        } catch {
+          // A transient read keeps the last known list; the next tick retries.
+        } finally {
+          reading = false
+          schedule()
+        }
+      }
+      schedule()
+      return () => {
+        disposed = true
+        if (timer !== undefined) window.clearTimeout(timer)
+      }
+    }, [open, needsAuthorization])
+
+    React.useEffect(() => {
+      if (presenceNotice === undefined) return undefined
+      const timer = window.setTimeout(() => setPresenceNotice(undefined), HOST_PRESENCE_NOTICE_MS)
+      return () => window.clearTimeout(timer)
+    }, [presenceNotice])
 
     const chooseAnotherHost = (): void => {
       setWorkspaceSearch('')
@@ -2255,7 +2347,9 @@ export function createRemoteWorkspaceAction(React: ClientReact, portal?: PortalR
                         || !addingWorkspace && workspaceBackend === 'hermes' && hermesWorkspaceId === undefined && path === '',
                       onClick: () => void openWorkspace(),
                     }, glyph(React, FolderOpen), t(busy ? 'openingWorkspace' : addingWorkspace ? 'confirmAddWorkspace' : 'openWorkspace')))))))),
-          notice === undefined ? null : React.createElement('p', { className: 'dshRemoteNotice', role: 'status' }, notice),
+          (notice ?? presenceNotice) === undefined
+            ? null
+            : React.createElement('p', { className: 'dshRemoteNotice', role: 'status' }, notice ?? presenceNotice),
               error === undefined || (serverUnavailable && error === t('serverUnavailableError')) ? null : React.createElement('p', { className: 'dshRemoteError', role: 'alert' }, error))))))
   }
 

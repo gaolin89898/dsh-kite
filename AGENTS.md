@@ -1,5 +1,22 @@
 # Repository Guide for Agents
 
+## Workbench presence refresh (2026-11-26)
+
+远程工作台的主机列表只在打开面板或手动刷新时读一次 `devices`。Host 重启重连后
+Server 的 presence（`gateway.peers`）立即恢复 online，但客户端没有任何推送，页面
+会一直停在重启前的离线快照。
+
+`packages/plugin/src/client/workspaces.ts` 新增 `HOST_PRESENCE_POLL_INTERVAL_MS = 5000`：
+面板打开且已授权时用自带清理的 `setTimeout` 链静默重读 `devices`（不置 busy、不覆盖
+error、与手动刷新不抢），`sameDeviceList` 让无变化的轮询保持原引用；首个
+离线→在线的主机显示 6 秒 `hostCameOnline` 提示（en/zh/ru/uk 文案齐全）。
+新增 `tests/host-presence-refresh.test.ts`（`sameDeviceList` 六例，通过）；
+`tsc -p tsconfig.test.json`、生产 `tsc`、`build-bundles` 均通过，仅
+`dist/client.github.js` 变化。新 bundle 备份旧文件后装入本机 desktop profile
+（旧文件 `client.github.js.bak-presence-20261126`）；强杀并重启 dsh 桌面端后，
+该文件 LastAccessTime 与启动时刻一致，确认加载的是新 bundle。未升版本、未发布、
+未做真实跨设备 E2E。
+
 ## dsh-kite 1.0.2 release (2026-11-15)
 
 合并 origin/main（dsh-kite 发布线）进本地 main 后按 v1.0.1 的模式发布 v1.0.2：版本号载体（root/plugin/tui/browser/vscode/dsh-plugin.json）全部 1.0.2，lockfile 的 tui specifier 手工同步（--lockfile-only 未按上游依赖树重算，经 --frozen-lockfile 验证一致）；release-notes 与 CHANGELOG 更新到 1.0.2，dist 本地重建提交（Version sync verified: 1.0.2）。

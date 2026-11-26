@@ -1846,6 +1846,7 @@ If a code was sent, recover the original submission without changing it.`,
     online: "Online",
     offline: "Offline",
     hostRestartingBadge: "Restarting\u2026",
+    hostCameOnline: "{name} is back online",
     thisMachineHost: "This machine as Remote Host",
     connected: "Connected",
     connectedAs: "Connected as {account}",
@@ -2246,6 +2247,7 @@ If a code was sent, recover the original submission without changing it.`,
     online: "\u5728\u7EBF",
     offline: "\u79BB\u7EBF",
     hostRestartingBadge: "\u91CD\u542F\u4E2D\u2026",
+    hostCameOnline: "{name} \u5DF2\u91CD\u65B0\u4E0A\u7EBF",
     thisMachineHost: "\u5C06\u6B64\u8BBE\u5907\u4F5C\u4E3A\u8FDC\u7A0B Host",
     connected: "\u5DF2\u8FDE\u63A5",
     connectedAs: "\u5DF2\u4F7F\u7528 {account} \u8FDE\u63A5",
@@ -2644,6 +2646,7 @@ If a code was sent, recover the original submission without changing it.`,
     noRemoteHosts: "\u0421\u0435\u0439\u0447\u0430\u0441 \u043D\u0435\u0442 \u0434\u043E\u0441\u0442\u0443\u043F\u043D\u044B\u0445 \u0443\u0434\u0430\u043B\u0451\u043D\u043D\u044B\u0445 \u0445\u043E\u0441\u0442\u043E\u0432.",
     online: "\u0412 \u0441\u0435\u0442\u0438",
     offline: "\u041D\u0435 \u0432 \u0441\u0435\u0442\u0438",
+    hostCameOnline: "{name} \u0441\u043D\u043E\u0432\u0430 \u0432 \u0441\u0435\u0442\u0438",
     thisMachineHost: "\u042D\u0442\u043E\u0442 \u043A\u043E\u043C\u043F\u044C\u044E\u0442\u0435\u0440 \u043A\u0430\u043A \u0443\u0434\u0430\u043B\u0451\u043D\u043D\u044B\u0439 \u0445\u043E\u0441\u0442",
     connected: "\u041F\u043E\u0434\u043A\u043B\u044E\u0447\u0435\u043D\u043E",
     connectedAs: "\u041F\u043E\u0434\u043A\u043B\u044E\u0447\u0435\u043D\u043E \u043A\u0430\u043A {account}",
@@ -3043,6 +3046,7 @@ If a code was sent, recover the original submission without changing it.`,
     noRemoteHosts: "\u0417\u0430\u0440\u0430\u0437 \u043D\u0435\u043C\u0430\u0454 \u0434\u043E\u0441\u0442\u0443\u043F\u043D\u0438\u0445 \u0432\u0456\u0434\u0434\u0430\u043B\u0435\u043D\u0438\u0445 \u0445\u043E\u0441\u0442\u0456\u0432.",
     online: "\u0423 \u043C\u0435\u0440\u0435\u0436\u0456",
     offline: "\u041D\u0435 \u0432 \u043C\u0435\u0440\u0435\u0436\u0456",
+    hostCameOnline: "{name} \u0437\u043D\u043E\u0432\u0443 \u0432 \u043C\u0435\u0440\u0435\u0436\u0456",
     thisMachineHost: "\u0426\u0435\u0439 \u043A\u043E\u043C\u043F\u02BC\u044E\u0442\u0435\u0440 \u044F\u043A \u0445\u043E\u0441\u0442 Remote",
     connected: "\u041F\u0456\u0434\u043A\u043B\u044E\u0447\u0435\u043D\u043E",
     connectedAs: "\u041F\u0456\u0434\u043A\u043B\u044E\u0447\u0435\u043D\u043E \u044F\u043A {account}",
@@ -5533,6 +5537,13 @@ If a code was sent, recover the original submission without changing it.`,
   var gptWorkspaceIcon = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAMAAACdt4HsAAAAclBMVEX////v7+++wMf////s7O3k5OTExcrX2Ny6vMTv8PPW19yXmqRqboJmaHd3eoaqrLPs7fGMjpfb3eKlpq1eYXOxs7pWWWd+gY5HSVdRVGVub3k+QU74+Pg4OkcvMT1ISlUoKjUiIy4fICueoKkaGyUSFB21Bp+qAAAAAXRSTlMAQObYZgAABChJREFUWMPtl916qjoQhlsdEwIECEgMYCBxx/u/xT1DrFUL1LO1DtY8LSLJvPnmB4gfH//sr7TPDfvdebf/xXZbkE/4zZ0MVhGHd9zJDsv+7F3//Z69tT5wljAu3tXw+TIlzXKJlhflYmJ+5uF5WpWhb54X+C/zZCmT2wJA4dJZwus0UYjIGqWyMhVbEp4yKNRRqlv0opW5PJLJ4rFJXvP4JKDRMqturBZjkMVJFYjR6iHQDQDI4+k2k51wZbWrqwp4mR/1CVYATyko9TFGxBUqL5IvMbXSWt0T8bkGgFLqgqZBI/Uxbx5UAxLaNcCNLBpttM7wbCc1pmJOpWAsDtey68UaQMyrFgb9uxLPjqg3+nGluyKN0XUdWw0BJ0NvTFFqgzpr9J+Dh4w0Ga1qkqBNswagxdRgFPAbgHRQG5jumGWyMxrTIaRRa4AzFs0YrNMXgI4MJWnsKYFhGNMnIh/mBOPsV8CZBFjN9w8ArowxnZzDr5IcvxTaKpxJCVsoI3SWysz1UM4AqQdzlCgho1IKrK+x1mKFzisANtgEU8E7GwHDgOqxe4w9tnM166wbaA2xBMBLrTWcAGYGdCiYVUJUrMCF+7l6gklrW1RwPi8ByjuActANqhKzVWoYrFGcCFzbDgNaBrTWpncFQMcI2DfWoAiDqRCiHcYM/ZdCEKkZqfR8spj4F0CiJjv2gHL6URNoCQDaYacL6O1oFDO2eQDUFP7AKdCRdC4CRDZaNifbjA41l/uYb/SZMAFNTBGzY7sG4J2jTsJgToOzIzXF3HZqBpSOAGduXbkGEKV1OqVGqRJpRxtvwbSw5IqAiUJItwBCOT9R32FCGo3nCkAN3t0UTBRC6zDONcBeOee9pr4T+ASbnDOdc5OmtREwEEB5w8Wqgt4bOV5c7Lt9iiK8zdP/IsBbutUGX4gNwEVCqd3FUt/xYnRWt7BvPBYQjwjAGXa3ASguHVAZ/WXKlA3eZDX1wRegFsr7E2wAlB9xFbx/7MV70kFT8aqNgLL3F8nFBmA3hrn/IJHjKJOK2oj1WI4Z4FzwN/81AOhgYD6v2xbIvaZIurLC9AfvB1WLTYAoXejF1xeBL5cpBIyEbmxkZymIXwDQh1BAfOrhI1lfwtgz8tozF5T4ttf3+32AyxC6klwAgw/YVTHpoK82xYt3wLP/Bw4AAI4D7/01TLKXBj9NEz2wEuGiKpoy68S/FwCLMQAZ3gXhihaCa25vQo6RyToOz9PE6wYjJgGi1YnqZX8qMIK+TDlnargGzSv4NvFjlwXf/nfLLMrAB4O/Xl3BH0d+RIASFgDA8IYMIXgr2+cBsbDdPSwAAHjSZFmb3txETCKIxc0uWwI8rxsLJcTiVndNwyMgKljbbNN2/zcEAja2+4RgIDYN2Bu/WtAOaEodnu2dnzz/7I/Y/w/LaEcX/MdfAAAAAElFTkSuQmCC";
 
   // packages/plugin/src/client/workspaces.ts
+  var HOST_PRESENCE_POLL_INTERVAL_MS = 5e3, HOST_PRESENCE_NOTICE_MS = 6e3;
+  function sameDeviceList(current, next) {
+    return current.length !== next.length ? !1 : current.every((device, index) => {
+      let other = next[index];
+      return other !== void 0 && other.deviceId === device.deviceId && other.name === device.name && other.platform === device.platform && other.online === device.online && other.clientVersion === device.clientVersion && other.harnessVersion === device.harnessVersion;
+    });
+  }
   function glyph(React, icon) {
     return React.createElement("svg", {
       viewBox: "0 0 24 24",
@@ -5598,7 +5609,15 @@ If a code was sent, recover the original submission without changing it.`,
         });
         return () => window.cancelAnimationFrame(frame);
       }, [hostFilterOpen]);
-      let [notice, setNotice] = React.useState(void 0), [error, setError] = React.useState(void 0), [sidebarEntry, setSidebarEntry] = React.useState(() => props.sidebarEntry.read());
+      let [notice, setNotice] = React.useState(void 0), [presenceNotice, setPresenceNotice] = React.useState(void 0), devicesRef = React.useRef(devices);
+      devicesRef.current = devices;
+      let busyRef = React.useRef(busy);
+      busyRef.current = busy;
+      let controlRef = React.useRef(props.control);
+      controlRef.current = props.control;
+      let translateRef = React.useRef(t);
+      translateRef.current = t;
+      let [error, setError] = React.useState(void 0), [sidebarEntry, setSidebarEntry] = React.useState(() => props.sidebarEntry.read());
       React.useEffect(
         () => props.sidebarEntry.subscribe(() => setSidebarEntry(props.sidebarEntry.read())),
         [props.sidebarEntry]
@@ -5901,7 +5920,41 @@ If a code was sent, recover the original submission without changing it.`,
         show();
       }), [props.subscribeOpen, show]), React.useEffect(() => props.statusFeed.subscribe((next) => {
         setStatus(next), next.host?.pairingHostOnly && (setNeedsAuthorization(!next.host.authorized || next.host.accountRequired), setDevices([]), setSelectedHost(void 0), setConnectingHost(void 0)), next.host?.online && setDiscoveryUnavailable(!1);
-      }), [props.statusFeed]);
+      }), [props.statusFeed]), React.useEffect(() => {
+        if (!open || needsAuthorization !== !1) return;
+        let disposed = !1, timer, reading = !1, known = new Map(devicesRef.current.map((device) => [device.deviceId, device.online]));
+        function schedule() {
+          disposed || (timer = window.setTimeout(() => {
+            read();
+          }, HOST_PRESENCE_POLL_INTERVAL_MS));
+        }
+        async function read() {
+          if (!(disposed || reading)) {
+            if (busyRef.current) {
+              schedule();
+              return;
+            }
+            reading = !0;
+            try {
+              let readDevices = controlRef.current, next = await readDevices("devices");
+              if (disposed) return;
+              setDevices((current) => sameDeviceList(current, next) ? current : next), setDiscoveryUnavailable(!1);
+              let restored = next.find((device) => device.online && known.get(device.deviceId) === !1);
+              known = new Map(next.map((device) => [device.deviceId, device.online])), restored !== void 0 && setPresenceNotice(translateRef.current("hostCameOnline", { name: restored.name }));
+            } catch {
+            } finally {
+              reading = !1, schedule();
+            }
+          }
+        }
+        return schedule(), () => {
+          disposed = !0, timer !== void 0 && window.clearTimeout(timer);
+        };
+      }, [open, needsAuthorization]), React.useEffect(() => {
+        if (presenceNotice === void 0) return;
+        let timer = window.setTimeout(() => setPresenceNotice(void 0), HOST_PRESENCE_NOTICE_MS);
+        return () => window.clearTimeout(timer);
+      }, [presenceNotice]);
       let chooseAnotherHost = () => {
         setWorkspaceSearch(""), setSelectedHost(void 0), setWorkspaces([]), setCodexWorkspaces([]), setCursorWorkspaces([]), setAntigravityWorkspaces([]), setPiWorkspaces([]), setOpencodeWorkspaces([]), setClaudeWorkspaces([]), setHermesWorkspaces([]), setShowAllWorkspaces(!1), setShowAllCodexWorkspaces(!1), setShowAllCursorWorkspaces(!1), setShowAllAntigravityWorkspaces(!1), setShowAllPiWorkspaces(!1), setShowAllOpencodeWorkspaces(!1), setShowAllClaudeWorkspaces(!1), setShowAllHermesWorkspaces(!1), setWorkspaceBackend("harness"), setCodexWorkspaceId(void 0), setCursorWorkspaceId(void 0), setAntigravityWorkspaceId(void 0), setPiWorkspaceId(void 0), setOpencodeWorkspaceId(void 0), setClaudeWorkspaceId(void 0), setHermesWorkspaceId(void 0), setDirectory(void 0), setPath(""), setAddingWorkspace(!1), setError(void 0);
       }, resetLoginFlow = () => {
@@ -7292,7 +7345,7 @@ ${row.path}`.toLocaleLowerCase().includes(query)) : expanded ? rows : rows.slice
                 )
               )
             ),
-            notice === void 0 ? null : React.createElement("p", { className: "dshRemoteNotice", role: "status" }, notice),
+            (notice ?? presenceNotice) === void 0 ? null : React.createElement("p", { className: "dshRemoteNotice", role: "status" }, notice ?? presenceNotice),
             error === void 0 || serverUnavailable && error === t("serverUnavailableError") ? null : React.createElement("p", { className: "dshRemoteError", role: "alert" }, error)
           )
         ))) : null
