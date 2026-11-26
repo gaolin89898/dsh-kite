@@ -56,7 +56,8 @@ function fixture() {
     if (endpoint === 'agentPresets/list') return { ok: true, value: { presets: state.presets } }
     return { ok: true, value: { accepted: true } }
   })
-  const connect: RemoteToolConnection = async (_host, active, query) => {
+  const connect: RemoteToolConnection = async (host, active, query) => {
+    state.connections.push(host)
     active.throwIfAborted()
     return query({ features: { remoteGateway: state.supported }, client: {} } as ConnectedRemote, active)
   }

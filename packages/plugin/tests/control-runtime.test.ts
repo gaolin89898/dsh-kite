@@ -286,15 +286,19 @@ describe('PluginControlRuntime settings setup', () => {
     })).resolves.toMatchObject({ status: 403, text: 'forbidden' })
     expect(throwingAdmit).not.toHaveBeenCalled()
 
-    // When a carrier omits the third peer argument and admit throws, fail closed with 503 instead of crashing.
+    // A carrier without `requestRejection` fails closed with 403 and never
+    // probes `admit`: default-deny keeps a half-initialized carrier from
+    // serving loopback control before the Host wired its admission policy.
     await expect(callHttp(registeredRoute!, statusBody)).resolves.toMatchObject({
-      status: 503,
-      text: 'authentication unavailable',
+      status: 403,
+      text: 'forbidden',
     })
-    expect(throwingAdmit).toHaveBeenCalledTimes(1)
+    expect(throwingAdmit).not.toHaveBeenCalled()
     await disposePeerRoute()
 
-    // Carriers that omit the third peer argument still fall back to admit and enforce owner/rejection checks.
+    // Carriers without `requestRejection` keep failing closed regardless of
+    // what `admit` would return; the chain only runs once `requestRejection`
+    // exists and `admit` replaces it on dual-method hosts.
     let admission: { rejection?: number; peer?: unknown } | undefined = { rejection: 401 }
     const connection = {
       admit: () => admission,
@@ -307,7 +311,7 @@ describe('PluginControlRuntime settings setup', () => {
       },
     })
 
-    await expect(callHttp(registeredRoute!, '{}')).resolves.toMatchObject({ status: 401, text: 'unauthorized' })
+    await expect(callHttp(registeredRoute!, '{}')).resolves.toMatchObject({ status: 403, text: 'forbidden' })
     admission = { rejection: Number.NaN }
     await expect(callHttp(registeredRoute!, '{}')).resolves.toMatchObject({ status: 403, text: 'forbidden' })
     admission = undefined
@@ -317,16 +321,17 @@ describe('PluginControlRuntime settings setup', () => {
     admission = { peer: { principal: { kind: 'share-viewer' } } }
     await expect(callHttp(registeredRoute!, '{}')).resolves.toMatchObject({ status: 403, text: 'forbidden' })
     admission = { peer: { principal: { kind: 'owner' } } }
-    const okRes = await callHttp(registeredRoute!, statusBody)
-    expect(okRes.status).toBe(200)
-    expect(JSON.parse(okRes.text)).toMatchObject({ type: 'server-response', rpcId: '1', result: { ok: true, value: { available: false } } })
+    await expect(callHttp(registeredRoute!, '{}')).resolves.toMatchObject({ status: 403, text: 'forbidden' })
+    expect(legacyHandle).not.toHaveBeenCalled()
     await dispose()
 
-    // Dual-method hosts only invoke requestRejection once; hosts missing both fail closed.
+    // Dual-method hosts run the `admit` chain instead of `requestRejection`
+    // and enforce its owner/rejection checks; hosts missing both fail closed.
     const admitSpy = vi.fn(() => ({ peer: { principal: { kind: 'owner' } } }))
+    const requestRejectionSpy = vi.fn(() => undefined)
     let dualRoute: typeof registeredRoute
     const disposeDual = runtime.register({
-      requestRejection: () => undefined,
+      requestRejection: requestRejectionSpy,
       admit: admitSpy,
       rpc: { handle: legacyHandle },
     }, {
@@ -334,7 +339,8 @@ describe('PluginControlRuntime settings setup', () => {
     })
     const dualRes = await callHttp(dualRoute!, JSON.stringify({ type: 'client-request', rpcId: '2', method: 'status', payload: {} }))
     expect(dualRes.status).toBe(200)
-    expect(admitSpy).not.toHaveBeenCalled()
+    expect(admitSpy).toHaveBeenCalledTimes(1)
+    expect(requestRejectionSpy).not.toHaveBeenCalled()
     await disposeDual()
 
     let bareRoute: typeof registeredRoute

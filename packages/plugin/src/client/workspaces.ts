@@ -1066,7 +1066,7 @@ export function createRemoteWorkspaceAction(React: ClientReact, portal?: PortalR
       let known = new Map<string, boolean>(devicesRef.current.map(device => [device.deviceId, device.online]))
       function schedule(): void {
         if (disposed) return
-        timer = window.setTimeout(() => { void read() }, HOST_PRESENCE_POLL_INTERVAL_MS)
+        timer = globalThis.setTimeout(() => { void read() }, HOST_PRESENCE_POLL_INTERVAL_MS)
       }
       async function read(): Promise<void> {
         if (disposed || reading) return
@@ -1092,7 +1092,7 @@ export function createRemoteWorkspaceAction(React: ClientReact, portal?: PortalR
       schedule()
       return () => {
         disposed = true
-        if (timer !== undefined) window.clearTimeout(timer)
+        if (timer !== undefined) globalThis.clearTimeout(timer)
       }
     }, [open, needsAuthorization])
 

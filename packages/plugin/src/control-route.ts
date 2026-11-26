@@ -219,26 +219,29 @@ function requestRejectionStatus(
   req: IncomingMessage,
   admittedPeer?: HostAdmittedPeerLike,
 ): number | undefined {
-  if (typeof connection.requestRejection === 'function') {
-    const rejection = connection.requestRejection(req)
-    if (rejection !== undefined) return normalizeRejectionStatus(rejection)
-    return admittedPeer === undefined ? undefined : peerRejectionStatus(admittedPeer)
-  }
+  // DSH 0.2.3+ hands the admitted peer to an auth-required route: the peer
+  // decides alone and the 0.2.2 admission chain stays untouched.
   if (admittedPeer !== undefined) {
     return peerRejectionStatus(admittedPeer)
   }
-  if (typeof connection.admit === 'function') {
-    let admission: { rejection?: number; peer?: unknown } | undefined
-    try {
-      admission = connection.admit(req)
-    } catch {
-      return 503
-    }
-    if (typeof admission !== 'object' || admission === null) return 403
-    if (typeof admission.rejection === 'number') return normalizeRejectionStatus(admission.rejection)
-    return peerRejectionStatus(admission.peer)
+  // 0.2.2 exposes requestRejection and leaves admission to the route handler.
+  // A connection without it must not fall through to a bare `admit` probe:
+  // default-deny keeps a half-initialized carrier from serving loopback
+  // control before the Host finished wiring its admission policy.
+  if (connection.requestRejection === undefined) return 403
+  if (connection.admit === undefined) {
+    const rejection = connection.requestRejection(req)
+    return rejection === undefined ? undefined : normalizeRejectionStatus(rejection)
   }
-  return 403
+  let admission: { rejection?: number; peer?: unknown } | undefined
+  try {
+    admission = connection.admit(req)
+  } catch {
+    return 503
+  }
+  if (typeof admission !== 'object' || admission === null) return 403
+  if (typeof admission.rejection === 'number') return normalizeRejectionStatus(admission.rejection)
+  return peerRejectionStatus(admission.peer)
 }
 
 function peerRejectionStatus(peer: unknown): number | undefined {
