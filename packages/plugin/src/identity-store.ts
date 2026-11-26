@@ -8,7 +8,7 @@ import { basename, dirname, join } from 'node:path'
 import { fromBase64Url, generateKeyPair } from '@dsh-remote/crypto'
 import { z } from 'zod'
 import { uuidV7 } from './ids.js'
-import { SERVER_CREDENTIALS_QUEUE_MARKER, ServerCredentialStore, ServerCredentialsBusyError, assertRefreshQueueIdle, withDefaultCredentialMigrationGate } from './server-credentials.js'
+import { SERVER_CREDENTIALS_QUEUE_MARKER, ServerCredentialStore, ServerCredentialsBusyError, ServerCredentialsLockDirectoryError, assertRefreshQueueIdle, withDefaultCredentialMigrationGate } from './server-credentials.js'
 
 const identitySchema = z.object({
   schemaVersion: z.literal(1),
@@ -238,7 +238,7 @@ export class IdentityStore {
    * file lives outside `removeIdentityRecords`, so resetting cannot delete a
    * lock another process holds — and cannot leave itself unprotected either.
    */
-  async reset(deviceName: string): Promise<HostIdentity> {
+  async reset(deviceName: string, options: { clearPairingPolicy?: boolean } = {}): Promise<HostIdentity> {
     if (this.defaultOptions !== undefined) this.storageDirectory = await prepareDefaultIdentityDirectory(this.defaultOptions)
     await ensureDirectory(this.directory)
     return withIdentityLock(this.directory, async () => {
@@ -246,7 +246,10 @@ export class IdentityStore {
       this.identity = undefined
       this.peers.clear()
       await removeIdentityRecords(this.directory)
-      return this.loadOrCreateLocked(deviceName)
+      await removeStaleTemporaries(this.directory)
+      const identity = await this.loadOrCreateLocked(deviceName)
+      if (options.clearPairingPolicy) await rm(join(this.directory, 'pairing-host-only.json'), { force: true })
+      return identity
     })
   }
 
@@ -437,14 +440,14 @@ export async function resetDefaultIdentityRoles(
     if (serverUrl === undefined) {
       if (!roles.includes('host')) return
       const identities = createStore({ directory: root, env: options.env, homeDirectory: options.homeDirectory, role: 'host' })
-      await identities.reset(deviceName)
+      await identities.reset(deviceName, { clearPairingPolicy: true })
       await new ServerCredentialStore(root).clear()
       return
     }
     for (const role of roles) {
       const directory = serverStorageDirectory(root, serverUrl, role)
       const identities = createStore({ directory, env: options.env, homeDirectory: options.homeDirectory, role })
-      await identities.reset(deviceName)
+      await identities.reset(deviceName, { clearPairingPolicy: true })
       await new ServerCredentialStore(directory).clear()
     }
   }
@@ -497,6 +500,9 @@ export async function assertOwnedRemoteStorage(root: string): Promise<void> {
     const canAutoHeal = role === 'client' || (directory === root && verifiedScopedIdentities > 0)
     const entries = (await readStorageEntries(directory)).filter(entry => !(directory === root && entry.name === 'servers' && entry.isDirectory()))
     for (const entry of entries) {
+      if (entry.name === 'server-credentials.json.refresh-lock' && entry.isDirectory()) {
+        throw new ServerCredentialsLockDirectoryError()
+      }
       if (entry.name.includes('.refresh-lock')
         && entry.name !== 'server-credentials.json.refresh-lock'
         && !isRefreshQueueArtifact(entry.name)) {
@@ -1046,15 +1052,10 @@ async function ensureDirectory(directory: string): Promise<void> {
 
 /** Drop owned identity records in `directory`, preserving locks and sibling trees. */
 async function removeIdentityRecords(directory: string): Promise<void> {
-  let entries: string[]
-  try {
-    entries = await readdir(directory)
-  } catch {
-    return
-  }
+  const entries = await readdir(directory)
   await Promise.all(entries
     .filter(name => isOwnedIdentityRecord(name))
-    .map(name => unlink(join(directory, name)).catch(() => undefined)))
+    .map(name => rm(join(directory, name), { force: true })))
 }
 
 function isTakeoverLockArtifact(name: string): boolean {

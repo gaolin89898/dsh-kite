@@ -1,4 +1,4 @@
-import { RemoteClientError, type RemoteClientCore } from '@dsh-remote/client-core'
+import { canReplayOversizedResponse, RemoteClientError, type RemoteClientCore, type RemoteRpcOptions } from '@dsh-remote/client-core'
 import {
   HARNESS_API_TRANSFER_CHUNK_BYTES,
   MAX_HARNESS_API_TRANSFER_BYTES,
@@ -27,9 +27,16 @@ import type {
 } from './typert-gateway-contract.js'
 
 const DIRECT_REMOTE_CALL_BYTES = 2 * 1024 * 1024
+const SPEECH_TRANSCRIBE_TIMEOUT_MS = 3 * 60_000
 const WELCOME_NOTICE_NAMESPACE = 'ui-settings-general'
 const WELCOME_NOTICE_FIELD = 'welcomeNoticeVersion'
 const WELCOME_NOTICE_VERSION = '2026-08-13.1'
+
+export const WORKSPACE_BINARY_ENDPOINTS = new Set([
+  'workspaceFiles/readBytes',
+  'officeToPdf/render',
+  'officeKit/render',
+])
 
 /** Client-side alpha Gateway carrier over the authenticated Remote channel. */
 export class RemoteTypertGateway implements RemoteTypertGatewayTarget {
@@ -112,17 +119,22 @@ export class RemoteTypertGateway implements RemoteTypertGatewayTarget {
     // The Remote Gateway contract requires a single plain-object `args` field.
     // Keep the payload unchanged here: converting it to positional arrays makes
     // current Hosts reject even empty calls such as `llm/listProviders`.
+    const rpcOptions: RemoteRpcOptions | undefined = endpoint === 'speech/transcribe'
+      ? { timeoutMs: SPEECH_TRANSCRIBE_TIMEOUT_MS }
+      : undefined
     const request = { endpoint, payload }
     const encoded = new TextEncoder().encode(JSON.stringify(request))
     let response: unknown
     if (encoded.byteLength > DIRECT_REMOTE_CALL_BYTES) {
-      response = await this.callTransferred(encoded, signal)
+      response = await this.callTransferred(encoded, signal, rpcOptions)
     } else {
       try {
-        response = await this.client.rpc<unknown>('harness.remote.call', request, signal)
+        response = rpcOptions === undefined
+          ? await this.client.rpc<unknown>('harness.remote.call', request, signal)
+          : await this.client.rpc<unknown>('harness.remote.call', request, signal, rpcOptions)
       } catch (error) {
-        if (!hasErrorCode(error, 'RESPONSE_TOO_LARGE')) throw error
-        response = await this.callTransferred(encoded, signal)
+        if (!hasErrorCode(error, 'RESPONSE_TOO_LARGE') || !canReplayOversizedResponse(endpoint)) throw error
+        response = await this.callTransferred(encoded, signal, rpcOptions)
       }
     }
     const result = normalizeThemeSettingsResult(endpoint, parseRpcResult(response))
@@ -508,7 +520,7 @@ export class RemoteTypertGateway implements RemoteTypertGatewayTarget {
     await new Promise<void>(resolve => signal.addEventListener('abort', () => resolve(), { once: true }))
   }
 
-  private async callTransferred(encoded: Uint8Array, signal: AbortSignal): Promise<unknown> {
+  private async callTransferred(encoded: Uint8Array, signal: AbortSignal, rpcOptions?: RemoteRpcOptions): Promise<unknown> {
     if (encoded.byteLength > MAX_HARNESS_API_TRANSFER_BYTES) {
       throw new Error('The Harness Remote request exceeds the transfer limit.')
     }
@@ -531,11 +543,18 @@ export class RemoteTypertGateway implements RemoteTypertGatewayTarget {
           data: bytesToBase64(chunk),
         }, signal)
       }
-      const committed = await this.client.rpc<HarnessApiTransferCommitResult>(
-        'harness.remote.transfer.commit',
-        { transferId },
-        signal,
-      )
+      const committed = rpcOptions === undefined
+        ? await this.client.rpc<HarnessApiTransferCommitResult>(
+          'harness.remote.transfer.commit',
+          { transferId },
+          signal,
+        )
+        : await this.client.rpc<HarnessApiTransferCommitResult>(
+          'harness.remote.transfer.commit',
+          { transferId },
+          signal,
+          rpcOptions,
+        )
       if (committed.kind === 'inline') return committed.response
       if (committed.transferId !== transferId) {
         throw new Error('The remote Host returned an invalid Harness Remote transfer descriptor.')
@@ -704,7 +723,7 @@ function base64ToBytes(value: string): Uint8Array {
 
 /** Restore binary fields after the JSON-only Remote carrier. */
 function normalizeWorkspaceBinaryResult(endpoint: string, value: unknown): unknown {
-  if (endpoint !== 'workspaceFiles/readBytes' && endpoint !== 'officeToPdf/render') return value
+  if (!WORKSPACE_BINARY_ENDPOINTS.has(endpoint)) return value
   if (!isRecord(value) || typeof value.data !== 'string') return value
   return { ...value, data: base64ToBytes(value.data) }
 }

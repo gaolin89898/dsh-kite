@@ -1,3 +1,4 @@
+import { useAccountVerification } from './account-verification.js'
 import { createHostPairingPanel } from './pairing.js'
 import { createServerNotice } from './server-notice.js'
 import QRCode from 'qrcode'
@@ -35,6 +36,18 @@ const sidebarEntryChoices: ReadonlyArray<{ value: SidebarEntryStyle; label: 'sid
   { value: 'standard', label: 'sidebarEntryStandard' },
   { value: 'compact', label: 'sidebarEntryCompact' },
 ]
+
+const BUILTIN_ACP_LABELS: Record<string, string> = {
+  codex: 'CodeX',
+  cursor: 'Cursor',
+  antigravity: 'AGY',
+  claude: 'Claude',
+  pi: 'Pi',
+  opencode: 'OpenCode',
+  hermes: 'Hermes',
+}
+
+const BUILTIN_ACP_SCAN_ONLY = new Set(['cursor', 'antigravity', 'hermes'])
 
 export function createRemotePluginOptions(React: ClientReact) {
   const ServerNotice = createServerNotice(React)
@@ -89,9 +102,15 @@ export function createRemotePluginOptions(React: ClientReact) {
     const [sidebarEntryBusy, setSidebarEntryBusy] = React.useState(false)
     const [acpBackends, setAcpBackends] = React.useState<Array<{ id: string; enabled: boolean }>>([])
     const [acpAvailability, setAcpAvailability] = React.useState<Record<string, boolean>>({})
+    const [acpDiagnostics, setAcpDiagnostics] = React.useState<PluginSettingsView['acpDiagnostics']>({})
     const [acpChecking, setAcpChecking] = React.useState<Record<string, boolean>>({})
     const [acpInstalling, setAcpInstalling] = React.useState<Record<string, boolean>>({})
     const [acpCheckResults, setAcpCheckResults] = React.useState<Record<string, boolean | undefined>>({})
+    const [newAcpId, setNewAcpId] = React.useState('')
+    const [newAcpCommand, setNewAcpCommand] = React.useState('')
+    const [newAcpArgs, setNewAcpArgs] = React.useState('acp')
+    const [addingAcp, setAddingAcp] = React.useState(false)
+    const [addAcpFormOpen, setAddAcpFormOpen] = React.useState(false)
     const [reconnectBusy, setReconnectBusy] = React.useState(false)
     const [hostStatus, setHostStatus] = React.useState<RemoteStatus['host'] | undefined>(undefined)
     const [hostName, setHostName] = React.useState('')
@@ -146,6 +165,7 @@ export function createRemotePluginOptions(React: ClientReact) {
       props.sidebarEntry?.publish(view.config.sidebar?.entry ?? 'standard')
       setAcpBackends((view.config.acp?.backends ?? []).map(item => ({ id: item.id, enabled: item.enabled !== false })))
       setAcpAvailability(view.acpAvailability ?? {})
+      setAcpDiagnostics(view.acpDiagnostics ?? {})
       if (updateAssociations) applyAssociations(view)
       setWritable(view.writable)
       setLoaded(true)
@@ -358,8 +378,10 @@ export function createRemotePluginOptions(React: ClientReact) {
       }
     }
 
+    const verification = useAccountVerification(React, signInOpen && loginMethod === 'password' ? serverUrl : undefined)
+
     const signInClient = async (): Promise<void> => {
-      if (savingServer || serverDirty || loginEmail.trim() === '' || loginPassword === '') return
+      if (savingServer || serverDirty || (verification.pending ? !verification.ready : loginEmail.trim() === '' || loginPassword === '')) return
       setBusy(true)
       setError(undefined)
       try {
@@ -368,13 +390,16 @@ export function createRemotePluginOptions(React: ClientReact) {
           serverUrl: serverUrl.trim() || 'https://dsh.r2049.cn',
           email: loginEmail.trim(),
           password: loginPassword,
+          verification: verification.verification,
         })
+        verification.clear()
         applyView(result.settings)
         setSignInOpen(false)
         setLoginPassword('')
         setNotice({ key: 'authorizationComplete' })
       } catch (reason) {
-        setError(messageOf(reason, t))
+        if (verification.handle(reason)) setLoginPassword('')
+        else setError(messageOf(reason, t))
       } finally {
         setBusy(false)
       }
@@ -522,6 +547,28 @@ export function createRemotePluginOptions(React: ClientReact) {
         setError(messageOf(reason, t))
       } finally {
         setBusy(false)
+      }
+    }
+
+    const addCustomAcp = async (): Promise<void> => {
+      const id = newAcpId.trim().toLowerCase()
+      const command = newAcpCommand.trim()
+      const args = newAcpArgs.trim() ? newAcpArgs.trim().split(/\s+/) : []
+      if (!id || !command || addingAcp) return
+      setAddingAcp(true)
+      setError(undefined)
+      try {
+        const view = await props.control<PluginSettingsView>('settings.acp.add', { id, command, args, enabled: true })
+        applyView(view)
+        setNewAcpId('')
+        setNewAcpCommand('')
+        setNewAcpArgs('acp')
+        setAddAcpFormOpen(false)
+        setNotice({ key: 'acpAddedNotice' })
+      } catch (reason) {
+        setError(messageOf(reason, t))
+      } finally {
+        setAddingAcp(false)
       }
     }
 
@@ -677,7 +724,14 @@ export function createRemotePluginOptions(React: ClientReact) {
               className: 'dshRemoteLogToggleBtn',
               'aria-expanded': logsOpen,
               onClick: toggleLogsDrawer,
-            }, logsOpen ? (t('debugLogsToggleClose') + ' ▴') : (t('debugLogsToggleOpen') + ' ▾')),
+            },
+              React.createElement('span', null, logsOpen ? t('debugLogsToggleClose') : t('debugLogsToggleOpen')),
+              React.createElement('svg', {
+                className: 'dshRemoteLogToggleChevron',
+                viewBox: '0 0 16 16', width: 14, height: 14, fill: 'none',
+                stroke: 'currentColor', strokeWidth: 1.75, strokeLinecap: 'round', strokeLinejoin: 'round',
+                'aria-hidden': true,
+              }, React.createElement('path', { d: 'M4 6l4 4 4-4' }))),
             React.createElement('input', {
               type: 'checkbox', role: 'switch', checked: debugLogging,
               disabled: busy || debugBusy || !writable, 'aria-label': t('debugLogging'),
@@ -859,6 +913,12 @@ export function createRemotePluginOptions(React: ClientReact) {
         onClick: () => void setSidebarEntryStyle(choice.value),
       }, t(choice.label)))))
 
+    const acpEnabledCount = settingsView?.config.acp?.enabled === true
+      ? acpBackends.filter(item => item.enabled && acpAvailability[item.id] === true).length
+      : 0
+    const acpSummaryCount = acpBackends.length > 0 ? `${acpEnabledCount}/${acpBackends.length}` : undefined
+    const acpDocEndPunctuation = t('acpHint').includes('，') ? '。' : '.'
+
     const acpSetting = React.createElement('details', { className: 'dshRemoteAuthorizationSetting dshRemoteAcpSetting' },
       React.createElement('summary', null,
         React.createElement('div', { className: 'dshRemoteAcpSummaryText' },
@@ -935,22 +995,22 @@ export function createRemotePluginOptions(React: ClientReact) {
         }, t('retryLoginProviders'))) : null,
       loginMethod === 'device_pairing' && pairingAvailable
         ? React.createElement('div', { role: 'tabpanel', id: 'dsh-remote-settings-device-pairing-panel', 'aria-labelledby': 'dsh-remote-settings-device-pairing-tab' },
-          React.createElement(HostPairingPanel, { key: settingsView?.config.serverUrl ?? '', control: props.control, serverUrl: settingsView?.config.serverUrl ?? '', disabled: busy || !writable || serverDirty, t, onComplete: () => void props.control<PluginSettingsView>('settings.get').then(view => { applyView(view); setSignInOpen(false); props.onSignIn?.() }).catch(() => undefined) }))
+          React.createElement(HostPairingPanel, { key: settingsView?.config.serverUrl ?? '', control: props.control, serverUrl: settingsView?.config.serverUrl ?? '', disabled: busy || !writable || serverDirty, t, onComplete: async () => { const view = await props.control<PluginSettingsView>('settings.get'); applyView(view); setSignInOpen(false); props.onSignIn?.() } }))
         : passwordVisible
         ? React.createElement('div', {
           className: 'dshRemoteClientLogin', role: 'tabpanel', id: 'dsh-remote-settings-password-panel',
           'aria-labelledby': 'dsh-remote-settings-password-tab',
         },
-          React.createElement('input', {
+          verification.fields(t, busy, React.createElement('input', {
             type: 'email', value: loginEmail, disabled: busy, autoComplete: 'username', placeholder: t('account'),
             'aria-label': t('account'), onChange: (event: Event) => setLoginEmail((event.target as HTMLInputElement).value),
           }),
           React.createElement('input', {
             type: 'password', value: loginPassword, disabled: busy, autoComplete: 'current-password', placeholder: t('password'),
             'aria-label': t('password'), onChange: (event: Event) => setLoginPassword((event.target as HTMLInputElement).value),
-          }),
+          })),
           React.createElement('button', {
-            type: 'button', disabled: busy || loginEmail.trim() === '' || loginPassword === '',
+            type: 'button', disabled: busy || (verification.pending ? !verification.ready : loginEmail.trim() === '' || loginPassword === ''),
             onClick: () => void signInClient(),
           }, t(busy ? 'signingIn' : 'startSignIn')),
           React.createElement('p', { className: 'dshRemotePasswordHint' }, t('passwordHint')))

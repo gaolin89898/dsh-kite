@@ -10,23 +10,9 @@ import {
   type RpcResponsePayload,
 } from '@dsh-remote/protocol'
 import type { RemoteTransport } from '@dsh-remote/webrtc'
+import { RemoteClientError, type RemoteClientErrorCode } from './errors.js'
 
-export type RemoteClientErrorCode =
-  | 'RPC_TIMEOUT'
-  | 'RPC_ABORTED'
-  | 'TRANSPORT_CLOSED'
-  | 'CLIENT_CLOSED'
-
-export class RemoteClientError extends Error {
-  constructor(
-    readonly code: RemoteClientErrorCode,
-    message: string,
-    options?: ErrorOptions,
-  ) {
-    super(message, options)
-    this.name = 'RemoteClientError'
-  }
-}
+export { RemoteClientError, type RemoteClientErrorCode }
 
 interface PendingCall {
   method: string
@@ -168,7 +154,16 @@ export class RemoteClientCore {
     if (message.type === 'rpc.error') this.handleError(message as RemoteMessage<RpcErrorPayload>)
     if (message.type === 'event') {
       const event = message.payload as EventPayload
-      for (const handler of this.eventHandlers) handler(event)
+      for (const handler of [...this.eventHandlers]) {
+        if (!this.eventHandlers.has(handler)) continue
+        try {
+          handler(event)
+        } catch (error) {
+          // One failing subscriber must neither skip remaining listeners nor tear
+          // down the underlying encrypted transport.
+          console.error('[dsh-remote] event handler error:', error instanceof Error ? error.name : 'unknown')
+        }
+      }
     }
   }
 
@@ -210,7 +205,14 @@ export class RemoteClientCore {
   private notifyClose(error?: Error): void {
     if (this.closeNotified) return
     this.closeNotified = true
-    for (const handler of this.closeHandlers) handler(error)
+    for (const handler of [...this.closeHandlers]) {
+      if (!this.closeHandlers.has(handler)) continue
+      try {
+        handler(error)
+      } catch (handlerError) {
+        console.error('[dsh-remote] close handler error:', handlerError instanceof Error ? handlerError.name : 'unknown')
+      }
+    }
   }
 }
 
@@ -239,3 +241,6 @@ export * from './remote-gateway.js'
 export * from './harness-alpha-client.js'
 export * from './codex-client.js'
 export * from './acp-client.js'
+export * from './transport-upgrader.js'
+export * from './attention-client.js'
+export * from './push-target-client.js'

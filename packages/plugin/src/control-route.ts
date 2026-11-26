@@ -13,13 +13,9 @@ export const STATUS_STREAM_PATH = `${CONTROL_RPC_PREFIX}/${STATUS_STREAM_ENDPOIN
 const ENDPOINT_SEGMENT_PATTERN = /^[A-Za-z0-9_$.-]+$/
 const INVALID_REQUEST_RPC_ID = 'invalid-request'
 
-interface ControlPeer {
-  principal: { kind: string }
-}
-
 interface HostConnectionHandleLike {
-  admit?(request: IncomingMessage): { peer: ControlPeer } | { rejection: number }
   requestRejection?(request: { headers: IncomingHttpHeaders }): number | undefined
+  admit?(request: { headers: IncomingHttpHeaders }): { rejection?: number; peer?: unknown } | undefined
   rpc: {
     handle?(
       channel: string,
@@ -29,12 +25,17 @@ interface HostConnectionHandleLike {
   }
 }
 
+export interface HostAdmittedPeerLike {
+  readonly principal?: { readonly kind?: unknown } | string
+  readonly signal?: { readonly aborted?: boolean }
+}
+
 export interface HostWebServerLike {
   register(route: {
     kind: 'prefix'
     path: string
     auth?: 'required'
-    handler(req: IncomingMessage, res: ServerResponse, peer?: ControlPeer): void | Promise<void>
+    handler(req: IncomingMessage, res: ServerResponse, peer?: HostAdmittedPeerLike): void | Promise<void>
   }): () => void | Promise<void>
 }
 
@@ -56,19 +57,15 @@ export function registerControlRoute(
   webServer?: HostWebServerLike,
   statusStream?: ControlStatusStreamLike,
 ): () => Promise<void> {
-  if (webServer !== undefined && (typeof connection.admit === 'function' || connection.requestRejection !== undefined)) {
+  if (webServer !== undefined) {
+    // DSH 0.2.3+ authorizes `auth: 'required'` routes inside `webServer` and
+    // hands the admitted Peer as the third handler argument; older hosts omit
+    // the Peer and authorize through `connection.requestRejection` (or `admit`).
     const dispose = webServer.register({
       kind: 'prefix',
       path: CONTROL_RPC_PREFIX,
       auth: 'required',
-      handler: (req, res, peer) => {
-        const rejection = controlRequestRejection(connection, req, peer)
-        if (rejection !== undefined) {
-          writeText(res, rejection, rejection === 401 ? 'unauthorized' : 'forbidden')
-          return
-        }
-        return handleControlRequest(handler, req, res, statusStream)
-      },
+      handler: (req, res, peer) => handleControlRequest(connection, handler, req, res, statusStream, peer),
     })
     return async () => {
       statusStream?.close()
@@ -83,29 +80,30 @@ export function registerControlRoute(
   // route registry nor the legacy RPC helper.  Do not let that optional
   // compatibility path abort plugin activation and leave the UI stuck in
   // "control is still starting".
-  if (rpcHandle === undefined) return async () => undefined
+  if (rpcHandle === undefined) {
+    console.warn('ds-harness-remote: local control unavailable (missing Web server and RPC route registries).')
+    return async () => { statusStream?.close() }
+  }
   return rpcHandle(CONTROL_RPC_PREFIX, handler, {
     authority: 'loopback',
   })
 }
 
-function controlRequestRejection(connection: HostConnectionHandleLike, req: IncomingMessage, peer?: ControlPeer): number | undefined {
-  // 0.2.3 supplies the admitted peer to an auth-required route.
-  if (peer !== undefined) return peer.principal.kind === 'owner' ? undefined : 403
-  // 0.2.2 exposes requestRejection and leaves admission to the route handler.
-  if (connection.requestRejection === undefined) return 403
-  if (connection.admit === undefined) return connection.requestRejection(req)
-  const admission = connection.admit(req)
-  if ('rejection' in admission) return admission.rejection
-  return admission.peer.principal.kind === 'owner' ? undefined : 403
-}
-
 async function handleControlRequest(
+  connection: HostConnectionHandleLike,
   handler: ControlRouteHandler,
   req: IncomingMessage,
   res: ServerResponse,
   statusStream?: ControlStatusStreamLike,
+  admittedPeer?: HostAdmittedPeerLike,
 ): Promise<void> {
+  const rejection = requestRejectionStatus(connection, req, admittedPeer)
+  if (rejection !== undefined) {
+    res.writeHead(rejection)
+    res.end(rejection === 401 ? 'unauthorized' : rejection === 503 ? 'authentication unavailable' : 'forbidden')
+    return
+  }
+
   const endpoint = endpointFromPath(CONTROL_RPC_PREFIX, new URL(req.url ?? '/', 'http://dsh.internal').pathname)
   if (req.method === 'GET' && endpoint === STATUS_STREAM_ENDPOINT && statusStream !== undefined) {
     await statusStream.handle(res)
@@ -214,6 +212,49 @@ function fullResponse(rpcId: string, result: unknown): Record<string, unknown> {
 function writeJson(res: ServerResponse, status: number, body: unknown): void {
   res.writeHead(status, { 'content-type': 'application/json' })
   res.end(JSON.stringify(body))
+}
+
+function requestRejectionStatus(
+  connection: HostConnectionHandleLike,
+  req: IncomingMessage,
+  admittedPeer?: HostAdmittedPeerLike,
+): number | undefined {
+  if (typeof connection.requestRejection === 'function') {
+    const rejection = connection.requestRejection(req)
+    if (rejection !== undefined) return normalizeRejectionStatus(rejection)
+    return admittedPeer === undefined ? undefined : peerRejectionStatus(admittedPeer)
+  }
+  if (admittedPeer !== undefined) {
+    return peerRejectionStatus(admittedPeer)
+  }
+  if (typeof connection.admit === 'function') {
+    let admission: { rejection?: number; peer?: unknown } | undefined
+    try {
+      admission = connection.admit(req)
+    } catch {
+      return 503
+    }
+    if (typeof admission !== 'object' || admission === null) return 403
+    if (typeof admission.rejection === 'number') return normalizeRejectionStatus(admission.rejection)
+    return peerRejectionStatus(admission.peer)
+  }
+  return 403
+}
+
+function peerRejectionStatus(peer: unknown): number | undefined {
+  if (typeof peer !== 'object' || peer === null) return 403
+  const candidate = peer as HostAdmittedPeerLike
+  if (candidate.signal?.aborted === true) return 401
+  const principal = candidate.principal
+  if (typeof principal === 'string') return principal === 'owner' ? undefined : 403
+  if (typeof principal === 'object' && principal !== null) {
+    return principal.kind === 'owner' ? undefined : 403
+  }
+  return 403
+}
+
+function normalizeRejectionStatus(code: unknown): number {
+  return typeof code === 'number' && Number.isInteger(code) && code >= 400 && code <= 599 ? code : 403
 }
 
 function writeText(res: ServerResponse, status: number, body: string): void {

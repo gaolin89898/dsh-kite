@@ -1,19 +1,37 @@
-import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
+import type { AcpAuthDiagnostic, AcpAuthMethod, AcpAvailableCommand } from '@dsh-remote/protocol'
+import {
+  buildAuthDiagnosticFromMetadata,
+  detectUpstreamAuthFailure,
+  parseAvailableCommands,
+  parseInitializeMetadata,
+  type AcpInitializeMetadata,
+} from './auth-diagnostics.js'
+import type { ChildProcessWithoutNullStreams } from 'node:child_process'
+import { spawnCommand } from '../windows-spawn.js'
 import { Buffer } from 'node:buffer'
 import { realpath } from 'node:fs/promises'
 import type { SafeLogger } from '../../logging.js'
 import { PLUGIN_VERSION } from '../../version.js'
 import type { CursorAcpInbound, CursorAcpLike } from './cursor-process.js'
-import { acpHistoryEvents } from '../history-events.js'
+import { AcpHistoryAccumulator } from '../history-events.js'
 import { AcpSessionModelState } from './session-models.js'
 import { OpencodeNativeApi, opencodeHasNativeApi, opencodeLoopbackPort, opencodePrivateArgs } from './opencode-native-api.js'
 
 const ACP_REQUEST_TIMEOUT_MS = 60_000
+/** Loading large `opencode.db` transcripts over `session/load` regularly exceeds 60s. */
+const ACP_HISTORY_LOAD_TIMEOUT_MS = 120_000
 /** Full agent turns (tools + streaming) routinely exceed the short RPC budget. */
 const ACP_PROMPT_TIMEOUT_MS = 10 * 60_000
 const ACP_START_TIMEOUT_MS = 20_000
 const MAX_ACP_LINE_BYTES = 288 * 1024 * 1024
+const ACP_HISTORY_MAX_BYTES = 8 * 1024 * 1024
+const ACP_HISTORY_HARD_MAX_BYTES = 16 * 1024 * 1024
+const ACP_HISTORY_MAX_EVENTS = 10_000
+const ACP_HISTORY_HARD_MAX_EVENTS = 20_000
+const ACP_HISTORY_MAX_RAW_BYTES = 256 * 1024 * 1024
+const ACP_HISTORY_MAX_RAW_UPDATES = 500_000
 const MAX_STDERR_CAPTURE_BYTES = 4 * 1024
+const MAX_OPENCODE_SESSION_LIST = 1000
 
 interface PendingRequest {
   resolve: (value: unknown) => void
@@ -72,6 +90,9 @@ export class OpencodeAcpClient implements CursorAcpLike {
   private nativeApi?: OpencodeNativeApi
   private readonly archivedSessions = new Set<string>()
   private readonly archivingSessions = new Set<string>()
+  private readonly sessionCommands = new Map<string, AcpAvailableCommand[]>()
+  private initMetadata?: AcpInitializeMetadata
+  private lastAuthDiagnostic?: AcpAuthDiagnostic
 
   constructor(
     private readonly binary: string = 'opencode',
@@ -79,6 +100,18 @@ export class OpencodeAcpClient implements CursorAcpLike {
     private readonly spawnAcp?: SpawnOpencodeAcp,
     private readonly options: { args?: string[]; cwd?: string; historyReader?: boolean } = {},
   ) {}
+
+  diagnostics(): AcpAuthDiagnostic {
+    return buildAuthDiagnosticFromMetadata('opencode', this.initMetadata, this.lastAuthDiagnostic, this.ready)
+  }
+
+  capabilities(): AcpInitializeMetadata['agentCapabilities'] {
+    return this.initMetadata?.agentCapabilities ?? {}
+  }
+
+  authMethods(): AcpAuthMethod[] {
+    return this.initMetadata?.authMethods ?? []
+  }
 
   start(): Promise<void> {
     if (this.closed) return Promise.reject(new OpencodeAcpError('OPENCODE_CLOSED', 'The OpenCode domain is closed.'))
@@ -110,7 +143,8 @@ export class OpencodeAcpClient implements CursorAcpLike {
   /**
    * Replay a saved session in one temporary ACP process so a history read never
    * interrupts a live turn. OpenCode emits the transcript as `session/update`
-   * notifications before `session/load` resolves.
+   * notifications before `session/load` resolves; fold incrementally and keep
+   * a bounded trailing turn window within the transfer budget.
    */
   async history(sessionId: string, cwd: string): Promise<unknown[]> {
     if (this.closed) throw new OpencodeAcpError('OPENCODE_CLOSED', 'The OpenCode domain is closed.')
@@ -120,9 +154,14 @@ export class OpencodeAcpClient implements CursorAcpLike {
     let stopping: Promise<void> | undefined
     const stop = () => stopping ??= client.close()
     this.historyStop = stop
-    const updates: CursorAcpInbound[] = []
-    let bytes = 0
-    let count = 0
+    const accumulator = new AcpHistoryAccumulator(sessionId, 'opencode', {
+      maxBytes: ACP_HISTORY_MAX_BYTES,
+      hardMaxBytes: ACP_HISTORY_HARD_MAX_BYTES,
+      maxEvents: ACP_HISTORY_MAX_EVENTS,
+      hardMaxEvents: ACP_HISTORY_HARD_MAX_EVENTS,
+    })
+    let rawBytes = 0
+    let rawCount = 0
     let overflow = false
     const unsubscribe = client.onInbound(message => {
       // A history reader has no authority to run tools or wait for approval.
@@ -133,21 +172,27 @@ export class OpencodeAcpClient implements CursorAcpLike {
       if (message.method !== 'session/update'
         || (message.params as { sessionId?: string } | null)?.sessionId !== sessionId
         || overflow) return
-      count++
-      bytes += Buffer.byteLength(JSON.stringify(message))
-      if (bytes > 8 * 1024 * 1024 || count > 10_000) {
+      rawCount++
+      rawBytes += Buffer.byteLength(JSON.stringify(message))
+      if (rawBytes > ACP_HISTORY_MAX_RAW_BYTES || rawCount > ACP_HISTORY_MAX_RAW_UPDATES || !accumulator.push(message)) {
         overflow = true
         void stop().catch(() => undefined)
       }
-      else updates.push(message)
     })
     try {
       await client.start()
       if (this.closed) throw new OpencodeAcpError('OPENCODE_CLOSED', 'OpenCode ACP was closed.')
-      await client.call('session/load', { sessionId, cwd, mcpServers: [] })
+      await client.call('session/load', { sessionId, cwd, mcpServers: [] }, ACP_HISTORY_LOAD_TIMEOUT_MS)
       if (this.closed) throw new OpencodeAcpError('OPENCODE_CLOSED', 'OpenCode ACP was closed.')
       if (overflow) throw new OpencodeAcpError('OPENCODE_HISTORY_TOO_LARGE', 'OpenCode history exceeds the transfer limit.')
-      return acpHistoryEvents(updates, sessionId, 'opencode')
+      const folded = accumulator.finish()
+      if (folded.overflow) throw new OpencodeAcpError('OPENCODE_HISTORY_TOO_LARGE', 'OpenCode history exceeds the transfer limit.')
+      if (folded.truncated) {
+        this.logger?.info('OpenCode history truncated to recent turns within transfer budget', {
+          retainedEvents: folded.events.length,
+        })
+      }
+      return folded.events
     } catch (error) {
       if (overflow) throw new OpencodeAcpError('OPENCODE_HISTORY_TOO_LARGE', 'OpenCode history exceeds the transfer limit.')
       throw error
@@ -167,7 +212,9 @@ export class OpencodeAcpClient implements CursorAcpLike {
     const id = typeof p.sessionId === 'string' ? p.sessionId : undefined
     if (id && this.archivingSessions.has(id)) throw new OpencodeAcpError('ACP_SESSION_BUSY', 'The OpenCode session is being archived.')
     if (id && this.archivedSessions.has(id) && ['session/load', 'session/prompt', 'dsh/selectModel'].includes(method)) throw new OpencodeAcpError('ACP_SESSION_ARCHIVED', 'This OpenCode session is archived.')
-    const budget = timeoutMs ?? (method === 'session/prompt' ? ACP_PROMPT_TIMEOUT_MS : ACP_REQUEST_TIMEOUT_MS)
+    const budget = timeoutMs ?? (method === 'session/prompt'
+      ? ACP_PROMPT_TIMEOUT_MS
+      : method === 'session/load' ? ACP_HISTORY_LOAD_TIMEOUT_MS : ACP_REQUEST_TIMEOUT_MS)
     if (method === 'session/load' && id) {
       // Re-reading models must never replay history into an active conversation.
       if (this.models.has(id)) return { sessionId: id }
@@ -177,7 +224,10 @@ export class OpencodeAcpClient implements CursorAcpLike {
       this.loads.set(id, load)
       try { return await load } finally { this.loads.delete(id) }
     }
-    if (method === 'session/new') return this.loadSession(method, params, budget)
+    if (method === 'session/new' || method === 'session/fork') return this.loadSession(method, params, budget)
+    if (method === 'dsh/sessionCommands') {
+      return { commands: id ? [...(this.sessionCommands.get(id) ?? [])] : [] }
+    }
     if (method === 'dsh/sessionModels' || method === 'dsh/selectModel') {
       const models = id ? this.models.get(id) : undefined
       if (!models) throw new OpencodeAcpError('ACP_SESSION_NOT_LOADED', 'Load the OpenCode session before selecting its model.')
@@ -188,6 +238,21 @@ export class OpencodeAcpClient implements CursorAcpLike {
         const result = await models.select(id!, p.model, p.reasoningEffort, (method, params) => this.request(method, params, budget))
         this.publish({ kind: 'notification', method: 'session/update', params: { sessionId: id,
           update: { sessionUpdate: 'model_selection', selected: result.selected } } })
+        return result
+      } finally { this.busy.delete(id!) }
+    }
+    if (method === 'dsh/sessionModes' || method === 'session/set_mode') {
+      const models = id ? this.models.get(id) : undefined
+      if (!models) throw new OpencodeAcpError('ACP_SESSION_NOT_LOADED', 'Load the OpenCode session before changing its mode.')
+      if (method === 'dsh/sessionModes') return models.modesCatalog()
+      if (this.busy.has(id!)) throw new OpencodeAcpError('PROMPT_IN_PROGRESS', 'Stop the OpenCode reply before changing its mode.')
+      this.busy.add(id!)
+      try {
+        const result = await models.setMode(id!, p.modeId, (method, params) => this.request(method, params, budget))
+        this.publish({ kind: 'notification', method: 'session/update', params: {
+          sessionId: id,
+          update: { sessionUpdate: 'current_mode_update', currentModeId: result.currentModeId },
+        } })
         return result
       } finally { this.busy.delete(id!) }
     }
@@ -207,8 +272,25 @@ export class OpencodeAcpClient implements CursorAcpLike {
     if (method === 'session/list' && nativeApi && isRecord(result) && Array.isArray(result.sessions)) {
       // ACP list may return archived native records, including after a restart.
       // Recheck every item against OpenCode; process-local caches are insufficient.
-      if (result.sessions.length > 1000) throw new OpencodeAcpError('INVALID_MESSAGE', 'The OpenCode catalog page is too large.')
-      const items = result.sessions
+      const rawItems = result.sessions
+      const items = rawItems.length > MAX_OPENCODE_SESSION_LIST
+        ? [...rawItems]
+            .sort((a, b) => {
+              const ta = isRecord(a) && typeof a.updatedAt === 'string' ? Date.parse(a.updatedAt) || 0 : 0
+              const tb = isRecord(b) && typeof b.updatedAt === 'string' ? Date.parse(b.updatedAt) || 0 : 0
+              return tb - ta
+            })
+            .slice(0, MAX_OPENCODE_SESSION_LIST)
+        : rawItems
+      const realpathCache = new Map<string, Promise<string | undefined>>()
+      const resolveCwd = (rawCwd: string): Promise<string | undefined> => {
+        let cached = realpathCache.get(rawCwd)
+        if (!cached) {
+          cached = realpath(rawCwd).catch(() => undefined)
+          realpathCache.set(rawCwd, cached)
+        }
+        return cached
+      }
       const archivedItems = new Map<number, boolean>()
       let next = 0
       await Promise.all(Array.from({ length: Math.min(4, items.length) }, async () => {
@@ -217,9 +299,19 @@ export class OpencodeAcpClient implements CursorAcpLike {
           if (index >= items.length) return
           const item = items[index]
           if (!isRecord(item) || typeof item.sessionId !== 'string' || typeof item.cwd !== 'string') continue
-          const cwd = await realpath(item.cwd).catch(() => undefined)
+          let cwd: string | undefined
+          try {
+            cwd = await resolveCwd(item.cwd)
+          } catch {
+            continue
+          }
           if (!cwd) continue
-          const archived = await nativeApi.isArchived(item.sessionId, cwd)
+          let archived: boolean
+          try {
+            archived = await nativeApi.isArchived(item.sessionId, cwd)
+          } catch {
+            continue
+          }
           if (archived) this.archivedSessions.add(item.sessionId)
           else this.archivedSessions.delete(item.sessionId)
           archivedItems.set(index, archived)
@@ -299,21 +391,34 @@ export class OpencodeAcpClient implements CursorAcpLike {
     if (this.process !== undefined) {
       throw new OpencodeAcpError('OPENCODE_STARTING', 'OpenCode ACP is already starting.')
     }
+    this.failureNotified = false
     let child: ChildProcessWithoutNullStreams
-    if (this.spawnAcp) child = this.spawnAcp(this.binary)
-    else {
+    if (this.spawnAcp) {
+      try {
+        child = this.spawnAcp(this.binary)
+      } catch (error) {
+        const cause = error instanceof Error ? error : new Error(String(error))
+        this.handleProcessFailure('OPENCODE_BINARY_UNAVAILABLE', cause)
+        throw new OpencodeAcpError('OPENCODE_BINARY_UNAVAILABLE', 'OpenCode ACP communication failed.', { cause })
+      }
+    } else {
       const args = this.options.args ?? ['acp']
       const nativeApiSupported = await opencodeHasNativeApi(this.binary, args, this.options.cwd, this.startupAbort.signal)
       const port = nativeApiSupported ? await opencodeLoopbackPort() : undefined
       if (this.closed) throw new OpencodeAcpError('OPENCODE_CLOSED', 'OpenCode ACP was closed.')
       if (port !== undefined) this.nativeApi = new OpencodeNativeApi(`http://127.0.0.1:${port}`)
-      child = spawn(this.binary, opencodePrivateArgs(args, port), {
-        cwd: this.options.cwd, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true,
-        env: { ...process.env, ...(this.nativeApi ? { OPENCODE_SERVER_USERNAME: 'opencode', OPENCODE_SERVER_PASSWORD: this.nativeApi.password } : {}) },
-      })
+      try {
+        child = spawnCommand(this.binary, opencodePrivateArgs(args, port), {
+          cwd: this.options.cwd, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true,
+          env: { ...process.env, ...(this.nativeApi ? { OPENCODE_SERVER_USERNAME: 'opencode', OPENCODE_SERVER_PASSWORD: this.nativeApi.password } : {}) },
+        })
+      } catch (error) {
+        const cause = error instanceof Error ? error : new Error(String(error))
+        this.handleProcessFailure('OPENCODE_BINARY_UNAVAILABLE', cause)
+        throw new OpencodeAcpError('OPENCODE_BINARY_UNAVAILABLE', 'OpenCode ACP communication failed.', { cause })
+      }
     }
     this.process = child
-    this.failureNotified = false
     this.stdoutBuffer = Buffer.alloc(0)
     this.stderrBytes = 0
     child.stdout.on('data', chunk => {
@@ -346,7 +451,7 @@ export class OpencodeAcpClient implements CursorAcpLike {
     })
 
     try {
-      await this.request('initialize', {
+      const initResult = await this.request('initialize', {
         protocolVersion: 1,
         clientCapabilities: {
           fs: { readTextFile: false, writeTextFile: false },
@@ -357,6 +462,8 @@ export class OpencodeAcpClient implements CursorAcpLike {
           version: PLUGIN_VERSION,
         },
       }, ACP_START_TIMEOUT_MS)
+      this.initMetadata = parseInitializeMetadata(initResult)
+      this.lastAuthDiagnostic = undefined
       if (this.closed || this.process !== child) throw new OpencodeAcpError('OPENCODE_CLOSED', 'OpenCode ACP was closed.')
       this.ready = true
       this.logger?.info('OpenCode ACP ready')
@@ -428,7 +535,12 @@ export class OpencodeAcpClient implements CursorAcpLike {
       const pending = this.takePending(value.id)
       if (pending === undefined) return
       if ('error' in value && value.error !== undefined) {
-        pending.reject(new OpencodeAcpError('OPENCODE_UPSTREAM_ERROR', safeUpstreamError(value.error)))
+        const authDiagnostic = detectUpstreamAuthFailure('opencode', value.error, this.initMetadata?.authMethods)
+        if (authDiagnostic) this.lastAuthDiagnostic = authDiagnostic
+        pending.reject(new OpencodeAcpError(
+          'OPENCODE_UPSTREAM_ERROR',
+          authDiagnostic?.guidance ?? safeUpstreamError(value.error),
+        ))
       } else {
         pending.resolve(value.result)
       }
@@ -447,6 +559,9 @@ export class OpencodeAcpClient implements CursorAcpLike {
     }
     if (inbound.kind === 'notification' && inbound.method === 'session/update' && isRecord(params) && typeof params.sessionId === 'string') {
       this.models.get(params.sessionId)?.update(params.update)
+      if (isRecord(params.update) && params.update.sessionUpdate === 'available_commands_update') {
+        this.sessionCommands.set(params.sessionId, parseAvailableCommands(params.update))
+      }
       // session/load replays belong to the separate history reader, not live UI.
       if (this.loads.has(params.sessionId) && !this.options.historyReader) return
     }

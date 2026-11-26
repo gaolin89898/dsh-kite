@@ -3,6 +3,7 @@ import { renderBodyPortal } from './client/portal.js'
 import type { LocaleKey, Translate } from './client-locale.js'
 import { en, localeNamespace, ru, uk, zh } from './client-locale.js'
 import { createRemoteSessionHeaderAction } from './client/header.js'
+import { useAccountVerification } from './client/account-verification.js'
 import { unwrapControlResult } from './client/control-result.js'
 import { pendingWorkspaceSelectionKey, storedWorkspaceSelection, workspacesReady } from './client/navigation.js'
 import { connectedProgress, connectionErrorMessage, messageOf } from './client/presentation.js'
@@ -36,6 +37,7 @@ import {
 } from './remote-file-content-provider.js'
 import type { StatusFeed } from './status-stream.js'
 import { createStatusFeed } from './status-stream.js'
+import { installMessageFilePreview, type MessageFileConversation, type MessageFileSidebar } from './client/message-file-preview.js'
 import { subscribeRemoteRecovery } from './client-recovery.js'
 
 declare global {
@@ -63,12 +65,25 @@ class ControlRouteUnavailableError extends Error {
 
 // Install before ModuleLoader activation and React rendering: other plugins may
 // fetch their roster as soon as their own apply() runs.
+const isHostcTunnel = /\.(?:hostc|tun|tun-test)\.4ba\.io\.?$/.test(window.location?.hostname ?? '')
 const originalPluginFetch = window.fetch
+const lanOrigin = window.location?.protocol === 'http:' && /^(?:[\d.]+|\[[0-9a-f:]+\])$/i.test(window.location.hostname)
+let verifiedLanOrigin = false
 let readyPluginSessions: (sessions: SessionsClientServiceLike) => void
 const pluginSessions = new Promise<SessionsClientServiceLike>(resolve => { readyPluginSessions = resolve })
-const pluginRouteFetch = typeof originalPluginFetch === 'function' && typeof document !== 'undefined'
+// HostC already proxies the Host's own bot API and blocks loopback control.
+const pluginRouteFetch = !isHostcTunnel && typeof originalPluginFetch === 'function' && typeof document !== 'undefined'
   ? createPluginRouteFetch(originalPluginFetch.bind(window), document.baseURI, {
     beforeResponse: createPluginRouteCatalogGuard(() => pluginSessions),
+    isLanWeb: lanOrigin ? async signal => {
+      if (verifiedLanOrigin) return true
+      const response = await originalPluginFetch(new URL('/__remote/lan-status', window.location.origin), {
+        credentials: 'same-origin',
+        signal,
+      }).catch(() => undefined)
+      verifiedLanOrigin = response?.status === 204 && response.headers.get('x-dsh-web-lan') === '1'
+      return verifiedLanOrigin
+    } : undefined,
   })
   : undefined
 if (pluginRouteFetch !== undefined) window.fetch = pluginRouteFetch
@@ -152,6 +167,7 @@ window.__ModuleLoader__.load({
       const [hostRegistrationCode, setHostRegistrationCode] = React.useState('')
       const [email, setEmail] = React.useState('')
       const [password, setPassword] = React.useState('')
+      const hostVerification = useAccountVerification(React, status?.serverUrl)
       const [busy, setBusy] = React.useState(false)
       const [progress, setProgress] = React.useState<RemoteConnectionProgress | undefined>(undefined)
       const progressRun = React.useRef(0)
@@ -213,14 +229,15 @@ window.__ModuleLoader__.load({
       }
 
       const loginHost = async (): Promise<void> => {
-        if (email.trim() === '' || password === '') return
+        if (hostVerification.pending ? !hostVerification.ready : email.trim() === '' || password === '') return
         setBusy(true)
         setError(undefined)
         try {
-          await props.control('host.account.login', { email: email.trim(), password })
+          await props.control('host.account.login', { email: email.trim(), password, verification: hostVerification.verification })
+          hostVerification.clear()
           await refreshStatus()
         } catch (reason) {
-          setError(messageOf(reason, t))
+          if (!hostVerification.handle(reason)) setError(messageOf(reason, t))
         } finally {
           setPassword('')
           setBusy(false)
@@ -291,7 +308,7 @@ window.__ModuleLoader__.load({
                     ? t('checkingHost')
                     : t('hostUnavailable', { error: connectionErrorMessage(status.host.error, t) })),
               status.host.accountRequired ? React.createElement('div', { className: 'dshRemoteLogin' },
-                React.createElement('input', {
+                hostVerification.fields(t, busy, React.createElement('input', {
                   type: 'email',
                   value: email,
                   disabled: busy,
@@ -308,10 +325,10 @@ window.__ModuleLoader__.load({
                   placeholder: t('password'),
                   'aria-label': t('serverAccountPassword'),
                   onChange: (event: Event) => setPassword((event.target as HTMLInputElement).value),
-                }),
+                })),
                 React.createElement('button', {
                   type: 'button',
-                  disabled: busy || email.trim() === '' || password === '',
+                  disabled: busy || (hostVerification.pending ? !hostVerification.ready : email.trim() === '' || password === ''),
                   onClick: () => void loginHost(),
                 }, t(busy ? 'signingIn' : 'signInRegisterHost')),
                 React.createElement('input', {
@@ -402,7 +419,7 @@ window.__ModuleLoader__.load({
       let controlRouteRetryAfter = 0
       let controlRouteBackoffIndex = 0
       const control = async <T,>(endpoint: string, payload: unknown = {}): Promise<T> => {
-        if (endpoint === 'status' && Date.now() < controlRouteRetryAfter) {
+        if (endpoint === 'status' && (isHostcTunnel || Date.now() < controlRouteRetryAfter)) {
           return controlRouteUnavailableStatus() as T
         }
         let result: ControlResult
@@ -423,13 +440,15 @@ window.__ModuleLoader__.load({
       // One pushed status stream feeds every Host-status render in this page.
       // Hosts without the event stream keep answering the unary status control
       // call, which the feed itself polls at the interval this replaced.
-      const statusFeed = createStatusFeed<RemoteStatus>({
-        url: STATUS_STREAM_PATH.slice(1),
-        readStatus: () => control<RemoteStatus>('status'),
-        onFallback: reason => {
-          console.warn('ds-harness-remote: status event stream unavailable, polling status instead:', reason)
-        },
-      })
+      const statusFeed: StatusFeed<RemoteStatus> = isHostcTunnel
+        ? { getSnapshot: () => undefined, subscribe: () => () => {}, close: () => {} }
+        : createStatusFeed<RemoteStatus>({
+          url: STATUS_STREAM_PATH.slice(1),
+          readStatus: () => control<RemoteStatus>('status'),
+          onFallback: reason => {
+            console.warn('ds-harness-remote: status event stream unavailable, polling status instead:', reason)
+          },
+        })
       ctx.effect(() => () => statusFeed.close(), 'ds-harness-remote: status stream')
       ctx.effect(() => {
         const unsubscribe = statusFeed.subscribe(status => {
@@ -441,6 +460,12 @@ window.__ModuleLoader__.load({
         }
       }, 'ds-harness-remote: hide local browser entry in remote mode')
       ctx.effect(() => subscribeRemoteRecovery(statusFeed, () => ctx.connection.reconnect?.()), 'ds-harness-remote: carrier recovery')
+      ctx.inject(['uiConversation', 'sidebarRight'], previewContext => {
+        const conversation = previewContext.get<MessageFileConversation>('uiConversation')
+        const sidebar = previewContext.get<MessageFileSidebar>('sidebarRight')
+        if (typeof conversation?.binding !== 'function' || typeof sidebar?.openResource !== 'function') return
+        previewContext.effect(() => installMessageFilePreview(statusFeed, conversation, sidebar), 'ds-harness-remote: message file preview')
+      })
       ctx.effect(() => {
         let disposed = false
         let unsubscribeWorkspaces: (() => void) | undefined
@@ -628,17 +653,61 @@ window.__ModuleLoader__.load({
       ctx.effect(() => ctx.locale.register(localeNamespace, { zh, en, ru, uk }), 'ds-harness-remote: dictionaries')
       ctx.effect(() => installStyle(clientModuleId), 'ds-harness-remote: client styles')
       ctx.effect(() => installTerminalAvailabilityNotice(statusFeed, t), 'ds-harness-remote: terminal availability notice')
-      ctx.slots.inject('shell.overlay', () => ctx.slots.register({
-        name: 'shell.overlay',
+      if (isHostcTunnel) {
+        const linkProps = { target: '_blank', rel: 'noopener noreferrer' }
+        const dismissedKey = 'ds-harness-remote.web-footer.dismissed'
+        const dismissedCookie = '__Secure-dsh-remote-web-footer-dismissed=1'
+        const dismissalSeconds = 3 * 24 * 60 * 60
+        function WebFooter(): unknown {
+          const [dismissed, setDismissed] = React.useState(() => {
+            try {
+              if (document.cookie.split(';').some(value => value.trim() === dismissedCookie)) return true
+            } catch { /* The browser may block cookies. */ }
+            try {
+              const stored = window.localStorage.getItem(dismissedKey)
+              return stored === '1' || Number(stored) > Date.now()
+            }
+            catch { return false }
+          })
+          if (dismissed) return null
+          const dismiss = (): void => {
+            setDismissed(true)
+            try {
+              document.cookie = `${dismissedCookie}; Domain=4ba.io; Path=/; Max-Age=${dismissalSeconds}; Secure; SameSite=Strict`
+            } catch { /* Fall back to this tunnel's local storage. */ }
+            try { window.localStorage.setItem(dismissedKey, String(Date.now() + dismissalSeconds * 1000)) }
+            catch { /* Storage is optional for dismissal in the current page. */ }
+          }
+          return renderBodyPortal(portal, React.createElement('footer', { className: 'dshRemoteWebFooter' },
+            React.createElement('a', { ...linkProps, href: 'https://github.com/liguobao/ds-harness-remote' }, 'ds-harness-remote'),
+            ' · ',
+            React.createElement('a', { ...linkProps, href: 'https://dsh.r2049.cn' }, '会员计划'),
+            React.createElement('button', { type: 'button', onClick: dismiss, 'aria-label': t('close') },
+              React.createElement('svg', { width: 10, height: 10, viewBox: '0 0 12 12', 'aria-hidden': true },
+                React.createElement('path', { d: 'M3 3l6 6m0-6L3 9', fill: 'none', stroke: 'currentColor', strokeWidth: 1.4, strokeLinecap: 'round' })))))
+        }
+        ctx.slots.inject('shell.overlay', () => ctx.slots.register({
+          name: 'shell.overlay',
+          id: 'ds-harness-remote-web-footer',
+        }, WebFooter))
+      }
+      const nativeTitlebar = document.documentElement.hasAttribute('data-windows-titlebar')
+        || document.documentElement.dataset.platform === 'darwin'
+      const headerSlot = nativeTitlebar ? 'shell.overlay' : 'conversation.session.header.utilities'
+      ctx.slots.inject(headerSlot, () => ctx.slots.register({
+        name: headerSlot,
         id: 'ds-harness-remote-global-context',
         order: 20,
         locale: localeNamespace,
-        inject: () => ({ control, statusFeed, onSignIn: openRemote }),
+        inject: () => ({ control, statusFeed, onSignIn: openRemote, inline: !nativeTitlebar }),
       }, RemoteSessionHeaderAction))
       ctx.slots.inject('sidebar.footer.action', () => ctx.slots.register({
         name: 'sidebar.footer.action',
         id: 'ds-harness-remote-workspace',
-        order: -20,
+        // Shared footer ordering: integrations (chat import 20) and device
+        // entries (mobile 40) sort after this workspace entry, which stays the
+        // leftmost seat of the row.
+        order: 0,
         locale: localeNamespace,
         inject: () => ({
           control,

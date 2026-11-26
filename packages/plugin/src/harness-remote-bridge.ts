@@ -33,6 +33,7 @@ import { ensureHostWorkspaceDirectory, listRemoteDirectory } from './remote-dire
 import { RpcError } from './rpc-router.js'
 import { workspaceFileFailure, workspaceFileFailureReason } from './safe-error.js'
 import type { LocalTypertGateway, TypertRpcResult } from './typert-gateway-contract.js'
+import { isMessageFilePath, MessageFileAttachments, type MessageFileAttachment } from './message-file-attachment.js'
 import { CodexWorkspaceBridge } from './codex-workspace-bridge.js'
 
 type PublishRemoteFrame = (
@@ -105,12 +106,23 @@ const transferReadSchema = z.object({
 const directoryListSchema = z.object({
   path: z.string().min(1).max(4096).optional(),
 }).strict()
+const workspaceSearchPayloadSchema = z.object({ args: z.object({
+  workspaceFileScopeId: z.string().min(1),
+  request: z.object({
+    query: z.string(),
+    excludedPaths: z.array(z.string()),
+    includeHidden: z.boolean(),
+    respectGitignore: z.boolean(),
+  }).strict(),
+}).strict() }).strict()
 
 const MAX_ACTIVE_STREAMS = MAX_ALPHA_STREAMS_PER_CONNECTION
 const MAX_ACTIVE_TRANSFERS = MAX_ACTIVE_TRANSFERS_PER_DIRECTION
 const INLINE_TRANSFER_RESPONSE_BYTES = 2 * 1024 * 1024
+const DEFAULT_CALL_TIMEOUT_MS = 60_000
+const SPEECH_TRANSCRIBE_TIMEOUT_MS = 3 * 60_000
 
-/** Fixed v0.1.2 Typert Remote subset exposed to authenticated peers. */
+/** Fixed Typert Remote subset exposed to authenticated peers. */
 export const HARNESS_REMOTE_ALLOWLIST = [
   '$events',
   '$events/result',
@@ -125,6 +137,8 @@ export const HARNESS_REMOTE_ALLOWLIST = [
   'credentials/set',
   'credentials/unset',
   'directoryPicker/list',
+  'dsBot/call',
+  'dsBot/feed',
   'fileReferences/list',
   'goals/clear',
   'goals/complete',
@@ -194,13 +208,22 @@ export const HARNESS_REMOTE_ALLOWLIST = [
   'userQuestions/attachWait',
   'claudeCodeMods/watchBand',
   'claudeCodeMods/pressBand',
+  'speech/catalog',
+  'speech/transcribe',
+  'speech/follow',
+  'speech/prepare',
+  'speech/configure',
+  'speech/cancelPreparation',
   'workspaceFiles/list',
   'workspaceFiles/stat',
   'workspaceFiles/read',
   'workspaceFiles/readBytes',
   'workspaceFiles/readAll',
   'workspaceFiles/readRelated',
+  'workspaceFiles/search',
   'workspaceFiles/changes',
+  'officeKit/render',
+  'officeKit/generation',
   'officeToPdf/render',
   'officeToPdf/generation',
   'toolResults/watch',
@@ -224,6 +247,18 @@ export const WORKSPACE_FILE_READ_ENDPOINTS = new Set([
   'workspaceFiles/readBytes',
   'workspaceFiles/readAll',
   'workspaceFiles/stat',
+])
+
+const OFFICE_RENDER_ENDPOINTS = new Set([
+  'officeToPdf/render',
+  'officeKit/render',
+])
+
+const OFFICE_FALLBACK_ENDPOINT: ReadonlyMap<string, string> = new Map([
+  ['officeKit/generation', 'officeToPdf/generation'],
+  ['officeToPdf/generation', 'officeKit/generation'],
+  ['officeKit/render', 'officeToPdf/render'],
+  ['officeToPdf/render', 'officeKit/render'],
 ])
 
 const MAX_READ_BYTES = 4 * 1024 * 1024
@@ -288,12 +323,22 @@ const PUBLIC_SCHEDULE_ERRORS: Record<string, string> = {
 
 const allowedEndpoints = new Set<string>(HARNESS_REMOTE_ALLOWLIST)
 
+export interface HarnessForwardedEventsObserver {
+  onStreamOpened?(): void
+  onFrame(frame: unknown): void
+  onEventResult?(eventId: string, outcomeKind?: string): void
+  onDsBotCall?(body: { endpoint: string; payload?: Record<string, unknown> | null }, botResult: unknown): void
+  onStreamClosed?(): void
+}
+
 /** Host-side adapter from the encrypted peer channel to the official alpha Gateway carrier. */
 export class HarnessRemoteBridge {
   compactHistoryEnabled = false
+  private readonly lifetime = new AbortController()
   private readonly streams = new Map<string, ActiveRemoteStream>()
   private readonly incomingTransfers = new Map<string, IncomingTransfer>()
   private readonly outgoingTransfers = new Map<string, OutgoingTransfer>()
+  private readonly messageFiles = new MessageFileAttachments()
   private warnedMissingRemoteEvents = false
 
   private readonly terminalCarrier: TerminalCarrierCompat | undefined
@@ -308,6 +353,8 @@ export class HarnessRemoteBridge {
     private readonly resolveWorkspaceRoot?: NativeWorkspaceResolver,
     private readonly schedule?: ScheduleCreateService,
     private readonly uploadAttachment?: (body: unknown) => Promise<unknown>,
+    private readonly attachmentHostPath?: (ref: MessageFileAttachment) => string | undefined,
+    private readonly forwardedEventsObserver?: HarnessForwardedEventsObserver,
   ) {
     this.terminalCarrier = usesDuplexTerminal(harnessVersion) ? new TerminalCarrierCompat(gateway) : undefined
   }
@@ -320,6 +367,8 @@ export class HarnessRemoteBridge {
     }
     this.assertAllowed(params.endpoint)
     if (TERMINAL_STREAMS.has(params.endpoint)) throw new RpcError('METHOD_NOT_ALLOWED', 'Use a stream for this terminal endpoint.')
+    if (params.endpoint === 'speech/follow') throw new RpcError('METHOD_NOT_ALLOWED', 'Use a stream for this speech endpoint.')
+    if (params.endpoint === 'dsBot/feed') throw new RpcError('METHOD_NOT_ALLOWED', 'Use a stream for this DS Bot feed endpoint.')
     if (['settings/update', 'settings/replace', 'settings/mutate'].includes(params.endpoint)) {
       const args = requestArgs(params.payload)
       if (args.ns === 'ds-harness-remote' || args.ns === 'dsh-remote') {
@@ -353,18 +402,63 @@ export class HarnessRemoteBridge {
       await ensureHostWorkspaceDirectory(folder)
     }
     const startedAt = performance.now()
-    const signal = AbortSignal.timeout(60_000)
+    const timeoutMs = params.endpoint === 'speech/transcribe' ? SPEECH_TRANSCRIBE_TIMEOUT_MS : DEFAULT_CALL_TIMEOUT_MS
+    const controller = new AbortController()
+    const timer = setTimeout(() => {
+      controller.abort(new DOMException('The operation was aborted due to timeout', 'TimeoutError'))
+    }, timeoutMs)
+    timer.unref?.()
+    const signal = AbortSignal.any([this.lifetime.signal, controller.signal])
     try {
       let nativePayload = normalizeWorkspaceRequestPayload(params.endpoint, params.payload, this.harnessVersion)
       nativePayload = await normalizeSessionAttachmentPayload(params.endpoint, nativePayload, this.harnessVersion, this.gateway, signal)
-      if (this.resolveWorkspaceRoot !== undefined && WORKSPACE_FILE_READ_ENDPOINTS.has(params.endpoint)) {
+      if (params.endpoint === 'workspaceFiles/search') {
+        const search = workspaceSearchPayloadSchema.parse(nativePayload)
+        if (!await this.resolveWorkspaceRootForSession(search.args.workspaceFileScopeId, signal)) {
+          throw workspaceFileFailure('WORKSPACE_UNAVAILABLE', 'The workspace is unavailable.', 'authority-unavailable')
+        }
+        nativePayload = search
+      } else if ((WORKSPACE_FILE_READ_ENDPOINTS.has(params.endpoint) || OFFICE_RENDER_ENDPOINTS.has(params.endpoint))
+        && isMessageFilePath(requestArgs(nativePayload).path)) {
+        nativePayload = await this.resolveMessageFilePayload(nativePayload, params.endpoint, signal)
+      } else if (this.resolveWorkspaceRoot !== undefined
+        && (WORKSPACE_FILE_READ_ENDPOINTS.has(params.endpoint) || OFFICE_RENDER_ENDPOINTS.has(params.endpoint))) {
         nativePayload = await this.assertNativeWorkspaceFileCall(params.endpoint, nativePayload, signal)
       }
       const nativeResult = params.endpoint === 'commands/execute'
         ? await dispatchCommandForHost(this.gateway, params.payload, signal, this.harnessVersion)
         : this.terminalCarrier !== undefined && (params.endpoint === 'terminal/write' || params.endpoint === 'terminal/resize')
           ? await this.terminalCarrier.call(params.endpoint, nativePayload, signal)
-          : await this.gateway.dispatch(params.endpoint, nativePayload, signal)
+          : await this.dispatchWithOfficeFallback(params.endpoint, nativePayload, signal)
+      if (params.endpoint === 'session/page' && nativeResult.ok) {
+        const sessionId = journalSessionId(nativePayload)
+        if (sessionId !== undefined) this.messageFiles.observe(sessionId, nativeResult.value)
+      }
+      if (params.endpoint === '$events/result' && nativeResult.ok && this.forwardedEventsObserver?.onEventResult !== undefined) {
+        const args = requestArgs(params.payload)
+        const eventId = typeof args.eventId === 'string' && args.eventId.length > 0 ? args.eventId : undefined
+        const outcomeKind = isRecord(args.outcome) && typeof args.outcome.kind === 'string' ? args.outcome.kind : undefined
+        if (eventId !== undefined) {
+          try {
+            this.forwardedEventsObserver.onEventResult(eventId, outcomeKind)
+          } catch {
+            // Read-only event observation must never disrupt RPC settlement.
+          }
+        }
+      }
+      if (params.endpoint === 'dsBot/call' && nativeResult.ok && isRecord(nativeResult.value) && this.forwardedEventsObserver?.onDsBotCall !== undefined) {
+        const root = record(params.payload)
+        const args = isRecord(root.args) ? root.args : root
+        const botEndpoint = typeof args.endpoint === 'string' && args.endpoint.length > 0 ? args.endpoint : undefined
+        if (botEndpoint !== undefined) {
+          const botPayload = isRecord(args.payload) ? args.payload : null
+          try {
+            this.forwardedEventsObserver.onDsBotCall({ endpoint: botEndpoint, payload: botPayload }, nativeResult.value)
+          } catch {
+            // Read-only event observation must never disrupt RPC settlement.
+          }
+        }
+      }
       const result = params.endpoint === 'directoryPicker/list' && needsDirectoryFallback(nativeResult)
         ? await this.directoryList(params.payload, signal)
         : filterRemotePluginInventory(params.endpoint, nativeResult)
@@ -400,6 +494,48 @@ export class HarnessRemoteBridge {
         code: this.gateway.failure(error).code,
         ...(reason === undefined ? {} : { reason }),
       })
+      throw error
+    } finally {
+      clearTimeout(timer)
+    }
+  }
+
+  private async dispatchWithOfficeFallback(
+    endpoint: string,
+    nativePayload: unknown,
+    signal: AbortSignal,
+  ): Promise<TypertRpcResult> {
+    const fallbackEndpoint = OFFICE_FALLBACK_ENDPOINT.get(endpoint)
+    if (fallbackEndpoint === undefined) {
+      return this.gateway.dispatch(endpoint, nativePayload, signal)
+    }
+
+    let primaryResult: TypertRpcResult | undefined
+    let primaryError: unknown
+    try {
+      primaryResult = await this.gateway.dispatch(endpoint, nativePayload, signal)
+      if (signal.aborted || primaryResult.ok || primaryResult.error.code !== 'gateway/invocation-unavailable') {
+        return primaryResult
+      }
+    } catch (error) {
+      if (signal.aborted || this.gateway.failure(error).code !== 'gateway/invocation-unavailable') {
+        throw error
+      }
+      primaryError = error
+    }
+
+    try {
+      const fallbackResult = await this.gateway.dispatch(fallbackEndpoint, nativePayload, signal)
+      if (!fallbackResult.ok && fallbackResult.error.code === 'gateway/invocation-unavailable') {
+        if (primaryResult !== undefined) return primaryResult
+        throw primaryError
+      }
+      return fallbackResult
+    } catch (error) {
+      if (this.gateway.failure(error).code === 'gateway/invocation-unavailable') {
+        if (primaryResult !== undefined) return primaryResult
+        throw primaryError
+      }
       throw error
     }
   }
@@ -570,8 +706,16 @@ export class HarnessRemoteBridge {
     const params = streamOpenSchema.parse(input) as HarnessRemoteStreamOpenParams
     this.assertAllowed(params.endpoint)
     if (params.endpoint.startsWith('pluginManager/')) throw new RpcError('METHOD_NOT_ALLOWED', 'Plugin management endpoints are not streams.')
+    if (params.endpoint.startsWith('cotTranslation/')) throw new RpcError('METHOD_NOT_ALLOWED', 'Translation endpoints are not streams.')
     if (params.endpoint.startsWith('settings/')) throw new RpcError('METHOD_NOT_ALLOWED', 'Settings endpoints are not streams.')
+    if (params.endpoint === 'workspaceFiles/search') throw new RpcError('METHOD_NOT_ALLOWED', 'Workspace search is not a stream.')
     if (TERMINAL_CALLS.has(params.endpoint)) throw new RpcError('METHOD_NOT_ALLOWED', 'This terminal endpoint is not a stream.')
+    if (params.endpoint.startsWith('speech/') && params.endpoint !== 'speech/follow') {
+      throw new RpcError('METHOD_NOT_ALLOWED', 'This speech endpoint is not a stream.')
+    }
+    if (params.endpoint === 'dsBot/call') {
+      throw new RpcError('METHOD_NOT_ALLOWED', 'This DS Bot endpoint is not a stream.')
+    }
     if (TERMINAL_STREAMS.has(params.endpoint)) this.terminal.check(params.endpoint, params.payload)
     if (this.streams.has(params.streamId)) throw new RpcError('REQUEST_CONFLICT', 'The Harness Remote stream is already open.')
     if (this.streams.size >= MAX_ACTIVE_STREAMS) {
@@ -581,10 +725,13 @@ export class HarnessRemoteBridge {
     this.streams.set(params.streamId, { controller })
     let source: AsyncIterable<unknown>
     try {
+      const payload = params.endpoint === 'workspaceFiles/changes' && isMessageFilePath(requestArgs(params.payload).path)
+        ? await this.resolveMessageFilePayload(params.payload, params.endpoint, controller.signal)
+        : normalizeWorkspaceChangesPayload(params.endpoint, params.payload, this.harnessVersion)
       source = (this.codexWorkspace === undefined ? undefined : await this.codexWorkspace.open(params.endpoint, params.payload, controller.signal))
         ?? await (params.endpoint === 'terminal/follow' && this.terminalCarrier !== undefined
           ? this.terminalCarrier.open(params.payload, controller.signal)
-          : this.gateway.open(params.endpoint, normalizeWorkspaceChangesPayload(params.endpoint, params.payload, this.harnessVersion), controller.signal))
+          : this.gateway.open(params.endpoint, payload, controller.signal))
       controller.signal.throwIfAborted()
     } catch (error) {
       this.streams.delete(params.streamId)
@@ -592,7 +739,18 @@ export class HarnessRemoteBridge {
       throw error
     }
     if (params.endpoint === '$events') source = this.remoteEventsWithFallback(source, controller.signal)
-    void this.pump(params.streamId, source, controller.signal, params.endpoint === 'session/follow', params.transferFrames)
+    if (params.endpoint === 'terminal/watch') source = this.terminal.watch(params.payload, source)
+    const historyFollow = params.endpoint === 'session/follow'
+    const sessionId = historyFollow ? journalSessionId(params.payload) : undefined
+    void this.pump(
+      params.streamId,
+      source,
+      controller.signal,
+      historyFollow,
+      params.transferFrames,
+      params.endpoint === '$events',
+      sessionId,
+    )
     return { opened: true, streamId: params.streamId }
   }
 
@@ -648,10 +806,12 @@ export class HarnessRemoteBridge {
   }
 
   async closeAll(reason: HarnessRemoteStreamClosedData['reason'] = 'peer-disconnected'): Promise<void> {
+    if (!this.lifetime.signal.aborted) this.lifetime.abort(reason)
     const streams = [...this.streams.entries()]
     this.streams.clear()
     this.incomingTransfers.clear()
     this.outgoingTransfers.clear()
+    this.messageFiles.clear()
     for (const [, stream] of streams) stream.controller.abort(reason)
     await Promise.all([this.gateway.dispose?.(), this.codexWorkspace?.closeAll()])
   }
@@ -714,12 +874,47 @@ export class HarnessRemoteBridge {
     }
   }
 
-  private async pump(streamId: string, source: AsyncIterable<unknown>, signal: AbortSignal, historyFollow = false, transferFrames = false): Promise<void> {
+  private async pump(
+    streamId: string,
+    source: AsyncIterable<unknown>,
+    signal: AbortSignal,
+    historyFollow = false,
+    transferFrames = false,
+    forwardedEvents = false,
+    sessionId?: string,
+  ): Promise<void> {
     let reason: HarnessRemoteStreamClosedData['reason'] = 'completed'
     let failure: HarnessRemoteStreamClosedData['failure']
+    let closedNotified = false
+    const notifyClosed = () => {
+      if (!forwardedEvents || closedNotified) return
+      closedNotified = true
+      try {
+        this.forwardedEventsObserver?.onStreamClosed?.()
+      } catch {
+        // Read-only event observation must never disrupt stream teardown.
+      }
+    }
+    if (forwardedEvents) {
+      try {
+        this.forwardedEventsObserver?.onStreamOpened?.()
+      } catch {
+        // Read-only event observation must never disrupt stream open.
+      }
+      if (signal.aborted) notifyClosed()
+      else signal.addEventListener('abort', notifyClosed, { once: true })
+    }
     try {
       for await (const value of source) {
         if (signal.aborted) break
+        if (sessionId !== undefined) this.messageFiles.observe(sessionId, value)
+        if (forwardedEvents && this.forwardedEventsObserver !== undefined) {
+          try {
+            this.forwardedEventsObserver.onFrame(value)
+          } catch {
+            // Read-only event observation must never disrupt the forwarded stream.
+          }
+        }
         const frame: HarnessRemoteFrameData = {
           streamId,
           hasValue: true,
@@ -737,6 +932,10 @@ export class HarnessRemoteBridge {
       reason = signal.aborted ? 'cancelled' : 'failed'
       if (!signal.aborted) failure = this.gateway.failure(error)
     } finally {
+      if (forwardedEvents) {
+        signal.removeEventListener('abort', notifyClosed)
+        notifyClosed()
+      }
       this.streams.delete(streamId)
       await this.publish('harness.remote.stream.closed', {
         streamId,
@@ -787,6 +986,52 @@ export class HarnessRemoteBridge {
       this.outgoingTransfers.delete(id)
       transfer.finish?.(new Error('Harness Remote stream transfer timed out'))
     }
+  }
+
+  private async resolveMessageFilePayload(payload: unknown, endpoint: string, signal: AbortSignal): Promise<unknown> {
+    const deny = () => workspaceFileFailure('WORKSPACE_PATH_DENIED', 'The message attachment is unavailable.', 'outside-root')
+    if (!isRecord(payload) || !isRecord(payload.args)) throw deny()
+    const args = payload.args
+    const sessionId = args.workspaceFileScopeId
+    if (typeof sessionId !== 'string' || !isMessageFilePath(args.path)) throw deny()
+    const reference = this.messageFiles.get(sessionId, args.path)
+    if (reference === undefined || this.attachmentHostPath === undefined) throw deny()
+    signal.throwIfAborted()
+
+    let path: string | undefined
+    try {
+      path = this.attachmentHostPath(reference)
+      if (path !== undefined && isAbsolute(path)) {
+        const info = await lstat(path)
+        if (!info.isSymbolicLink() && info.isFile() && info.size === reference.bytes) {
+          path = await realpath(path)
+        } else {
+          path = undefined
+        }
+      }
+    } catch {
+      throw deny()
+    }
+    if (path === undefined || !isAbsolute(path)) throw deny()
+    if (endpoint === 'workspaceFiles/readAll' && reference.bytes > MAX_READ_BYTES) {
+      throw workspaceFileFailure('WORKSPACE_TOO_LARGE', 'The requested workspace file is too large.', 'too-large')
+    }
+    if (endpoint === 'workspaceFiles/readBytes') {
+      const options = isRecord(args.options) ? args.options : {}
+      if ('baseFile' in args || 'baseFile' in options) throw deny()
+      if (!isRecord(options.range) && !isRecord(args.range)) {
+        if (reference.bytes > MAX_READ_BYTES) {
+          throw workspaceFileFailure('WORKSPACE_TOO_LARGE', 'The requested workspace file is too large.', 'too-large')
+        }
+        return { ...payload, args: { ...args, path } }
+      }
+      const range = byteOrLineRange(args)
+      const offset = typeof range.offset === 'number' && Number.isSafeInteger(range.offset) && range.offset >= 0 ? range.offset : 0
+      const length = typeof range.length === 'number' && Number.isSafeInteger(range.length) && range.length > 0
+        ? Math.min(range.length, MAX_READ_BYTES) : MAX_READ_BYTES
+      return { ...payload, args: { ...args, path, options: { ...options, range: { offset, length } } } }
+    }
+    return { ...payload, args: { ...args, path } }
   }
 
   private async assertNativeWorkspaceFileCall(
@@ -1006,6 +1251,12 @@ export class HarnessRemoteBridge {
     }
   }
 
+}
+
+function journalSessionId(payload: unknown): string | undefined {
+  const address = requestArgs(payload).address
+  return isRecord(address) && address.kind === 'session' && typeof address.sessionId === 'string'
+    ? address.sessionId : undefined
 }
 
 function isPathOutside(rel: string): boolean {
@@ -1269,7 +1520,7 @@ function decodeCanonicalBase64(value: string): Uint8Array {
 }
 
 function normalizeWorkspaceBinaryResult(endpoint: string, result: TypertRpcResult): TypertRpcResult {
-  if (result.ok !== true || (endpoint !== 'workspaceFiles/readBytes' && endpoint !== 'officeToPdf/render')) return result
+  if (result.ok !== true || (endpoint !== 'workspaceFiles/readBytes' && !OFFICE_RENDER_ENDPOINTS.has(endpoint))) return result
   if (!isJsonRecord(result.value)) return result
   const directBytes = isBinary(result.value.data) ? result.value.data : undefined
   const attachmentBytes = directBytes === undefined ? attachmentAt(result, ['data']) : undefined

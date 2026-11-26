@@ -1,3 +1,6 @@
+import { useAccountVerification } from './account-verification.js'
+import { mountAccountEntry } from './account-entry.js'
+import { watchFooterLane, type FooterForm } from './footer-lane.js'
 import { createHostPairingPanel } from './pairing.js'
 import { createServerNotice } from './server-notice.js'
 import { renderBodyPortal } from './portal.js'
@@ -8,7 +11,7 @@ import type { OAuthProviderInfo } from '../server-api.js'
 import type { StatusFeed } from '../status-stream.js'
 import { compareVersions } from '../version-compare.js'
 import { whaleMarkPath, whaleMarkViewBox } from './brand.js'
-import { gptWorkspaceIcon } from './icons.js'
+import { deepSeekWorkspaceIcon, gptWorkspaceIcon } from './icons.js'
 import { pendingWorkspaceSelectionKey } from './navigation.js'
 import { connectedClientModeLabel, connectedProgress, connectionErrorMessage, displayRemoteAccount, formatPlatform, messageOf, startupErrorMessage } from './presentation.js'
 import { createRemoteProgressView, runConnectHostProgress } from './progress.js'
@@ -82,10 +85,30 @@ function accountInitial(label: string): string {
   return trimmed.length === 0 ? '·' : trimmed.slice(0, 1).toUpperCase()
 }
 
+const hostedServerUrl = 'https://dsh.r2049.cn'
+
 export function createRemoteWorkspaceAction(React: ClientReact, portal?: PortalRenderer) {
   const ServerNotice = createServerNotice(React)
   const HostPairingPanel = createHostPairingPanel(React)
   const RemoteProgressView = createRemoteProgressView(React)
+
+  /**
+   * The footer row is shared with every other `sidebar.footer.action` occupant,
+   * and the host hands one occupant neither a row gap nor the peer count. The
+   * form therefore comes from the shared capacity contract so that all
+   * occupants reach the same answer without measuring a neighbour's choice:
+   * a 42px labelled row while the row can hold one label box per occupant, and
+   * the 36x36 icon target otherwise (see `footer-lane.ts`).
+   */
+  function useFooterLane(wide: boolean): [(node: HTMLElement | null) => void, FooterForm] {
+    const [form, setForm] = React.useState<FooterForm>(wide ? 'label' : 'icon')
+    const [node, setNode] = React.useState<HTMLElement | null>(null)
+    React.useEffect(() => {
+      if (node === null) return undefined
+      return watchFooterLane(node, () => wide, next => setForm(previous => (previous === next ? previous : next)))
+    }, [wide, node])
+    return [setNode, wide ? form : 'icon']
+  }
 
   /**
    * Renders the Compact entry at the end of the host account row. The host
@@ -156,6 +179,7 @@ export function createRemoteWorkspaceAction(React: ClientReact, portal?: PortalR
     openSettings?: () => void
   }): unknown {
     const { t } = props
+    const [attachEntry, entryForm] = useFooterLane(props.wide)
     const connectionErrorMessageFor = (reason: unknown, translate: Translate): string => {
       if (typeof reason === 'object' && reason !== null && 'code' in reason) {
         const code = (reason as { code?: unknown }).code
@@ -183,7 +207,8 @@ export function createRemoteWorkspaceAction(React: ClientReact, portal?: PortalR
     const [opencodeWorkspaces, setOpencodeWorkspaces] = React.useState<CursorWorkspaceView[]>([])
     const [claudeWorkspaces, setClaudeWorkspaces] = React.useState<CursorWorkspaceView[]>([])
     const [hermesWorkspaces, setHermesWorkspaces] = React.useState<CursorWorkspaceView[]>([])
-    const [workspaceBackend, setWorkspaceBackend] = React.useState<'harness' | 'codex' | 'cursor' | 'antigravity' | 'pi' | 'opencode' | 'claude' | 'hermes'>('harness')
+    const [customAcpWorkspaces, setCustomAcpWorkspaces] = React.useState<Record<string, CursorWorkspaceView[]>>({})
+    const [workspaceBackend, setWorkspaceBackend] = React.useState<string>('harness')
     const [codexWorkspaceId, setCodexWorkspaceId] = React.useState<string | undefined>(undefined)
     const [cursorWorkspaceId, setCursorWorkspaceId] = React.useState<string | undefined>(undefined)
     const [antigravityWorkspaceId, setAntigravityWorkspaceId] = React.useState<string | undefined>(undefined)
@@ -191,6 +216,7 @@ export function createRemoteWorkspaceAction(React: ClientReact, portal?: PortalR
     const [opencodeWorkspaceId, setOpencodeWorkspaceId] = React.useState<string | undefined>(undefined)
     const [claudeWorkspaceId, setClaudeWorkspaceId] = React.useState<string | undefined>(undefined)
     const [hermesWorkspaceId, setHermesWorkspaceId] = React.useState<string | undefined>(undefined)
+    const [customAcpWorkspaceIds, setCustomAcpWorkspaceIds] = React.useState<Record<string, string | undefined>>({})
     const [directory, setDirectory] = React.useState<RemoteDirectoryListing | undefined>(undefined)
     const [path, setPath] = React.useState('')
     // The folder highlighted in the directory browser: it is the workspace the
@@ -208,6 +234,7 @@ export function createRemoteWorkspaceAction(React: ClientReact, portal?: PortalR
     const [showAllOpencodeWorkspaces, setShowAllOpencodeWorkspaces] = React.useState(false)
     const [showAllClaudeWorkspaces, setShowAllClaudeWorkspaces] = React.useState(false)
     const [showAllHermesWorkspaces, setShowAllHermesWorkspaces] = React.useState(false)
+    const [showAllCustomAcpWorkspaces, setShowAllCustomAcpWorkspaces] = React.useState<Record<string, boolean>>({})
     const workspaceListId = 'dsh-remote-workspace-list'
     const codexWorkspaceHeadingId = 'dsh-remote-codex-workspace-heading'
     const codexWorkspaceListId = 'dsh-remote-codex-workspace-list'
@@ -583,6 +610,7 @@ export function createRemoteWorkspaceAction(React: ClientReact, portal?: PortalR
       setOpencodeWorkspaces([])
       setClaudeWorkspaces([])
       setHermesWorkspaces([])
+      setCustomAcpWorkspaces({})
       setShowAllWorkspaces(false)
       setShowAllCodexWorkspaces(false)
       setShowAllCursorWorkspaces(false)
@@ -591,6 +619,7 @@ export function createRemoteWorkspaceAction(React: ClientReact, portal?: PortalR
       setShowAllOpencodeWorkspaces(false)
       setShowAllClaudeWorkspaces(false)
       setShowAllHermesWorkspaces(false)
+      setShowAllCustomAcpWorkspaces({})
       try {
         const result = await runConnectHostProgress(
           status?.preferredTransports,
@@ -621,6 +650,12 @@ export function createRemoteWorkspaceAction(React: ClientReact, portal?: PortalR
               props.control<CursorWorkspaceView[]>('hermes.workspaces.list', { targetDeviceId: host.deviceId }).catch(() => []),
               props.control<RemoteStatus>('status').catch(() => undefined),
             ])
+            const builtinIds = new Set(['harness', 'codex', 'cursor', 'antigravity', 'pi', 'opencode', 'claude', 'hermes'])
+            const customTypes = (nextStatus?.remoteFeatures?.workspaceTypes ?? []).filter(w => w.available && !builtinIds.has(w.id))
+            const nextCustomEntries = await Promise.all(customTypes.map(async wt => {
+              const items = await props.control<CursorWorkspaceView[]>('acp.workspaces.list', { targetDeviceId: host.deviceId, backend: wt.id }).catch(() => [])
+              return [wt.id, items] as const
+            }))
             if (nextStatus !== undefined) setStatus(nextStatus)
             return {
               workspaces: nextWorkspaces,
@@ -631,6 +666,7 @@ export function createRemoteWorkspaceAction(React: ClientReact, portal?: PortalR
               opencodeWorkspaces: nextOpencodeWorkspaces,
               claudeWorkspaces: nextClaudeWorkspaces,
               hermesWorkspaces: nextHermesWorkspaces,
+              customAcpWorkspaces: Object.fromEntries(nextCustomEntries),
               status: nextStatus,
             }
           },
@@ -644,6 +680,7 @@ export function createRemoteWorkspaceAction(React: ClientReact, portal?: PortalR
         setOpencodeWorkspaces(result.opencodeWorkspaces)
         setClaudeWorkspaces(result.claudeWorkspaces)
         setHermesWorkspaces(result.hermesWorkspaces)
+        setCustomAcpWorkspaces(result.customAcpWorkspaces)
         setWorkspaceBackend('harness')
         setCodexWorkspaceId(undefined)
         setCursorWorkspaceId(undefined)
@@ -652,6 +689,7 @@ export function createRemoteWorkspaceAction(React: ClientReact, portal?: PortalR
         setOpencodeWorkspaceId(undefined)
         setClaudeWorkspaceId(undefined)
         setHermesWorkspaceId(undefined)
+        setCustomAcpWorkspaceIds({})
         setSelectedHost(host)
         setPath('')
         setAddingWorkspace(false)
@@ -684,6 +722,7 @@ export function createRemoteWorkspaceAction(React: ClientReact, portal?: PortalR
         setClaudeWorkspaceId(undefined)
         setHermesWorkspaceId(undefined)
         setPickedDirectoryPath(undefined)
+        setCustomAcpWorkspaceIds({})
         setPath(listing.path)
       } catch (reason) {
         setError(connectionErrorMessageFor(reason, t))
@@ -692,7 +731,7 @@ export function createRemoteWorkspaceAction(React: ClientReact, portal?: PortalR
       }
     }
 
-    const startAddingWorkspace = (backend: 'harness' | 'codex' | 'cursor' | 'antigravity' | 'pi' | 'opencode' | 'claude' | 'hermes'): void => {
+    const startAddingWorkspace = (backend: string): void => {
       setAddingWorkspace(true)
       setWorkspaceBackend(backend)
       setCodexWorkspaceId(undefined)
@@ -702,6 +741,7 @@ export function createRemoteWorkspaceAction(React: ClientReact, portal?: PortalR
       setOpencodeWorkspaceId(undefined)
       setClaudeWorkspaceId(undefined)
       setHermesWorkspaceId(undefined)
+      setCustomAcpWorkspaceIds({})
       setShowAllWorkspaces(false)
       setShowAllCodexWorkspaces(false)
       setShowAllCursorWorkspaces(false)
@@ -710,6 +750,7 @@ export function createRemoteWorkspaceAction(React: ClientReact, portal?: PortalR
       setShowAllOpencodeWorkspaces(false)
       setShowAllClaudeWorkspaces(false)
       setShowAllHermesWorkspaces(false)
+      setShowAllCustomAcpWorkspaces({})
       setDirectory(undefined)
       setPickedDirectoryPath(undefined)
       setPath('')
@@ -726,6 +767,7 @@ export function createRemoteWorkspaceAction(React: ClientReact, portal?: PortalR
       setOpencodeWorkspaceId(undefined)
       setClaudeWorkspaceId(undefined)
       setHermesWorkspaceId(undefined)
+      setCustomAcpWorkspaceIds({})
       setDirectory(undefined)
       setPickedDirectoryPath(undefined)
       setPath('')
@@ -1135,40 +1177,47 @@ export function createRemoteWorkspaceAction(React: ClientReact, portal?: PortalR
       }
     }
 
+    const clientVerification = useAccountVerification(React, open && loginMethod === 'password' ? loginServerUrl : undefined)
+    const hostVerification = useAccountVerification(React, open ? status?.serverUrl : undefined)
+
     const signInClient = async (): Promise<void> => {
-      if (serverDirty || savingServer || email.trim() === '' || password === '' || loginServerUrl.trim() === '') return
+      if (serverDirty || savingServer || loginServerUrl.trim() === '' || (clientVerification.pending ? !clientVerification.ready : email.trim() === '' || password === '')) return
       setBusy(true)
       setError(undefined)
       try {
         if (status?.clientAuthRequired) {
-          await props.control('client.account.login', { email: email.trim(), password })
+          await props.control('client.account.login', { email: email.trim(), password, verification: clientVerification.verification })
         } else {
           await props.control('settings.configure', {
             role: 'client',
             serverUrl: loginServerUrl.trim(),
             email: email.trim(),
             password,
+            verification: clientVerification.verification,
           })
         }
+        clientVerification.clear()
         setDevices(await props.control<RemoteDevice[]>('devices'))
         setStatus(await props.control<RemoteStatus>('status'))
         setNeedsAuthorization(false)
         setPassword('')
       } catch (reason) {
-        setError(connectionErrorMessageFor(reason, t))
+        if (clientVerification.handle(reason)) setPassword('')
+        else setError(connectionErrorMessageFor(reason, t))
       } finally {
         setBusy(false)
       }
     }
 
     const authorizeHost = async (kind: 'account' | 'code'): Promise<void> => {
-      if (kind === 'account' && (hostEmail.trim() === '' || hostPassword === '')) return
+      if (kind === 'account' && (hostVerification.pending ? !hostVerification.ready : hostEmail.trim() === '' || hostPassword === '')) return
       if (kind === 'code' && hostRegistrationCode.trim() === '') return
       setBusy(true)
       setError(undefined)
       try {
         if (kind === 'account') {
-          await props.control('host.account.login', { email: hostEmail.trim(), password: hostPassword })
+          await props.control('host.account.login', { email: hostEmail.trim(), password: hostPassword, verification: hostVerification.verification })
+          hostVerification.clear()
           setHostPassword('')
         } else {
           await props.control('host.registration-code.submit', { code: hostRegistrationCode.trim() })
@@ -1176,7 +1225,8 @@ export function createRemoteWorkspaceAction(React: ClientReact, portal?: PortalR
         }
         setStatus(await props.control<RemoteStatus>('status'))
       } catch (reason) {
-        setError(connectionErrorMessageFor(reason, t))
+        if (kind === 'account' && hostVerification.handle(reason)) setHostPassword('')
+        else setError(connectionErrorMessageFor(reason, t))
       } finally {
         setBusy(false)
       }
@@ -1241,14 +1291,7 @@ export function createRemoteWorkspaceAction(React: ClientReact, portal?: PortalR
     }
 
     const openWorkspace = async (selection?:
-      | { backend: 'harness'; path: string }
-      | { backend: 'codex'; path: string; workspaceId: string }
-      | { backend: 'cursor'; path: string; workspaceId?: string }
-      | { backend: 'antigravity'; path: string; workspaceId?: string }
-      | { backend: 'pi'; path: string; workspaceId?: string }
-      | { backend: 'opencode'; path: string; workspaceId?: string }
-      | { backend: 'claude'; path: string; workspaceId?: string }
-      | { backend: 'hermes'; path: string; workspaceId?: string }): Promise<void> => {
+      | { backend: string; path: string; workspaceId?: string }): Promise<void> => {
       const targetBackend = selection?.backend ?? workspaceBackend
       const targetPath = (selection?.path ?? path).trim()
       const targetCodexWorkspaceId = selection?.backend === 'codex'
@@ -1293,12 +1336,19 @@ export function createRemoteWorkspaceAction(React: ClientReact, portal?: PortalR
             })
           : targetBackend !== 'harness'
             ? (() => {
-              const workspaceId = { cursor: targetCursorWorkspaceId, antigravity: targetAntigravityWorkspaceId,
+              const workspaceId = ({ cursor: targetCursorWorkspaceId, antigravity: targetAntigravityWorkspaceId,
                 pi: targetPiWorkspaceId, opencode: targetOpencodeWorkspaceId, claude: targetClaudeWorkspaceId,
-                hermes: targetHermesWorkspaceId }[targetBackend]
+                hermes: targetHermesWorkspaceId } as Record<string, string | undefined>)[targetBackend]
+                ?? (selection?.workspaceId ?? (selection === undefined ? customAcpWorkspaceIds[targetBackend] : undefined))
+              const isBuiltinAcp = ['cursor', 'antigravity', 'pi', 'opencode', 'claude', 'hermes'].includes(targetBackend)
+              if (isBuiltinAcp) {
+                return createWorkspace || workspaceId === undefined
+                  ? props.control<RemoteStatus>(`${targetBackend}.workspace.create`, { targetDeviceId: selectedHost.deviceId, path: targetPath })
+                  : props.control<RemoteStatus>(`${targetBackend}.workspace.open`, { targetDeviceId: selectedHost.deviceId, workspaceId })
+              }
               return createWorkspace || workspaceId === undefined
-                ? props.control<RemoteStatus>(`${targetBackend}.workspace.create`, { targetDeviceId: selectedHost.deviceId, path: targetPath })
-                : props.control<RemoteStatus>(`${targetBackend}.workspace.open`, { targetDeviceId: selectedHost.deviceId, workspaceId })
+                ? props.control<RemoteStatus>('acp.workspace.create', { targetDeviceId: selectedHost.deviceId, backend: targetBackend, path: targetPath })
+                : props.control<RemoteStatus>('acp.workspace.open', { targetDeviceId: selectedHost.deviceId, backend: targetBackend, workspaceId })
             })()
                   : props.control<RemoteStatus>('workspace.open', {
                     targetDeviceId: selectedHost.deviceId,
@@ -1344,6 +1394,8 @@ export function createRemoteWorkspaceAction(React: ClientReact, portal?: PortalR
     const opencodeAvailable = status?.remoteFeatures?.opencode === true
     const claudeAvailable = status?.remoteFeatures?.claude === true
     const hermesAvailable = status?.remoteFeatures?.hermes === true
+    const customAcpBackends = (status?.remoteFeatures?.workspaceTypes ?? [])
+      .filter(wt => wt.available && !['harness', 'codex', 'cursor', 'antigravity', 'pi', 'opencode', 'claude', 'hermes'].includes(wt.id))
     // The status payload crosses the loopback SSE wire; a malformed update
     // field reads as "no update info" rather than feeding render-time parsing.
     const rawUpdate = status?.update
@@ -1629,21 +1681,21 @@ export function createRemoteWorkspaceAction(React: ClientReact, portal?: PortalR
                 ? React.createElement('div', { role: 'tabpanel', id: 'dsh-remote-pairing-panel', 'aria-labelledby': 'dsh-remote-pairing-tab', className: 'dshRemotePanelPairing' },
                   React.createElement(HostPairingPanel, { key: status.serverUrl ?? '', control: props.control,
                     serverUrl: status.serverUrl ?? '', disabled: busy || savingServer || serverDirty, t,
-                    onComplete: () => { void refreshRemote() } }))
+                    onComplete: () => refreshRemote() }))
                 : passwordVisible
                 ? React.createElement('div', {
                   className: 'dshRemoteClientLogin', role: 'tabpanel', id: 'dsh-remote-password-panel',
                   'aria-labelledby': 'dsh-remote-password-tab',
                 },
-                  React.createElement('input', {
+                  clientVerification.fields(t, busy, React.createElement('input', {
                     type: 'email', value: email, disabled: busy, autoComplete: 'username', placeholder: t('account'),
                     'aria-label': t('account'), onChange: (event: Event) => setEmail((event.target as HTMLInputElement).value),
                   }),
                   React.createElement('input', {
                     type: 'password', value: password, disabled: busy, autoComplete: 'current-password', placeholder: t('password'),
                     'aria-label': t('password'), onChange: (event: Event) => setPassword((event.target as HTMLInputElement).value),
-                  }),
-                  React.createElement('button', { type: 'button', disabled: busy || savingServer || serverDirty || loginServerUrl.trim() === '' || email.trim() === '' || password === '', onClick: () => void signInClient() }, t(busy ? 'signingIn' : 'startSignIn')),
+                  })),
+                  React.createElement('button', { type: 'button', disabled: busy || savingServer || serverDirty || loginServerUrl.trim() === '' || (clientVerification.pending ? !clientVerification.ready : email.trim() === '' || password === ''), onClick: () => void signInClient() }, t(busy ? 'signingIn' : 'startSignIn')),
                   React.createElement('p', { className: 'dshRemotePasswordHint' }, t('passwordHint')))
                 : selectedProvider !== undefined
                   ? React.createElement('div', {
@@ -1723,9 +1775,9 @@ export function createRemoteWorkspaceAction(React: ClientReact, portal?: PortalR
                     React.createElement('strong', null, t('thisMachineHost')),
                     React.createElement('p', null, t('hostSignInHint')),
                     React.createElement('div', { className: 'dshRemoteLogin' },
-                      React.createElement('input', { type: 'email', value: hostEmail, disabled: busy, autoComplete: 'username', placeholder: t('serverAccountEmail'), 'aria-label': t('serverAccountEmail'), onChange: (event: Event) => setHostEmail((event.target as HTMLInputElement).value) }),
-                      React.createElement('input', { type: 'password', value: hostPassword, disabled: busy, autoComplete: 'current-password', placeholder: t('serverAccountPassword'), 'aria-label': t('serverAccountPassword'), onChange: (event: Event) => setHostPassword((event.target as HTMLInputElement).value) }),
-                      React.createElement('button', { type: 'button', disabled: busy || hostEmail.trim() === '' || hostPassword === '', onClick: () => void authorizeHost('account') }, t(busy ? 'signingIn' : 'signInRegisterHost')),
+                      hostVerification.fields(t, busy, React.createElement('input', { type: 'email', value: hostEmail, disabled: busy, autoComplete: 'username', placeholder: t('serverAccountEmail'), 'aria-label': t('serverAccountEmail'), onChange: (event: Event) => setHostEmail((event.target as HTMLInputElement).value) }),
+                      React.createElement('input', { type: 'password', value: hostPassword, disabled: busy, autoComplete: 'current-password', placeholder: t('serverAccountPassword'), 'aria-label': t('serverAccountPassword'), onChange: (event: Event) => setHostPassword((event.target as HTMLInputElement).value) })),
+                      React.createElement('button', { type: 'button', disabled: busy || (hostVerification.pending ? !hostVerification.ready : hostEmail.trim() === '' || hostPassword === ''), onClick: () => void authorizeHost('account') }, t(busy ? 'signingIn' : 'signInRegisterHost')),
                       React.createElement('input', { value: hostRegistrationCode, disabled: busy, autoComplete: 'one-time-code', placeholder: t('hostRegistrationCode'), 'aria-label': t('hostRegistrationCode'), onChange: (event: Event) => setHostRegistrationCode((event.target as HTMLInputElement).value) }),
                       React.createElement('button', { type: 'button', disabled: busy || hostRegistrationCode.trim() === '', onClick: () => void authorizeHost('code') }, t(busy ? 'registering' : 'useRegistrationCode'))))
                   : null,
@@ -2330,7 +2382,67 @@ export function createRemoteWorkspaceAction(React: ClientReact, portal?: PortalR
                           'aria-controls': claudeWorkspaceListId,
                           'aria-label': t('showAllClaudeWorkspaces'),
                           onClick: () => setShowAllClaudeWorkspaces(true),
-                        }, React.createElement('span', { 'aria-hidden': true }, '…')))),
+                        }, React.createElement('span', { 'aria-hidden': true }, '…'))),
+                      ...customAcpBackends.map(customBackend => {
+                        const list = customAcpWorkspaces[customBackend.id] ?? []
+                        const showAll = showAllCustomAcpWorkspaces[customBackend.id] === true
+                        const visible = showAll ? list : list.slice(0, 3)
+                        const selectedCustomId = customAcpWorkspaceIds[customBackend.id]
+                        const headingId = `dsh-remote-${customBackend.id}-workspace-heading`
+                        const listId = `dsh-remote-${customBackend.id}-workspace-list`
+                        return React.createElement('section', { key: customBackend.id, className: 'dshRemoteCodexWorkspaceGroup' },
+                          React.createElement('div', { id: headingId, className: 'dshRemoteWorkspaceSourceHeading' },
+                            React.createElement('span', { className: 'dshRemoteWorkspaceSourceText' }, React.createElement('strong', null, t('customAcpWorkspaces', { name: customBackend.name }))),
+                            React.createElement('button', {
+                              type: 'button',
+                              className: 'dshRemoteAddWorkspace',
+                              disabled: busy,
+                              title: t('addCustomAcpWorkspace', { name: customBackend.name }),
+                              'aria-label': t('addCustomAcpWorkspace', { name: customBackend.name }),
+                              onClick: () => startAddingWorkspace(customBackend.id),
+                            }, React.createElement('svg', {
+                              className: 'dshRemoteAddWorkspaceIcon', viewBox: '0 0 16 16', 'aria-hidden': true, focusable: false,
+                            }, React.createElement('path', { d: 'M8 3v10M3 8h10', fill: 'none', stroke: 'currentColor', strokeWidth: 1.5, strokeLinecap: 'round' })))),
+                          React.createElement('div', {
+                            id: listId,
+                            className: 'dshRemoteDirectoryList dshRemoteCodexWorkspaceList',
+                            'aria-labelledby': headingId,
+                          }, visible.length === 0
+                            ? React.createElement('p', null, t('noCustomAcpWorkspaces', { name: customBackend.name }))
+                            : visible.map(workspace => React.createElement('button', {
+                              type: 'button',
+                              key: workspace.workspaceId,
+                              disabled: busy,
+                              className: workspaceBackend === customBackend.id && selectedCustomId === workspace.workspaceId ? 'isSelected' : '',
+                              'aria-pressed': workspaceBackend === customBackend.id && selectedCustomId === workspace.workspaceId,
+                              onClick: () => {
+                                setWorkspaceBackend(customBackend.id)
+                                setCustomAcpWorkspaceIds({ [customBackend.id]: workspace.workspaceId })
+                                setClaudeWorkspaceId(undefined)
+                                setHermesWorkspaceId(undefined)
+                                setPiWorkspaceId(undefined)
+                                setOpencodeWorkspaceId(undefined)
+                                setAntigravityWorkspaceId(undefined)
+                                setCodexWorkspaceId(undefined)
+                                setCursorWorkspaceId(undefined)
+                                setPath(workspace.path)
+                              },
+                              onDoubleClick: () => void openWorkspace({
+                                backend: customBackend.id,
+                                path: workspace.path,
+                                workspaceId: workspace.workspaceId,
+                              }),
+                            }, React.createElement('img', { className: 'dshRemoteWorkspaceIcon', src: deepSeekWorkspaceIcon, alt: '', 'aria-hidden': true }),
+                              React.createElement('span', null, workspace.title),
+                              React.createElement('small', null, `${workspace.path} · ${workspace.sessionCount}`)))),
+                          list.length <= 3 || showAll ? null : React.createElement('button', {
+                            type: 'button',
+                            className: 'dshRemoteWorkspaceMore',
+                            disabled: busy,
+                            'aria-controls': listId,
+                            onClick: () => setShowAllCustomAcpWorkspaces(prev => ({ ...prev, [customBackend.id]: true })),
+                          }, React.createElement('span', { 'aria-hidden': true }, '…')))
+                      })),
                       React.createElement('footer', { className: 'dshRemoteOpenBar' },
                     connectedMenu,
                     React.createElement('div', { className: 'dshRemoteOpenActions' },

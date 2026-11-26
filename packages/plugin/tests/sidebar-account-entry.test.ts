@@ -310,3 +310,173 @@ describe('compact sidebar account entry anchoring', () => {
   })
 })
 
+// React shim, same shape as tests/settings-inline-signin.test.ts: the client
+// bundle receives the host renderer, so the component is driven directly.
+function createReactShim() {
+  const state: any[] = []
+  const deps: any[][] = []
+  const cleanups: Array<(() => void) | void> = []
+  let stateIndex = 0
+  let effectIndex = 0
+  const React: ClientReact = {
+    Fragment: Symbol('Fragment'),
+    createElement(type: any, props: any, ...children: any[]) {
+      return { type, props: props || {}, children }
+    },
+    useEffect(effect: any, nextDeps?: any[]) {
+      const slot = effectIndex++
+      const previous = deps[slot]
+      if (!previous || !nextDeps || nextDeps.some((value, index) => !Object.is(value, previous[index]))) {
+        if (typeof cleanups[slot] === 'function') cleanups[slot]!()
+        deps[slot] = nextDeps || []
+        cleanups[slot] = effect()
+      }
+    },
+    useCallback: (callback: any) => callback,
+    useMemo: (factory: any) => factory(),
+    useRef(initial: any) {
+      const slot = stateIndex++
+      if (state[slot] === undefined) state[slot] = { current: initial }
+      return state[slot]
+    },
+    useState(initial: any) {
+      const slot = stateIndex++
+      if (state[slot] === undefined) state[slot] = typeof initial === 'function' ? initial() : initial
+      return [state[slot], (value: any) => {
+        state[slot] = typeof value === 'function' ? value(state[slot]) : value
+      }]
+    },
+    useSyncExternalStore: (_subscribe: any, getSnapshot: any) => getSnapshot(),
+  } as ClientReact
+  return {
+    React,
+    // Slot cursors as they stand after one component render: rerunning a nested
+    // component from its own slot base keeps its hook state between passes.
+    checkpoint: () => ({ state: stateIndex, effects: effectIndex }),
+    restore: (mark: { state: number; effects: number }) => {
+      stateIndex = mark.state
+      effectIndex = mark.effects
+    },
+    unmount: () => { for (const cleanup of cleanups.splice(0)) if (typeof cleanup === 'function') cleanup() },
+  }
+}
+
+function findElement(node: any, predicate: (node: any) => boolean): any {
+  if (!node || typeof node !== 'object') return null
+  if (predicate(node)) return node
+  for (const child of Array.isArray(node) ? node : node.children ?? []) {
+    const found = findElement(child, predicate)
+    if (found) return found
+  }
+  return null
+}
+
+describe('compact sidebar entry rendering', () => {
+  it('portals the compact entry into the DS-Bot row instead of the standard footer entry', async () => {
+    await runScenarios([{
+      name: 'DS-Bot row receives the compact button and the standard entry disappears',
+      run: () => {
+        const { root, rows } = setup()
+        const row = accountRow(root, 'bt-settings-row')
+        rows.set(dsBotSelector, [row])
+        const shim = createReactShim()
+        const { React, unmount } = shim
+        const portal = vi.fn((children: unknown, container: Element) => ({ children, container }))
+        const Action = createRemoteWorkspaceAction(React, portal as any) as any
+        const props = {
+          wide: true,
+          control: vi.fn(async (endpoint: string) =>
+            endpoint === 'settings.get' ? { config: { sidebar: { entry: 'compact' } } } : {}),
+          statusFeed: { subscribe: () => () => undefined, getSnapshot: () => undefined },
+          subscribeOpen: () => () => undefined,
+          preferredQrProvider: 'github',
+          sidebarEntry: { read: () => 'compact', subscribe: () => () => undefined, publish: () => undefined },
+          portal: portal as any,
+          t: (key: string) => key,
+        }
+
+        const tree = Action(props)
+        const entry = findElement(tree, node => node?.props?.portal === portal && 'fallback' in node.props)
+        expect(entry).toBeTruthy()
+
+        // React hands children over inside props; the shim keeps them beside it.
+        const entryProps = { ...entry.props, children: entry.children[0] }
+        const mark = shim.checkpoint()
+        shim.restore(mark)
+        expect(entry.type(entryProps)).toBe(entry.props.fallback)
+        shim.restore(mark)
+        const rendered = entry.type(entryProps)
+
+        expect(portal).toHaveBeenCalledTimes(1)
+        expect(portal.mock.calls[0]![1]).toBe(row.children[0])
+        expect(portal.mock.calls[0]![0]).toMatchObject({ props: { className: 'dshRemoteAccountEntry' } })
+        expect(rendered).toEqual({ children: portal.mock.calls[0]![0], container: row.children[0] })
+        expect(findElement(tree, node => String(node?.props?.className ?? '').includes('dshRemoteSidebarEntry'))).toBeNull()
+        unmount()
+      },
+    }])
+  })
+
+  it('keeps the remote Host label and Exit action in compact mode without measuring the account row as a footer lane', async () => {
+    await runScenarios([{
+      name: 'active remote entry portalled into the account row stays labelled and does not bind the footer lane ref',
+      run: () => {
+        const { root, rows } = setup()
+        const row = accountRow(root, 'VOzbGW_triggerRow')
+        rows.set(nativeSelector, [row])
+        const shim = createReactShim()
+        const { React, unmount } = shim
+        const portal = vi.fn((children: unknown, container: Element) => ({ children, container }))
+        const Action = createRemoteWorkspaceAction(React, portal as any) as any
+        const remoteStatus = {
+          mode: 'remote' as const,
+          available: true,
+          hostAuthorizationAvailable: false,
+          target: { deviceId: 'host-1', name: 'Office Mac' },
+        }
+        const props = {
+          wide: true,
+          control: vi.fn(async (endpoint: string) =>
+            endpoint === 'settings.get' ? { config: { sidebar: { entry: 'compact' } } } : {}),
+          statusFeed: {
+            subscribe: (listener: (status: typeof remoteStatus) => void) => {
+              listener(remoteStatus)
+              return () => undefined
+            },
+            getSnapshot: () => remoteStatus,
+          },
+          subscribeOpen: () => () => undefined,
+          preferredQrProvider: 'github',
+          sidebarEntry: { read: () => 'compact', subscribe: () => () => undefined, publish: () => undefined },
+          portal: portal as any,
+          t: (key: string) => key,
+        }
+
+        Action(props)
+        shim.restore({ state: 0, effects: 0 })
+        const tree = Action(props)
+        const entry = findElement(tree, node => node?.props?.portal === portal && 'fallback' in node.props)
+        expect(entry).toBeTruthy()
+        // Standard fallback retains the footer-lane ref; the portalled account-row entry does not.
+        expect(typeof entry.props.fallback.props.ref).toBe('function')
+
+        const entryProps = { ...entry.props, children: entry.children[0] }
+        const mark = shim.checkpoint()
+        shim.restore(mark)
+        entry.type(entryProps)
+        shim.restore(mark)
+        entry.type(entryProps)
+
+        expect(portal).toHaveBeenCalledTimes(1)
+        const portalled = portal.mock.calls[0]![0] as { props: { ref?: unknown; className: string }; children?: unknown[] }
+        expect(portalled.props.ref).toBeUndefined()
+        expect(portalled.props.className).toContain('isWide')
+        expect(portalled.props.className).toContain('isActive')
+        expect(portalled.props.className).toContain('isAccountRow')
+        expect(findElement(portalled, node => node?.props?.className === 'dshRemoteSidebarLabel')).toBeTruthy()
+        expect(findElement(portalled, node => node?.props?.className === 'dshRemoteExitLink')).toBeTruthy()
+        unmount()
+      },
+    }])
+  })
+})

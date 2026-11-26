@@ -57,6 +57,90 @@
 
 版本条目保留发布时的功能和验证范围；当前使用方式与限制见[文档入口](README.md)和[版本兼容](compatibility.zh.md)。
 
+## 0.6.8
+
+Android versionCode **76** · iOS buildNumber floor **76** · HarmonyOS versionCode **1000227**
+
+### 中文
+
+- **会话接力与代码审查** · 在手机上可把当前会话交给另一个智能体继续处理。Codex 支持从完整会话或指定轮次创建分支。审查工作区 Git diff 时，可选中具体改动让智能体返工。文件卡片支持打开 officeKit 文档预览，PDF 可全屏连续阅读。
+- **待处理收件箱** · 集中查看待审批、待回答和已完成未读的会话。Codex 和 ACP 可在短暂断线时保留审批请求。
+- **实时任务** · Android 任务通知可显示当前阶段、运行时长和并行任务数，连接通知可显示当前主机和工作区。iOS 锁屏实时活动与灵动岛可显示任务阶段、计时和待处理数量，点按即可打开收件箱。
+- **移动端会话** · 从会话顶栏可将会话加入工作区，也可搜索当前对话并跳转到匹配内容。抽屉和会话切换更流畅，超长用户消息支持分页阅读。切换会话时会取消旧的 ACP 历史读取，其他设备占用实时流时仍可打开历史。改善 OpenCode 长会话加载和 Antigravity 交互，并修复语音转写超时过短的问题。
+- **Host 与连接** · 通过 npm 安装的 Host 可在缺少可选 Connection 包时加载。适配 DSH 0.2.3 预发布版，修复控制路由不可用时的文件上传回退。连接异常后避免重复执行写操作。重置 Host 身份也会清除旧配对策略，并提示重启 DSH。Android 加速接收消息的解密，iOS 接入原生 CryptoKit 加解密。
+- **设备与客户端** · 自部署 Server 支持从账号设备列表撤销设备。移动端可从会员入口查看套餐，DSH Web 页脚可关闭。
+- **鸿蒙** · 改进会话顶栏和文档预览。在支持 Git 审查的 Host 上，可查看工作区文件状态和差异。切换服务器时若无法清除旧凭据，客户端会保留原服务器地址。升级会移除旧版保存的明文账号令牌，能确认归属的当前登录会保留，其余情况需重新登录。
+
+### English
+
+- **Agent handoff and code review** · Pass a conversation’s context to another agent from your phone. In Codex, fork the entire conversation or branch from a specific turn. Review workspace Git diffs and select specific changes for the agent to rework. Open officeKit document previews from file cards and scroll through PDFs in full screen.
+- **Attention inbox** · Find pending approvals, unanswered questions, and completed sessions with unread updates in one place. Codex and ACP can keep approval requests pending across brief disconnects.
+- **Live tasks** · Android task notifications show the current phase, elapsed time, and number of concurrent tasks. Connection notifications can show the current Host and workspace. On iOS, Live Activities show task phases, timers, and pending counts on the Lock Screen and Dynamic Island. Tap to open the inbox.
+- **Mobile conversations** · Use the chat header to add a conversation to a workspace or search the conversation and jump to a match. Switching sessions and opening the drawer are smoother. Read long user messages in pages. Switching sessions cancels the previous ACP history request, and history remains accessible when another device owns the live stream. This release also improves long OpenCode sessions and Antigravity interactions and gives speech transcription more time to finish.
+- **Host and connections** · The npm-installed Host now loads when the optional Connection package is absent. The Host supports DSH 0.2.3 prereleases and falls back to local file uploads when the control route is unavailable. Connection failures no longer cause the gateway to replay writes. Resetting the Host identity also clears its old pairing policy and prompts you to restart DSH. Android accelerates incoming message decryption, and iOS uses native CryptoKit encryption and decryption.
+- **Devices and clients** · Revoke a device from the self-hosted Server’s account device list, open membership plans from mobile, and dismiss the DSH Web footer.
+- **HarmonyOS** · Improved chat header controls and document previews. View changed files and diffs on Hosts that support Git review. If the app cannot clear the previous credentials, it keeps the existing server address. Upgrading removes account tokens saved in plaintext by older releases. Your current account stays signed in when the app can verify which server and account own the credentials. Otherwise, sign in again.
+
+### 贡献者 / Contributors
+
+感谢 / Thanks to [@dreamfarer-space](https://github.com/dreamfarer-space), [@gcnyin](https://github.com/gcnyin), [@vccddd](https://github.com/vccddd), [@abworks-dev](https://github.com/abworks-dev), [@abd1rahmane](https://github.com/abd1rahmane), [@gongfpp](https://github.com/gongfpp), [@xy2404907917-ship-it](https://github.com/xy2404907917-ship-it), [@chenjianli1994](https://github.com/chenjianli1994), [@liguobao](https://github.com/liguobao)。
+
+## 0.6.7
+
+Android versionCode **75** · iOS buildNumber floor **75**
+
+### 中文
+
+- **DSH Web** · 可从主机详情经局域网打开主机上的 DSH Web，支持经验证的同链路 IPv6。Host 找不到可用的本机监听地址时，支持隧道的客户端可继续通过隧道打开。隧道的 WebSocket 单帧上限提高到 16 MiB。
+- **登录与移动端** · 密码登录支持输入二次验证码或恢复码。Android 和 iOS 改善了平板抽屉、弹窗和 Antigravity 的权限选项、历史图片回放及命令菜单。
+- **会话与连接** · Codex 会话重连后可恢复消息流并补齐截断的回复，Host 更可靠地清理 Codex 后台进程。Desktop 支持预览消息中的文件附件。自部署 Server 在计划停机时可避免将正常断开报为连接失败。
+- **鸿蒙** · 更新登录、主机列表和会话页面，使常用操作与 Android 更一致。
+
+### English
+
+- **DSH Web** · Open the Host’s DSH Web from Host details over the LAN, including verified same-link IPv6. If the Host has no usable local listening address, clients with tunnel support can open it through the tunnel. The tunnel now supports WebSocket frames up to 16 MiB.
+- **Sign-in and mobile** · Password sign-in accepts two-factor verification and recovery codes. Android and iOS improve tablet drawers and dialogs, along with Antigravity permission choices, historical image rendering, and command menus.
+- **Sessions and connections** · Codex sessions resume streaming and recover truncated replies after reconnecting. The Host cleans up Codex background processes more reliably. Desktop can preview files attached to messages. Self-hosted Servers avoid reporting normal disconnects during planned shutdowns as connection failures.
+- **HarmonyOS** · Updated sign-in, Host list, and conversation screens bring common workflows closer to Android.
+
+### 贡献者 / Contributors
+
+感谢本版贡献者及参与反馈和验证的朋友。Thanks to everyone who contributed changes, reported issues, or helped verify this release.
+
+- 平板布局与 Antigravity 修复 / Tablet layouts and Antigravity fixes · [@gcnyin](https://github.com/gcnyin)
+- Codex、移动端与贡献指南 / Codex, mobile fixes, and contributor guides · [@dreamfarer-space](https://github.com/dreamfarer-space)
+- WebSocket 帧上限与 DSH Web 测试 / WebSocket frame limits and DSH Web tests · [@vccddd](https://github.com/vccddd)
+- 自部署 Server 停机处理 / Self-hosted Server shutdown handling · [@luojiyin1987](https://github.com/luojiyin1987)
+- DSH Web、登录与 Desktop 附件 / DSH Web, sign-in, and Desktop attachments · [@liguobao](https://github.com/liguobao)
+
+## 0.6.6 — 2026-11-20
+
+Android versionCode 74 · iOS buildNumber floor 74
+
+### 中文
+
+- **iOS 与鸿蒙** · iOS 客户端代码已开源，与 Android 共享会话和消息功能，支持 iPad。原生鸿蒙客户端已合入主分支，支持 WebRTC 与加密中继、会话历史、流式消息和工作区浏览。
+- **移动端** · Android 和 iOS 可从主机详情试用主机上的原生 DSH Web，需同步升级 Remote Host，且服务器已启用该功能。会话忙碌时可排队发送或插话，也可以将已排队的消息插入当前对话。Android、iOS 和鸿蒙的设置页可查看会员状态，并改善主机列表、新建对话和 PDF 阅读体验。
+- **远程连接** · 移动端恢复直连优先，Android 和 iOS 可查看当前中继节点。改善 WebRTC 与中继切换，无 TURN 的自建服务可更快回落到中继。Desktop 可在支持的 Gateway 上并行准备直连和备用 TURN，Host 可尝试通过公网 IPv6 或 Tailscale IPv4 直连。
+- **ACP 与 Codex** · 支持接入自定义 stdio ACP 后端，扩展模式和权限选项。Antigravity 优先使用原生 ACP，保留旧适配器作为回退。改善 ACP 长会话历史、工作区文件引用和 Windows 上的后端启动，恢复 Claude ACP 一键安装。Codex 重连后可补齐流式回复，思考过程可折叠查看。
+- **Harness 与 Desktop** · 适配 DSH Desktop 0.2.2-rc.5，远程终端列表实时更新，原生工作区可按文件名或路径搜索。新增跨机器复制会话历史的 Host API，供客户端接入。对齐 DS-Bot 0.3.8 远程操作，并支持 Host 启用的官方思考过程翻译插件。
+- **稳定性** · 修复移动端会话列表冷启动崩溃、草稿恢复、截图上传、ACP 图片预览和流式回复重复显示。改善长会话历史加载并隐藏废弃空白会话，修复远程压缩取消或超时后阻塞后续请求，以及配对 Host 退出授权后无法登录的问题。
+
+### English
+
+- **iOS and HarmonyOS** · The iOS client is open source, shares session and messaging features with Android, and supports iPad. The native HarmonyOS client is now on the main branch, with WebRTC, encrypted Relay, session history, streaming, and workspace browsing.
+- **Mobile** · Android and iOS can try the Host’s native DSH Web from Host details. This requires an updated Remote Host and a Server with DSH Web enabled. Queue messages during a busy session or use a new or queued message to steer the active turn. Android, iOS, and HarmonyOS show membership status in Settings and improve the Host list, new conversation flow, and PDF viewer.
+- **Remote connections** · Mobile clients prefer direct connections again. Android and iOS show the active Relay node. Switching between WebRTC and Relay is more reliable, and self-hosted Servers without TURN fall back to Relay sooner. On supported Gateways, Desktop prepares direct and standby TURN connections in parallel. Hosts can attempt direct connections over public IPv6 or Tailscale IPv4.
+- **ACP and Codex** · Register custom stdio ACP backends and use expanded mode and permission controls. Antigravity prefers native ACP with the legacy adapter as a fallback. This release improves long ACP session history, workspace file mentions, and backend startup on Windows, and restores one-click Claude ACP installation. Codex fills in missing streamed updates after reconnecting and displays reasoning in collapsible blocks.
+- **Harness and Desktop** · Support DSH Desktop 0.2.2-rc.5 with live remote terminal lists and file search by name or path in native workspaces. New Host APIs let clients integrate cross-machine session history copying. Remote operations align with DS-Bot 0.3.8, and Remote supports the official reasoning translation plugin when enabled on the Host.
+- **Reliability** · Fix a mobile session-list crash on cold start, draft recovery, screenshot uploads, ACP image previews, and duplicate streamed replies. Improve long-session history loading and hide abandoned blank sessions. Fix remote compaction requests getting stuck after cancellation or timeout, and restore Host sign-in after logging out of device pairing.
+
+### 贡献者 / Contributors
+
+感谢 / Thanks to [@vccddd](https://github.com/vccddd), [@Mangoman2008](https://github.com/Mangoman2008), [@PYH0809](https://github.com/PYH0809), [@dreamfarer-space](https://github.com/dreamfarer-space), [@AIchanKimi](https://github.com/AIchanKimi), [@luojiyin1987](https://github.com/luojiyin1987), [@gcnyin](https://github.com/gcnyin), [@greatcorrectandglory](https://github.com/greatcorrectandglory), [@liguobao](https://github.com/liguobao)，以及所有提交问题、协助复现和参与验证的朋友。
+
+特别感谢 @vccddd 推进 iOS 与共享应用代码，@Mangoman2008 实现鸿蒙客户端，@PYH0809 改进传输升级与历史投影；也感谢其他贡献者对 ACP、Codex、上传与 Android 体验的持续修复。
+
 ## 0.6.5 — 2026-11-15
 
 Android build 72.

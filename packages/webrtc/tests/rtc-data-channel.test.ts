@@ -126,10 +126,10 @@ function hiddenPeerReflexiveLanStats(): RtcStatsEntry[] {
   ]
 }
 
-function tailscaleP2pStats(localType: 'host' | 'prflx' = 'prflx'): RtcStatsEntry[] {
+function tailscaleP2pStats(localType: 'host' | 'prflx' = 'prflx', remoteAddress = 'fd7a:115c:a1e0::c'): RtcStatsEntry[] {
   return [
     { type: 'local-candidate', candidateType: localType, id: 'lc' },
-    { type: 'remote-candidate', candidateType: 'host', address: 'fd7a:115c:a1e0::c', id: 'rc' },
+    { type: 'remote-candidate', candidateType: 'host', address: remoteAddress, id: 'rc' },
     { type: 'candidate-pair', selected: true, nominated: true, localCandidateId: 'lc', remoteCandidateId: 'rc' },
   ]
 }
@@ -143,6 +143,43 @@ function turnStats(): RtcStatsEntry[] {
 }
 
 describe('detectSelectedTransport', () => {
+  it('prefers an explicitly selected pair and ignores pending nominations', () => {
+    const entries: RtcStatsEntry[] = [
+      { id: 'local', type: 'local-candidate', candidateType: 'host', address: '192.168.1.2' },
+      { id: 'public', type: 'remote-candidate', candidateType: 'host', address: '203.0.113.2' },
+      { id: 'lan', type: 'remote-candidate', candidateType: 'host', address: '192.168.1.3' },
+      { type: 'candidate-pair', nominated: true, state: 'waiting', localCandidateId: 'local', remoteCandidateId: 'public' },
+      { type: 'candidate-pair', nominated: true, state: 'succeeded', localCandidateId: 'local', remoteCandidateId: 'public' },
+      { type: 'candidate-pair', selected: true, localCandidateId: 'local', remoteCandidateId: 'lan' },
+    ]
+    expect(detectSelectedTransport(asStats(entries))).toBe('lan')
+    expect(detectSelectedTransport(asStats(entries.slice(0, -2)))).toBeUndefined()
+    expect(detectSelectedTransport(asStats(entries.slice(0, -1)))).toBe('p2p')
+  })
+
+  it('reports nominated IPv6 endpoints for browser-side selection matching', async () => {
+    const local = '2001:db8:1::1'
+    const remote = '2001:db8:1::2'
+    const port = 51001
+    await runScenarios([
+      { name: 'successful peer-reflexive nomination', state: 'succeeded', type: 'prflx', expected: [[local, port, remote]] },
+      { name: 'pending nomination', state: 'waiting', type: 'host', expected: [] },
+      { name: 'ambiguous endpoint with TURN peer', state: 'succeeded', type: 'relay', expected: [[local, port, undefined]] },
+    ].map(({ name, state, type, expected }) => ({
+      name,
+      run: () => {
+        const observed: unknown[][] = []
+        const stats: RtcStats = [
+          ['local', { id: 'local', type: 'local-candidate', candidateType: 'host', address: local, port }],
+          ['remote', { id: 'remote', type: 'remote-candidate', candidateType: type, address: remote }],
+          ['pair', { type: 'candidate-pair', localCandidateId: 'local', remoteCandidateId: 'remote', nominated: true, state }],
+        ]
+        inspectSelectedPath(stats, (...addresses) => observed.push(addresses))
+        expect(observed).toEqual(expected)
+      },
+    })))
+  })
+
   it('classifies selected candidate pairs as LAN, P2P or TURN', async () => {
     await runScenarios([
       {
@@ -238,10 +275,10 @@ describe('detectSelectedTransport', () => {
       {
         name: 'does not treat host-to-host Tailscale overlay candidates as LAN',
         run: () => {
-          expect(detectSelectedPath(asStats(tailscaleP2pStats('host')))).toEqual({
-            transport: 'p2p',
-            mode: 'P2P',
-          })
+          for (const address of ['100.64.0.8', 'fd7a:115c:a1e0::c']) {
+            expect(detectSelectedPath(asStats(tailscaleP2pStats('host', address))), address)
+              .toEqual({ transport: 'p2p', mode: 'P2P' })
+          }
         },
       },
       {
@@ -514,6 +551,50 @@ describe('RtcDataChannelTransport initiator', () => {
       vi.useRealTimers()
     }
   })
+
+  it('rejects connect() if the data channel closes while getStats() is still pending', async () => {
+    await runScenarios([
+      { name: 'channel.onclose fires before getStats resolves', fireCloseEvent: true },
+      { name: 'channel.readyState turns closed before getStats resolves', fireCloseEvent: false },
+    ].map(row => ({
+      name: row.name,
+      run: async () => {
+        const pc = new FakePeerConnection()
+        let resolveStats: ((stats: RtcStats) => void) | undefined
+        vi.spyOn(pc, 'getStats').mockImplementation(() => new Promise<RtcStats>(resolve => { resolveStats = resolve }))
+        const transport = new RtcDataChannelTransport({
+          role: 'initiator',
+          factory: factoryFor(pc),
+          onSignal: () => undefined,
+        })
+        const closed = vi.fn()
+        const received: Uint8Array[] = []
+        transport.onClose(closed)
+        transport.onMessage(data => received.push(data))
+        const connecting = expect(transport.connect()).rejects.toMatchObject({ code: 'RTC_CLOSED' })
+        await flush()
+        transport.handleSignal({ type: 'answer', sdp: 'v=0 answer' })
+        await flush()
+        const channel = pc.channels[0]!
+        channel.open()
+        await vi.waitFor(() => expect(resolveStats).toBeTypeOf('function'))
+        // Messages arriving during the async getStats() window are still delivered.
+        channel.receive(new Uint8Array([4, 5, 6]).buffer)
+        expect(received).toHaveLength(1)
+
+        if (row.fireCloseEvent) {
+          channel.close()
+        } else {
+          channel.readyState = 'closed'
+        }
+        resolveStats!(asStats(lanStats()))
+        await connecting
+        expect(transport.getStats().connected).toBe(false)
+        expect(closed).not.toHaveBeenCalled()
+        await transport.close()
+      },
+    })))
+  })
 })
 
 describe('RtcDataChannelTransport responder', () => {
@@ -545,6 +626,70 @@ describe('RtcDataChannelTransport responder', () => {
     channel.receive(new Uint8Array([9, 8, 7]).buffer)
     expect(received).toHaveLength(1)
     await transport.close()
+  })
+
+  it('answers over an open channel while the selected-path probe is still pending', async () => {
+    // A peer that already sees the channel open sends immediately; its frames are
+    // delivered during the getStats() probe, so the reply must not be refused.
+    await runScenarios(([
+      { name: 'replies while getStats() is pending, before connect() resolves', step: 'probe' },
+      { name: 'still refuses before the channel reports open', step: 'unopened' },
+      { name: 'refuses after the channel closes during the probe', step: 'closed' },
+    ] as const).map(row => ({
+      name: row.name,
+      run: async () => {
+        const pc = new FakePeerConnection()
+        let resolveStats: ((stats: RtcStats) => void) | undefined
+        vi.spyOn(pc, 'getStats').mockImplementation(() => new Promise<RtcStats>(resolve => { resolveStats = resolve }))
+        const transport = new RtcDataChannelTransport({
+          role: 'responder',
+          factory: factoryFor(pc),
+          onSignal: () => undefined,
+        })
+        let connected = false
+        const connecting = transport.connect().then(() => { connected = true }, error => error as Error)
+        transport.handleSignal({ type: 'offer', sdp: 'v=0 offer' })
+        await flush()
+        const channel = new FakeChannel()
+        pc.emitDataChannel(channel)
+        const reply = new Uint8Array([1, 2, 3])
+
+        if (row.step === 'unopened') {
+          await expect(transport.send(reply)).rejects.toThrow('WebRTC data channel is not open.')
+          expect(channel.sent).toHaveLength(0)
+          await transport.close()
+          await connecting
+          return
+        }
+
+        channel.open()
+        await vi.waitFor(() => expect(resolveStats).toBeTypeOf('function'))
+        const received: Uint8Array[] = []
+        transport.onMessage(data => received.push(data))
+        channel.receive(new Uint8Array([4, 5, 6]).buffer)
+        expect(received).toHaveLength(1)
+
+        if (row.step === 'closed') {
+          channel.close()
+          expect(await connecting).toMatchObject({ code: 'RTC_CLOSED' })
+          await expect(transport.send(reply)).rejects.toThrow('WebRTC data channel is not open.')
+          return
+        }
+
+        await transport.send(reply)
+        expect(connected).toBe(false)
+        expect(channel.sent.length).toBeGreaterThan(0)
+
+        resolveStats!(asStats(lanStats()))
+        await connecting
+        expect(connected).toBe(true)
+        expect(transport.selectedTransport()).toBe('lan')
+        const sentBeforeOpen = channel.sent.length
+        await transport.send(reply)
+        expect(channel.sent.length).toBeGreaterThan(sentBeforeOpen)
+        await transport.close()
+      },
+    })))
   })
 
   it('buffers trickle ICE until the offer is processed', async () => {

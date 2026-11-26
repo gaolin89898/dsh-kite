@@ -97,7 +97,7 @@ describe('TypertGatewaySwitch', () => {
   it('returns remote RPC refusals in the official HTTP envelope without calling local services', async () => {
     const ctx = new Context()
     try {
-      await ctx.plugin(applyConnection).await()
+      await ctx.plugin(owner => applyConnection(owner)).await()
       const connection = ctx.get('connection') as HostConnectionService
       const localDispatch = vi.fn(async (_endpoint: string, _payload: unknown, _signal: AbortSignal) => ({ ok: true as const, value: 'local' }))
       const gateway = { invoke: vi.fn(async () => 'local'), dispatchRpc: localDispatch }
@@ -132,7 +132,7 @@ describe('TypertGatewaySwitch', () => {
   it('preserves preview bytes through the native Connection HTTP hop', async () => {
     const ctx = new Context()
     try {
-      await ctx.plugin(applyConnection).await()
+      await ctx.plugin(owner => applyConnection(owner)).await()
       const connection = ctx.get('connection') as HostConnectionService
       const gateway = {
         invoke: vi.fn(async (_request: Parameters<TypertGatewayLike['invoke']>[0]) => 'local'),
@@ -143,7 +143,7 @@ describe('TypertGatewaySwitch', () => {
       connection.rpc.intercept('/api', () => true, (endpoint, payload, signal) => gateway.dispatchRpc(endpoint, payload, signal))
       const peer = connection.createPeer({ principal: { kind: 'owner' } })
       const handler = connection.createSharedFetchHandler('/api')
-      await runScenarios(['workspaceFiles/readBytes', 'officeToPdf/render'].flatMap(endpoint =>
+      await runScenarios(['workspaceFiles/readBytes', 'officeToPdf/render', 'officeKit/render'].flatMap(endpoint =>
         [new Uint8Array([0, 255, 16]), new Uint8Array()].map(data => ({
           name: `${endpoint}: ${data.length === 0 ? 'empty' : 'binary'} payload`,
           run: async () => {

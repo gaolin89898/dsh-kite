@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, open, rm, symlink, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, open, readFile, realpath, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -62,6 +62,15 @@ describe('workspace file denial reasons', () => {
 
     await expect(call('workspaceFiles/read', { workspaceFileScopeId: 's1', path: 'inside.txt' }))
       .resolves.toMatchObject({ ok: true })
+    for (const renderEndpoint of ['officeKit/render', 'officeToPdf/render']) {
+      await expect(call(renderEndpoint, { workspaceFileScopeId: 's1', path: 'sub/nested.txt', priority: 'foreground' }))
+        .resolves.toMatchObject({ ok: true })
+      expect(dispatch).toHaveBeenLastCalledWith(
+        renderEndpoint,
+        { args: { workspaceFileScopeId: 's1', path: 'sub/nested.txt', priority: 'foreground' } },
+        expect.any(AbortSignal),
+      )
+    }
 
     const scenarios = [
       { name: 'missing scope', endpoint: 'workspaceFiles/read', args: { path: 'inside.txt' }, code: 'WORKSPACE_UNAVAILABLE', reason: 'scope-missing' },
@@ -73,6 +82,16 @@ describe('workspace file denial reasons', () => {
       { name: 'directory as file', endpoint: 'workspaceFiles/read', args: { workspaceFileScopeId: 's1', path: 'sub' }, code: 'WORKSPACE_PATH_DENIED', reason: 'not-regular-file' },
       { name: 'missing file', endpoint: 'workspaceFiles/read', args: { workspaceFileScopeId: 's1', path: 'sub/missing.txt' }, code: 'WORKSPACE_PATH_DENIED', reason: 'not-found' },
       { name: 'oversized readAll', endpoint: 'workspaceFiles/readAll', args: { workspaceFileScopeId: 's1', path: 'big.bin' }, code: 'WORKSPACE_TOO_LARGE', reason: 'too-large' },
+      ...['officeKit/render', 'officeToPdf/render'].flatMap(endpoint => [
+        { name: `${endpoint} missing scope`, endpoint, args: { path: 'inside.txt' }, code: 'WORKSPACE_UNAVAILABLE', reason: 'scope-missing' },
+        { name: `${endpoint} unknown session`, endpoint, args: { workspaceFileScopeId: 'missing', path: 'inside.txt' }, code: 'WORKSPACE_UNAVAILABLE', reason: 'authority-unavailable' },
+        { name: `${endpoint} parent traversal`, endpoint, args: { workspaceFileScopeId: 's1', path: '../outside/secret.txt' }, code: 'WORKSPACE_PATH_DENIED', reason: 'outside-root' },
+        { name: `${endpoint} absolute outside`, endpoint, args: { workspaceFileScopeId: 's1', path: join(outside, 'secret.txt') }, code: 'WORKSPACE_PATH_DENIED', reason: 'outside-root' },
+        { name: `${endpoint} symlink target`, endpoint, args: { workspaceFileScopeId: 's1', path: 'link.txt' }, code: 'WORKSPACE_PATH_DENIED', reason: 'symlink' },
+        { name: `${endpoint} symlink ancestor`, endpoint, args: { workspaceFileScopeId: 's1', path: 'dirlink/secret.txt' }, code: 'WORKSPACE_PATH_DENIED', reason: 'symlink' },
+        { name: `${endpoint} directory as file`, endpoint, args: { workspaceFileScopeId: 's1', path: 'sub' }, code: 'WORKSPACE_PATH_DENIED', reason: 'not-regular-file' },
+        { name: `${endpoint} missing file`, endpoint, args: { workspaceFileScopeId: 's1', path: 'sub/missing.txt' }, code: 'WORKSPACE_PATH_DENIED', reason: 'not-found' },
+      ]),
     ]
 
     for (const scenario of scenarios) {
@@ -104,5 +123,80 @@ describe('workspace file denial reasons', () => {
       payload: { args: { workspaceFileScopeId: 's1', path: '../outside/secret.txt', options: { baseFile: 'inside.txt' } } },
     })).rejects.toMatchObject({ code: 'WORKSPACE_PATH_DENIED', details: { reason: 'outside-root' } })
     expect(dispatch).not.toHaveBeenCalled()
+  })
+})
+
+describe('native message attachment preview authorization', () => {
+  it('binds preview to structured attachments in the same session journal', async () => {
+    const { root, outside } = await fixture()
+    const attachment = { attachmentId: `sha256:${'a'.repeat(64)}`, name: 'report.txt', bytes: 6 }
+    const stored = join(outside, attachment.name)
+    await writeFile(stored, 'report')
+    const path = `.dsh-remote-message-file/${attachment.attachmentId}/${attachment.name}`
+    const record = { type: 'event', event: { type: 'user/message', data: { role: 'user', content: [{ type: 'file', attachment }] } } }
+    const dispatch = vi.fn<LocalTypertGateway['dispatch']>(async (endpoint, payload) => {
+      if (endpoint === 'session/page') return { ok: true, value: { records: [record] } }
+      if (endpoint === 'workspaceFiles/readBytes') {
+        const { args } = payload as { args: { path: string; options: { range: { offset: number; length: number } } } }
+        const { offset, length } = args.options.range
+        const data = (await readFile(args.path)).subarray(offset, offset + length)
+        return { ok: true, value: { data, offset, eof: false } }
+      }
+      return { ok: true, value: {} }
+    })
+    const liveAttachment = { ...attachment, attachmentId: `sha256:${'b'.repeat(64)}` }
+    const host = gateway(dispatch)
+    host.open = async endpoint => (async function* () {
+      if (endpoint === 'session/follow') {
+        yield { ...record, event: { ...record.event, data: { role: 'user', content: [{ type: 'file', attachment: liveAttachment }] } } }
+      }
+    })()
+    const publish = vi.fn(async () => undefined)
+    const bridge = new HarnessRemoteBridge(host, publish, undefined, undefined,
+      undefined, undefined, async () => root, undefined, undefined, ref => ref.name === attachment.name ? stored : undefined)
+    const call = (endpoint: string, args: Record<string, unknown>) => bridge.call({ endpoint, payload: { args } })
+    const args = { workspaceFileScopeId: 's1', path }
+
+    await expect(call('workspaceFiles/stat', args)).rejects.toMatchObject({ code: 'WORKSPACE_PATH_DENIED' })
+    await expect(call('officeKit/render', { ...args, priority: 'foreground' })).rejects.toMatchObject({ code: 'WORKSPACE_PATH_DENIED' })
+    expect(dispatch).not.toHaveBeenCalled()
+    await call('session/page', { request: { address: { kind: 'session', sessionId: 's1' }, throughSeq: 12 } })
+    await expect(call('workspaceFiles/stat', args)).resolves.toMatchObject({ ok: true })
+    const resolvedStored = await realpath(stored)
+    expect(dispatch).toHaveBeenLastCalledWith('workspaceFiles/stat', { args: { ...args, path: resolvedStored } }, expect.any(AbortSignal))
+    await expect(call('workspaceFiles/readBytes', { ...args, options: { range: { offset: 1, length: 4 } } }))
+      .resolves.toEqual({ ok: true, value: { data: 'ZXBvcg==', offset: 1, eof: false } })
+
+    for (const attempt of [
+      { ...args, workspaceFileScopeId: 'another-session' },
+      { ...args, path: path.replace('report.txt', 'secret.txt') },
+      { ...args, path: join(outside, 'secret.txt') },
+      { ...args, options: { baseFile: join(outside, 'secret.txt') } },
+    ]) {
+      const before = dispatch.mock.calls.length
+      await expect(call('workspaceFiles/readBytes', attempt)).rejects.toMatchObject({ code: 'WORKSPACE_PATH_DENIED' })
+      expect(dispatch.mock.calls.length).toBe(before)
+    }
+    await bridge.openStream({
+      streamId: 'live-session', endpoint: 'session/follow',
+      payload: { args: { request: { address: { kind: 'session', sessionId: 's1' } } } },
+    })
+    await vi.waitFor(() => expect(publish).toHaveBeenCalled())
+    await expect(call('workspaceFiles/stat', { ...args, path: path.replace(attachment.attachmentId, liveAttachment.attachmentId) }))
+      .resolves.toMatchObject({ ok: true })
+    for (const renderEndpoint of ['officeToPdf/render', 'officeKit/render']) {
+      await expect(call(renderEndpoint, { ...args, priority: 'foreground' })).resolves.toMatchObject({ ok: true })
+      expect(dispatch).toHaveBeenLastCalledWith(
+        renderEndpoint,
+        { args: { ...args, priority: 'foreground', path: resolvedStored } },
+        expect.any(AbortSignal),
+      )
+    }
+    await expect(bridge.openStream({
+      streamId: 'attachment-watch', endpoint: 'workspaceFiles/changes', payload: { args },
+    })).resolves.toEqual({ opened: true, streamId: 'attachment-watch' })
+    await bridge.closeAll()
+    await expect(call('workspaceFiles/stat', args)).rejects.toMatchObject({ code: 'WORKSPACE_PATH_DENIED' })
+    await expect(call('officeKit/render', { ...args, priority: 'foreground' })).rejects.toMatchObject({ code: 'WORKSPACE_PATH_DENIED' })
   })
 })

@@ -1,9 +1,19 @@
+import { AGENT_ACP_TRANSFER_CHUNK_BYTES, createEvent, encodeMessage, MAX_SECURE_MESSAGE_BYTES, SecureMessageCodec } from '@dsh-remote/protocol'
 import { runScenarios } from '../../../scripts/test-scenarios.mjs'
-import { realpath } from 'node:fs/promises'
+import { Buffer } from 'node:buffer'
+import { randomUUID } from 'node:crypto'
+import { mkdir, mkdtemp, realpath, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { describe, expect, it, vi } from 'vitest'
 import { AcpRemoteGateway } from '../src/acp/gateway.js'
+import { AcpWorkspaceStore } from '../src/acp/workspace-store.js'
+import { AntigravityAcpError } from '../src/acp/adapters/antigravity-process.js'
+import { CursorAcpError, type CursorAcpInbound, type CursorAcpLike } from '../src/acp/adapters/cursor-process.js'
+import { OpencodeAcpError } from '../src/acp/adapters/opencode-process.js'
 import { resolveConfig } from '../src/config.js'
-import type { CursorAcpInbound, CursorAcpLike } from '../src/acp/adapters/cursor-process.js'
+import { RpcError, safeErrorCode } from '../src/safe-error.js'
 import type { SafeLogger } from '../src/logging.js'
 
 function silentLogger(): SafeLogger {
@@ -29,26 +39,28 @@ function readyAcp(): CursorAcpLike {
 }
 
 describe('AcpRemoteGateway', () => {
-  it('resolves upload roots only for a live peer, matching backend and session owner', async () => {
+  it.each(['cursor', 'antigravity'] as const)('resolves %s upload roots only for a live peer, matching backend and session owner', async backend => {
     const cwd = await realpath(process.cwd())
     const adapter = readyAcp()
     adapter.call = vi.fn(async () => ({ sessionId: 'upload-session' }))
-    const config = { enabled: true, backends: [{ id: 'cursor', enabled: true, command: 'fixture', args: [] }] }
+    const config = { enabled: true, backends: [{ id: backend, enabled: true, command: 'fixture', args: [] }] }
     const gateway = new AcpRemoteGateway(config, silentLogger(), () => adapter)
     await gateway.start()
     const owner = gateway.createPeer({ connectionId: 'owner', peerDeviceId: 'a' } as never, async () => undefined)!
     gateway.createPeer({ connectionId: 'other', peerDeviceId: 'b' } as never, async () => undefined)
+    const sessionId = `${backend}:upload-session`
     try {
-      await gateway.call('owner', { method: 'session/new', params: { backend: 'cursor', cwd } })
-      expect(gateway.resolveUploadWorkspace('owner', 'cursor:upload-session')).toBe(cwd)
-      expect(() => gateway.resolveUploadWorkspace('other', 'cursor:upload-session')).toThrow()
+      await gateway.call('owner', { method: 'session/new', params: { backend, cwd } })
+      expect(gateway.resolveUploadWorkspace('owner', sessionId)).toBe(cwd)
+      if (backend === 'antigravity') expect(gateway.resolveUploadWorkspace('owner', 'acp:upload-session')).toBe(cwd)
+      expect(() => gateway.resolveUploadWorkspace('other', sessionId)).toThrow()
       expect(() => gateway.resolveUploadWorkspace('owner', 'claude:upload-session')).toThrow()
-      expect(() => gateway.resolveUploadWorkspace('owner', 'cursor:unknown')).toThrow()
+      expect(() => gateway.resolveUploadWorkspace('owner', `${backend}:unknown`)).toThrow()
       await owner.closeAll()
-      expect(() => gateway.resolveUploadWorkspace('owner', 'cursor:upload-session')).toThrow()
-      expect(gateway.resolveUploadWorkspace('other', 'cursor:upload-session')).toBe(cwd)
+      expect(() => gateway.resolveUploadWorkspace('owner', sessionId)).toThrow()
+      expect(gateway.resolveUploadWorkspace('other', sessionId)).toBe(cwd)
       await gateway.reconfigure({ enabled: false, backends: [] })
-      expect(() => gateway.resolveUploadWorkspace('other', 'cursor:upload-session')).toThrow()
+      expect(() => gateway.resolveUploadWorkspace('other', sessionId)).toThrow()
     } finally { await gateway.close() }
   })
 
@@ -158,12 +170,12 @@ describe('AcpRemoteGateway', () => {
       expect(publishArchive).toHaveBeenCalledWith('agent.acp.catalog.changed', { backend: 'opencode', sessionId: 'saved', archived: true })
       await expect(gateway.call('owner', prompt)).rejects.toMatchObject({ code: 'ACP_SESSION_ARCHIVED' })
       await expect(gateway.call('reader', { method: 'dsh/sessionList', params: { backend: 'opencode', path: cwd } })).resolves.toEqual({ items: [] })
-      await expect(gateway.call('reader', { method: 'dsh/sessionHistory', params: { backend: 'opencode', sessionId: 'opencode:saved' } })).resolves.toEqual({ events: [] })
+      await expect(gateway.call('reader', { method: 'dsh/sessionHistory', params: { backend: 'opencode', sessionId: 'opencode:saved' } })).resolves.toEqual({ events: [], running: false })
       const restarted = new AcpRemoteGateway({ enabled: true, backends: [{ id: 'opencode', enabled: true, command: 'fixture', args: [] }] }, silentLogger(), () => Object.assign(readyAcp(), { call: acp.call, history: acp.history, isSessionArchived: acp.isSessionArchived }))
       await restarted.start()
       try {
         await expect(restarted.call('new-reader', { method: 'session/prompt', params: { sessionId: 'saved', prompt: [{ type: 'text', text: 'blocked' }] } })).rejects.toMatchObject({ code: 'ACP_SESSION_ARCHIVED' })
-        await expect(restarted.call('new-reader', { method: 'dsh/sessionHistory', params: { backend: 'opencode', sessionId: 'opencode:saved' } })).resolves.toEqual({ events: [] })
+        await expect(restarted.call('new-reader', { method: 'dsh/sessionHistory', params: { backend: 'opencode', sessionId: 'opencode:saved' } })).resolves.toEqual({ events: [], running: false })
       } finally { await restarted.close() }
       archiveSession.mockRejectedValueOnce(new Error('native failed'))
       await expect(gateway.call('reader', archive)).rejects.toThrow('native failed')
@@ -253,7 +265,7 @@ describe('AcpRemoteGateway', () => {
   })
 
   it('rejects orphan, mismatched and malformed upstream approvals without broadcasting or trusting upstream handles', async () => {
-    const fixture = await approvalFixture()
+    const fixture = await approvalFixture('cursor', 0)
     try {
       for (const params of [
         { sessionId: 'orphan', options: fixture.options },
@@ -363,7 +375,11 @@ describe('AcpRemoteGateway', () => {
       await gateway.reconfigure({ ...config, backends: config.backends.map(item => ({ ...item, enabled: item.id !== 'claude' })) })
       expect(claude.close).toHaveBeenCalledTimes(1)
       expect(cursor.close).not.toHaveBeenCalled()
-      await expect(gateway.call('client', { method: 'initialize', params: { backend: 'claude' } })).rejects.toMatchObject({ code: 'CURSOR_UNAVAILABLE' })
+      // A configured-off backend is reported as such instead of as an outage.
+      await expect(gateway.call('client', { method: 'initialize', params: { backend: 'claude' } })).rejects.toMatchObject({
+        code: 'ACP_BACKEND_DISABLED',
+        message: 'The claude ACP backend is disabled by configuration.',
+      })
     } finally { await gateway.close() }
   })
   it('uses PI catalog cwd authority and prevents another connection from stealing loaded sessions', async () => {
@@ -447,9 +463,9 @@ describe('AcpRemoteGateway', () => {
         await expect(gateway.call('owner', { method: 'dsh/sessionHistory', params: { backend: 'claude', sessionId } })).rejects.toMatchObject({ code: 'INVALID_MESSAGE' })
       }
       await expect(gateway.call('other', { method: 'session/load', params: { backend: 'claude', sessionId: 'saved' } })).rejects.toMatchObject({ code: 'CURSOR_SESSION_OWNED' })
-      await expect(gateway.call('other', { method: 'dsh/sessionHistory', params: { backend: 'claude', sessionId: 'claude:saved' } })).resolves.toEqual({ events: await history() })
+      await expect(gateway.call('other', { method: 'dsh/sessionHistory', params: { backend: 'claude', sessionId: 'claude:saved' } })).resolves.toEqual({ events: await history(), running: false })
       await gateway.call('owner', { method: 'session/prompt', params: { backend: 'claude', sessionId: 'saved', prompt: [{ type: 'text', text: 'hello' }] } })
-      await expect(gateway.call('owner', { method: 'dsh/sessionHistory', params: { backend: 'claude', sessionId: 'claude:saved' } })).resolves.toEqual({ events: await history() })
+      await expect(gateway.call('owner', { method: 'dsh/sessionHistory', params: { backend: 'claude', sessionId: 'claude:saved' } })).resolves.toEqual({ events: await history(), running: true })
       expect(history).toHaveBeenCalledWith('saved', cwd)
       gateway.dropPeer('owner')
       await expect(gateway.call('other', { method: 'session/load', params: { backend: 'claude', sessionId: 'saved' } })).rejects.toMatchObject({ code: 'PROMPT_IN_PROGRESS' })
@@ -472,13 +488,13 @@ describe('AcpRemoteGateway', () => {
       const read = { method: 'dsh/sessionHistory', params: { backend, sessionId: `${backend}:saved` } }
       const prompt = { method: 'session/prompt', params: { backend, sessionId: 'saved', prompt: [{ type: 'text', text: 'hello' }] } }
       try {
-        await expect(gateway.call('reader', read)).resolves.toEqual({ events })
+        await expect(gateway.call('reader', read)).resolves.toEqual({ events, running: false })
         expect(history).toHaveBeenCalledWith('saved', cwd)
         expect(vi.mocked(acp.call).mock.calls.map(([method]) => method)).toEqual(['session/list'])
         // Reading first must not reserve ownership and prevent a different peer loading.
         await expect(gateway.call('owner', { method: 'session/load', params: { backend, sessionId: 'saved' } })).resolves.toBeDefined()
         await expect(gateway.call('owner', prompt)).resolves.toMatchObject({ accepted: true })
-        await expect(gateway.call('reader', read)).resolves.toEqual({ events })
+        await expect(gateway.call('reader', read)).resolves.toEqual({ events, running: true })
         for (const mutation of [prompt,
           { method: 'session/cancel', params: { sessionId: 'saved' } },
           { method: 'dsh/selectModel', params: { backend, sessionId: 'saved', model: 'other' } },
@@ -545,7 +561,7 @@ describe('AcpRemoteGateway', () => {
               expect((await pending).error).toMatchObject({ code: 'CURSOR_UNAVAILABLE' })
               expect(previous.history).not.toHaveBeenCalled()
               if (transition === 'replace') {
-                await expect(gateway.call('next-owner', { method: 'dsh/sessionHistory', params: { backend, sessionId: `${backend}:saved` } })).resolves.toEqual({ events: [] })
+                await expect(gateway.call('next-owner', { method: 'dsh/sessionHistory', params: { backend, sessionId: `${backend}:saved` } })).resolves.toEqual({ events: [], running: false })
                 expect(next.call).toHaveBeenCalledWith('session/list', {})
                 expect(next.history).toHaveBeenCalledWith('saved', nextCwd)
               } else expect(next.history).not.toHaveBeenCalled()
@@ -618,7 +634,7 @@ describe('AcpRemoteGateway', () => {
           expect(agy.close).not.toHaveBeenCalled()
           await expect(
             peer.call({ method: 'initialize', params: { backend: 'cursor' } }),
-          ).rejects.toMatchObject({ code: 'CURSOR_UNAVAILABLE' })
+          ).rejects.toMatchObject({ code: 'ACP_BACKEND_DISABLED' })
           await expect(
             peer.call({ method: 'initialize', params: { backend: 'antigravity' } }),
           ).resolves.toMatchObject({ backend: 'antigravity' })
@@ -693,10 +709,10 @@ describe('AcpRemoteGateway', () => {
                 method: 'session/load',
                 params: { sessionId: 'cursor-old', backend: 'cursor' },
               }),
-            ).rejects.toMatchObject({ code: 'CURSOR_UNAVAILABLE' })
+            ).rejects.toMatchObject({ code: 'ACP_BACKEND_DISABLED' })
             await expect(
               gateway.call('owner', { method: 'initialize', params: { backend: 'cursor' } }),
-            ).rejects.toMatchObject({ code: 'CURSOR_UNAVAILABLE' })
+            ).rejects.toMatchObject({ code: 'ACP_BACKEND_DISABLED' })
           } finally {
             await gateway.close()
           }
@@ -778,7 +794,7 @@ describe('AcpRemoteGateway', () => {
       await expect(gateway.call('owner', { method: 'session/prompt', params: { sessionId: 'cursor-image-session', backend: 'antigravity', prompt } })).rejects.toMatchObject({ code: 'INVALID_MESSAGE' })
       await expect(gateway.call('owner', { method: 'dsh/sessionHistory', params: { sessionId: 'acp:cursor-image-session', backend: 'antigravity' } })).rejects.toMatchObject({ code: 'INVALID_MESSAGE' })
       await expect(gateway.call('owner', { method: 'dsh/sessionHistory', params: { sessionId: 'acp:cursor-image-session', backend: 'cursor' } })).rejects.toMatchObject({ code: 'INVALID_MESSAGE' })
-      expect(await gateway.call('owner', { method: 'dsh/sessionHistory', params: { sessionId: 'cursor:cursor-image-session', backend: 'cursor' } })).toEqual({ events: [] })
+      expect(await gateway.call('owner', { method: 'dsh/sessionHistory', params: { sessionId: 'cursor:cursor-image-session', backend: 'cursor' } })).toEqual({ events: [], running: false })
       expect(acp.call).toHaveBeenCalledTimes(1)
     } finally { await gateway.close() }
   })
@@ -822,9 +838,124 @@ describe('AcpRemoteGateway', () => {
       ])
       expect(maxConcurrentHistoryReads).toBe(1)
       expect(first).toEqual(duplicateFirst)
-      expect(second).toEqual({ events: [{ method: 'session/update', params: { sessionId: 's2' } }] })
+      expect(second).toEqual({ events: [{ method: 'session/update', params: { sessionId: 's2' } }], running: false })
       expect(history).toHaveBeenCalledTimes(2)
     } finally {
+      await gateway.close()
+    }
+  })
+
+  it('cancels abandoned history transfers while preserving other waiters and the reader slot', async () => {
+    const cwd = await realpath(process.cwd())
+    const backend = 'antigravity'
+    const ids = ['shared', 'skipped', 'reopened']
+    const activeReads: Array<{ sessionId: string; signal?: AbortSignal; finish: (events: unknown[]) => void }> = []
+    const history = vi.fn((sessionId: string, _cwd: string, signal?: AbortSignal) => new Promise<unknown[]>(resolve => {
+      activeReads.push({ sessionId, signal, finish: resolve })
+    }))
+    const adapter = Object.assign(readyAcp(), { history })
+    adapter.call = vi.fn(async method => method === 'session/list'
+      ? { sessions: ids.map(sessionId => ({ sessionId, cwd })) }
+      : {})
+    const gateway = new AcpRemoteGateway(
+      { enabled: true, backends: [{ id: backend, enabled: true, command: 'fixture', args: [] }] },
+      silentLogger(),
+      () => adapter,
+    )
+    await gateway.start()
+    const first = gateway.createPeer({ connectionId: 'first', peerDeviceId: 'one' }, async () => undefined)!
+    const second = gateway.createPeer({ connectionId: 'second', peerDeviceId: 'two' }, async () => undefined)!
+    const startRead = (peer: typeof first, sessionId: string) => {
+      const transferId = randomUUID()
+      const request = Buffer.from(JSON.stringify({ method: 'dsh/sessionHistory', params: { backend, sessionId } }))
+      const open = { transferId, totalBytes: request.byteLength, totalChunks: 1 }
+      peer.openTransfer(open)
+      peer.appendTransfer({ transferId, index: 0, data: request.toString('base64') })
+      const result = peer.commitTransfer({ transferId }).catch((error: unknown) => error)
+      return { open, result, close: () => peer.closeTransfer({ transferId }) }
+    }
+    // Synchronize at reader admission, after async catalog authority validation.
+    const waitersFor = (sessionId: string) => (gateway as unknown as {
+      pendingHistoryReads: Map<string, { waiters: Set<unknown> }>
+    }).pendingHistoryReads.get(`${backend}:${sessionId}`)?.waiters.size
+    try {
+      const initiating = startRead(first, 'shared')
+      await vi.waitFor(() => expect(activeReads.map(read => read.sessionId)).toEqual(['shared']))
+      const other = startRead(second, 'shared')
+      await vi.waitFor(() => expect(waitersFor('shared')).toBe(2))
+      expect(() => first.openTransfer(initiating.open)).toThrow(expect.objectContaining({ code: 'REQUEST_CONFLICT' }))
+      expect(second.closeTransfer({ transferId: initiating.open.transferId }).closed).toBe(false)
+      expect(initiating.close().closed).toBe(true)
+      expect(await initiating.result).toMatchObject({ code: 'ACP_HISTORY_CANCELLED' })
+      expect(activeReads[0]?.signal?.aborted).toBe(false)
+
+      const skipped = startRead(first, 'skipped')
+      await vi.waitFor(() => expect(waitersFor('skipped')).toBe(1))
+      expect(skipped.close().closed).toBe(true)
+      expect(await skipped.result).toMatchObject({ code: 'ACP_HISTORY_CANCELLED' })
+      activeReads[0]!.finish([])
+      expect(await other.result).toMatchObject({ kind: 'inline', response: { events: [] } })
+
+      const abandoned = startRead(first, 'reopened')
+      await vi.waitFor(() => expect(activeReads.map(read => read.sessionId)).toEqual(['shared', 'reopened']))
+      expect(abandoned.close().closed).toBe(true)
+      expect(await abandoned.result).toMatchObject({ code: 'ACP_HISTORY_CANCELLED' })
+      expect(activeReads[1]?.signal?.aborted).toBe(true)
+      const next = startRead(second, 'reopened')
+      await vi.waitFor(() => expect(waitersFor('reopened')).toBe(1))
+      expect(history).toHaveBeenCalledTimes(2)
+      activeReads[1]!.finish([{ old: true }])
+      await vi.waitFor(() => expect(activeReads).toHaveLength(3))
+      expect(activeReads[2]?.signal?.aborted).toBe(false)
+      activeReads[2]!.finish([{ fresh: true }])
+      expect(await next.result).toMatchObject({ kind: 'inline', response: { events: [{ fresh: true }] } })
+      expect(() => first.readTransfer({ transferId: abandoned.open.transferId, index: 0 })).toThrow()
+    } finally {
+      await first.closeAll()
+      await second.closeAll()
+      for (const read of activeReads) read.finish([])
+      await gateway.close()
+    }
+  })
+
+  it('releases cancelled transfer slots even while catalog lookup is blocked', async () => {
+    const cwd = await realpath(process.cwd())
+    type Catalog = { sessions: Array<{ sessionId: string; cwd: string }> }
+    let finishCatalog!: (catalog: Catalog) => void
+    const catalog = new Promise<Catalog>(resolve => { finishCatalog = resolve })
+    const history = vi.fn(async () => [])
+    const adapter = Object.assign(readyAcp(), { history })
+    adapter.call = vi.fn(async method => method === 'session/list' ? catalog : {})
+    const gateway = new AcpRemoteGateway(
+      { enabled: true, backends: [{ id: 'antigravity', enabled: true, command: 'fixture', args: [] }] },
+      silentLogger(),
+      () => adapter,
+    )
+    await gateway.start()
+    const peer = gateway.createPeer({ connectionId: 'reader', peerDeviceId: 'device' }, async () => undefined)!
+    const startRead = (sessionId: string) => {
+      const transferId = randomUUID()
+      const request = Buffer.from(JSON.stringify({ method: 'dsh/sessionHistory', params: { backend: 'antigravity', sessionId } }))
+      peer.openTransfer({ transferId, totalBytes: request.byteLength, totalChunks: 1 })
+      peer.appendTransfer({ transferId, index: 0, data: request.toString('base64') })
+      const result = peer.commitTransfer({ transferId }).catch((error: unknown) => error)
+      return { result, close: () => peer.closeTransfer({ transferId }) }
+    }
+    try {
+      const first = startRead('first')
+      const second = startRead('second')
+      await vi.waitFor(() => expect(adapter.call).toHaveBeenCalledWith('session/list', expect.anything()))
+      expect(first.close().closed).toBe(true)
+      expect(second.close().closed).toBe(true)
+      expect(await first.result).toMatchObject({ code: 'ACP_HISTORY_CANCELLED' })
+      expect(await second.result).toMatchObject({ code: 'ACP_HISTORY_CANCELLED' })
+      const latest = startRead('latest')
+      finishCatalog({ sessions: ['first', 'second', 'latest'].map(sessionId => ({ sessionId, cwd })) })
+      expect(await latest.result).toMatchObject({ kind: 'inline', response: { events: [] } })
+      expect(history.mock.calls).toEqual([['latest', cwd, expect.any(AbortSignal)]])
+    } finally {
+      finishCatalog({ sessions: [] })
+      await peer.closeAll()
       await gateway.close()
     }
   })
@@ -935,7 +1066,7 @@ describe('AcpRemoteGateway', () => {
           )
           await gateway.call('conn-sub', {
             method: 'session/new',
-            params: { cwd: '/tmp', mcpServers: [] },
+            params: { cwd: process.cwd(), mcpServers: [] },
           })
           await peer!.openStream({ streamId: 'stream-sub', sessionId: 'sess-sub' })
           inbound?.({
@@ -988,7 +1119,7 @@ describe('AcpRemoteGateway', () => {
           expect(peer).toBeDefined()
           await gateway.call('conn-1', {
             method: 'session/new',
-            params: { cwd: '/tmp', mcpServers: [] },
+            params: { cwd: process.cwd(), mcpServers: [] },
           })
           await peer!.openStream({ streamId: 'stream-1', sessionId: 'sess-1' })
 
@@ -1062,7 +1193,7 @@ describe('AcpRemoteGateway', () => {
           expect(peer).toBeDefined()
           await gateway.call('conn-burst', {
             method: 'session/new',
-            params: { cwd: '/tmp', mcpServers: [] },
+            params: { cwd: process.cwd(), mcpServers: [] },
           })
           await peer!.openStream({ streamId: 'stream-burst', sessionId: 'sess-burst' })
 
@@ -1113,7 +1244,7 @@ describe('AcpRemoteGateway', () => {
           await gateway.start()
           await gateway.call('conn-buffer', {
             method: 'session/new',
-            params: { cwd: '/tmp', mcpServers: [] },
+            params: { cwd: process.cwd(), mcpServers: [] },
           })
 
           // Drop the peer so live publish has nowhere to go.
@@ -1142,19 +1273,186 @@ describe('AcpRemoteGateway', () => {
           )
           expect(peer).toBeDefined()
           await peer!.openStream({ streamId: 'stream-buffer', sessionId: 'sess-buffer' })
-          await vi.waitFor(() => {
-            expect(
-              frames.some((frame) => {
-                if (frame.event !== 'agent.acp.frame') return false
-                const data = frame.data as { frame?: { params?: { update?: { sessionUpdate?: string } } } }
-                return data.frame?.params?.update?.sessionUpdate === 'agent_message_chunk'
-              }),
-            ).toBe(true)
-          })
+            await vi.waitFor(() => {
+              expect(
+                frames.some((frame) => {
+                  if (frame.event !== 'agent.acp.frame') return false
+                  const data = frame.data as { frame?: { params?: { update?: { sessionUpdate?: string } } } }
+                  return data.frame?.params?.update?.sessionUpdate === 'agent_message_chunk'
+                }),
+              ).toBe(true)
+            })
+          },
         },
-      },
     ])
   }, 20000)
+
+  it('does not buffer oversized ACP frames into recentFrames on live or offline publish', async () => {
+    const cwd = await realpath(process.cwd())
+    let inbound:
+      | ((message: { kind: 'notification'; method: string; params: unknown }) => void)
+      | undefined
+    const acp = readyAcp()
+    acp.onInbound = (handler) => {
+      inbound = handler as typeof inbound
+      return () => undefined
+    }
+    acp.call = vi.fn(async (method: string) => {
+      if (method === 'session/new') return { sessionId: 'sess-oversized' }
+      return {}
+    })
+    const gateway = new AcpRemoteGateway(
+      { enabled: true, backends: [{ id: 'cursor', enabled: true, command: 'agent', args: ['acp'] }] },
+      silentLogger(),
+      () => acp,
+    )
+    await gateway.start()
+    const baseFrame = {
+      method: 'session/update',
+      params: {
+        sessionId: 'sess-oversized',
+        update: { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: '' } },
+      },
+    }
+    const bareBaseBytes = Buffer.byteLength(JSON.stringify({ streamId: 'session:sess-oversized', frame: baseFrame }))
+    const boundaryText = 'x'.repeat(MAX_SECURE_MESSAGE_BYTES - bareBaseBytes - 60)
+    const boundaryParams = {
+      sessionId: 'sess-oversized',
+      update: { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: boundaryText } },
+    }
+    expect(Buffer.byteLength(JSON.stringify({
+      streamId: 'session:sess-oversized',
+      frame: { method: 'session/update', params: boundaryParams },
+    }))).toBeLessThanOrEqual(MAX_SECURE_MESSAGE_BYTES)
+    expect(encodeMessage(createEvent('agent.acp.frame', {
+      streamId: 'session:sess-oversized',
+      frame: { method: 'session/update', params: boundaryParams },
+    })).byteLength).toBeGreaterThan(MAX_SECURE_MESSAGE_BYTES)
+    const firstEvents: Array<{ event: string; data: unknown }> = []
+    const first = gateway.createPeer(
+      { connectionId: 'conn-oversized-1', peerDeviceId: 'client-1' },
+      async (event, data) => { firstEvents.push({ event, data }) },
+    )!
+    try {
+      await gateway.call('conn-oversized-1', {
+        method: 'session/new',
+        params: { cwd, mcpServers: [] },
+      })
+      await first.openStream({ streamId: 'stream-1', sessionId: 'sess-oversized' })
+
+      inbound?.({
+        kind: 'notification',
+        method: 'session/update',
+        params: boundaryParams,
+      })
+      await (gateway as unknown as { inboundChain: Promise<void> }).inboundChain
+      expect(firstEvents).toEqual([
+        {
+          event: 'agent.acp.stream.closed',
+          data: { streamId: 'stream-1', reason: 'failed' },
+        },
+      ])
+      expect(
+        (gateway as unknown as { recentFrames: Map<string, unknown[]> }).recentFrames.get('sess-oversized'),
+      ).toBeUndefined()
+
+      await first.closeAll()
+      inbound?.({
+        kind: 'notification',
+        method: 'session/update',
+        params: boundaryParams,
+      })
+      inbound?.({
+        kind: 'notification',
+        method: 'session/update',
+        params: {
+          sessionId: 'sess-oversized',
+          update: { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'ok' } },
+        },
+      })
+      await (gateway as unknown as { inboundChain: Promise<void> }).inboundChain
+
+      const replayed: Array<{ event: string; data: unknown }> = []
+      const second = gateway.createPeer(
+        { connectionId: 'conn-oversized-2', peerDeviceId: 'client-1' },
+        async (event, data) => { replayed.push({ event, data }) },
+      )!
+      await second.openStream({ streamId: 'stream-2', sessionId: 'sess-oversized' })
+      expect(replayed).toHaveLength(1)
+      expect(replayed[0]).toMatchObject({
+        event: 'agent.acp.frame',
+        data: {
+          frame: {
+            method: 'session/update',
+            params: { update: { content: { text: 'ok' } } },
+          },
+        },
+      })
+      await second.closeAll()
+    } finally {
+      await gateway.close()
+    }
+  }, 15000)
+
+  it('cleans up outgoingTransfers after reading the final chunk across sequential large ACP responses', async () => {
+    const cwd = await realpath(process.cwd())
+    const largeText = 'b'.repeat(2_200_000)
+    const acp = readyAcp() as CursorAcpLike & { history?: (sessionId: string, cwd: string) => Promise<unknown[]> }
+    acp.call = vi.fn(async (method: string) => {
+      if (method === 'session/new') return { sessionId: 'sess-transfer' }
+      return {}
+    })
+    acp.history = vi.fn(async () => [{ type: 'assistant/message', data: { text: largeText } }])
+    const gateway = new AcpRemoteGateway(
+      { enabled: true, backends: [{ id: 'cursor', enabled: true, command: 'agent', args: ['acp'] }] },
+      silentLogger(),
+      () => acp,
+    )
+    await gateway.start()
+    const peer = gateway.createPeer(
+      { connectionId: 'conn-transfer', peerDeviceId: 'client-1' },
+      async () => undefined,
+    )!
+    try {
+      const requestBytes = new TextEncoder().encode(JSON.stringify({
+        method: 'dsh/sessionHistory',
+        params: { sessionId: 'sess-transfer', backend: 'cursor' },
+      }))
+      const totalRequestChunks = Math.ceil(requestBytes.byteLength / AGENT_ACP_TRANSFER_CHUNK_BYTES)
+      await gateway.call('conn-transfer', { method: 'session/new', params: { cwd, mcpServers: [] } })
+      for (let round = 0; round < 4; round += 1) {
+        const transferId = randomUUID()
+        peer.openTransfer({ transferId, totalBytes: requestBytes.byteLength, totalChunks: totalRequestChunks })
+        for (let index = 0; index < totalRequestChunks; index += 1) {
+          const start = index * AGENT_ACP_TRANSFER_CHUNK_BYTES
+          const end = Math.min(start + AGENT_ACP_TRANSFER_CHUNK_BYTES, requestBytes.byteLength)
+          peer.appendTransfer({
+            transferId,
+            index,
+            data: Buffer.from(requestBytes.subarray(start, end)).toString('base64'),
+          })
+        }
+        const committed = await peer.commitTransfer({ transferId })
+        expect(committed.kind).toBe('chunked')
+        if (committed.kind !== 'chunked') throw new Error('expected chunked response')
+        const parts: Uint8Array[] = []
+        for (let index = 0; index < committed.totalChunks; index += 1) {
+          const chunk = peer.readTransfer({ transferId, index })
+          parts.push(Buffer.from(chunk.data, 'base64'))
+        }
+        const decoded = JSON.parse(Buffer.concat(parts).toString('utf8')) as {
+          events: Array<{ data: { text: string } }>
+        }
+        expect(decoded.events[0]!.data.text.length).toBe(largeText.length)
+        if (round === 3) {
+          expect(peer.closeTransfer({ transferId })).toEqual({ closed: false, transferId })
+        }
+      }
+    } finally {
+      await peer.closeAll()
+      await gateway.close()
+    }
+  }, 15000)
 
   it('only reports antigravity in availableBackends when cursor binary is unavailable', async () => {
     const gateway = new AcpRemoteGateway(
@@ -1178,14 +1476,812 @@ describe('AcpRemoteGateway', () => {
     expect(init.backend).toBe('antigravity')
     expect(init.availableBackends).toEqual(['antigravity'])
   })
+
+  it('transitions gateway state to unavailable when backend restart attempts are exhausted', async () => {
+    await runScenarios([
+      {
+        name: 'exhausts retry budget after repeated restart failures',
+        run: async () => {
+          let triggerUnavailable!: (code: string) => void
+          let firstReady = true
+          const initial = readyAcp()
+          initial.isReady = () => firstReady
+          initial.onUnavailable = listener => {
+            triggerUnavailable = listener
+            return () => undefined
+          }
+          let launches = 0
+          const gateway = new AcpRemoteGateway(
+            { enabled: true, backends: [{ id: 'cursor', enabled: true, command: '/explicit/agent', args: ['acp'] }] },
+            silentLogger(),
+            () => {
+              launches += 1
+              if (launches === 1) return initial
+              const failing = readyAcp()
+              failing.isReady = () => false
+              failing.start = vi.fn(async () => { throw new Error('boom') })
+              return failing
+            },
+            [5, 5],
+          )
+          await gateway.start()
+          try {
+            expect(gateway.status().state).toBe('ready')
+            firstReady = false
+            triggerUnavailable('CURSOR_CRASHED')
+            await vi.waitFor(() => {
+              expect(gateway.status()).toMatchObject({
+                enabled: true,
+                available: false,
+                state: 'unavailable',
+                restartAttempt: 2,
+                error: 'CURSOR_CRASHED',
+                availableBackends: [],
+              })
+            })
+            expect(launches).toBe(3)
+          } finally { await gateway.close() }
+        },
+      },
+      {
+        name: 'marks state unavailable immediately when restart budget is empty',
+        run: async () => {
+          let triggerUnavailable!: (code: string) => void
+          let ready = true
+          const initial = readyAcp()
+          initial.isReady = () => ready
+          initial.onUnavailable = listener => {
+            triggerUnavailable = listener
+            return () => undefined
+          }
+          const gateway = new AcpRemoteGateway(
+            { enabled: true, backends: [{ id: 'cursor', enabled: true, command: '/explicit/agent', args: ['acp'] }] },
+            silentLogger(),
+            () => initial,
+            [],
+          )
+          await gateway.start()
+          try {
+            ready = false
+            triggerUnavailable('CURSOR_CRASHED')
+            await vi.waitFor(() => {
+              expect(gateway.status()).toMatchObject({
+                enabled: true,
+                available: false,
+                state: 'unavailable',
+                restartAttempt: 0,
+                error: 'CURSOR_CRASHED',
+              })
+            })
+          } finally { await gateway.close() }
+        },
+      },
+    ])
+  })
+
+  it('reconfigure waits for an in-flight backend launch and activates the new config', async () => {
+    let triggerUnavailable!: (code: string) => void
+    let initialReady = true
+    const initial = readyAcp()
+    initial.isReady = () => initialReady
+    initial.onUnavailable = listener => {
+      triggerUnavailable = listener
+      return () => undefined
+    }
+
+    let finishRestartStart!: () => void
+    const restarting = readyAcp()
+    restarting.start = vi.fn(() => new Promise<void>(resolve => { finishRestartStart = resolve }))
+    restarting.close = vi.fn(async () => {
+      // Simulate asynchronous teardown after close() resolves so the old launch
+      // promise remains in gateway.launching past stoppingClients.
+      setTimeout(() => finishRestartStart(), 15)
+    })
+
+    const replacement = readyAcp()
+    replacement.call = vi.fn(async method => method === 'session/new' ? { sessionId: 'reconfigured-session' } : {})
+
+    let oldLaunchCount = 0
+    const factory = vi.fn((binary: string) => {
+      if (binary === '/new/agent') return replacement
+      oldLaunchCount += 1
+      return oldLaunchCount === 1 ? initial : restarting
+    })
+    const gateway = new AcpRemoteGateway(
+      { enabled: true, backends: [{ id: 'cursor', enabled: true, command: '/old/agent', args: ['acp'] }] },
+      silentLogger(),
+      factory,
+      [1],
+    )
+    await gateway.start()
+    try {
+      initialReady = false
+      triggerUnavailable('CURSOR_CRASHED')
+      await vi.waitFor(() => expect(restarting.start).toHaveBeenCalledOnce())
+      await gateway.reconfigure({
+        enabled: true,
+        backends: [{ id: 'cursor', enabled: true, command: '/new/agent', args: ['acp'] }],
+      })
+      expect(restarting.close).toHaveBeenCalled()
+      expect(replacement.start).toHaveBeenCalledOnce()
+      expect(gateway.isAvailable()).toBe(true)
+      expect(gateway.availableBackends()).toEqual(['cursor'])
+      await expect(gateway.call('owner', { method: 'session/new', params: { backend: 'cursor', cwd: process.cwd() } }))
+        .resolves.toMatchObject({ sessionId: 'reconfigured-session' })
+    } finally {
+      finishRestartStart?.()
+      await gateway.close()
+    }
+  })
+
+  it('does not lock session ownership or poison backend binding when session/load fails', async () => {
+    const cwd = await realpath(process.cwd())
+    let failCursorLoad = true
+    let returnCollidingId = false
+    const cursor = readyAcp()
+    cursor.call = vi.fn(async (method, params) => {
+      if (method === 'session/new') return { sessionId: 'owned-session' }
+      if (method === 'session/load') {
+        if (failCursorLoad) throw new RpcError('CURSOR_UNAVAILABLE', 'upstream load failed')
+        if (returnCollidingId) return { sessionId: 'different-session' }
+        return { sessionId: (params as { sessionId: string }).sessionId }
+      }
+      return {}
+    })
+    const claude = readyAcp()
+    claude.call = vi.fn(async method => {
+      if (method === 'session/list') return { sessions: [{ sessionId: 'wrong-backend-session', cwd }] }
+      if (method === 'session/load') return { sessionId: 'wrong-backend-session' }
+      return {}
+    })
+    const gateway = new AcpRemoteGateway(
+      {
+        enabled: true,
+        backends: [
+          { id: 'cursor', enabled: true, command: 'agent', args: ['acp'] },
+          { id: 'claude', enabled: true, command: 'claude', args: [] },
+        ],
+      },
+      silentLogger(),
+      (_binary, _logger, backend) => backend.id === 'cursor' ? cursor : claude,
+    )
+    await gateway.start()
+    try {
+      await expect(gateway.call('conn-1', { method: 'session/load', params: { backend: 'cursor', sessionId: 'retryable' } }))
+        .rejects.toMatchObject({ code: 'CURSOR_UNAVAILABLE' })
+      // A failed load on an unowned session must not lock out another peer.
+      failCursorLoad = false
+      await expect(gateway.call('conn-2', { method: 'session/load', params: { backend: 'cursor', sessionId: 'retryable' } }))
+        .resolves.toMatchObject({ sessionId: 'retryable' })
+
+      // A failed load on the wrong backend must not poison sessionBackends.
+      failCursorLoad = true
+      await expect(gateway.call('conn-1', { method: 'session/load', params: { backend: 'cursor', sessionId: 'wrong-backend-session' } }))
+        .rejects.toMatchObject({ code: 'CURSOR_UNAVAILABLE' })
+      await expect(gateway.call('conn-2', { method: 'session/load', params: { backend: 'claude', sessionId: 'wrong-backend-session' } }))
+        .resolves.toMatchObject({ sessionId: 'wrong-backend-session' })
+
+      // A session ID collision during load must not lock ownership either.
+      failCursorLoad = false
+      returnCollidingId = true
+      await expect(gateway.call('conn-1', { method: 'session/load', params: { backend: 'cursor', sessionId: 'colliding' } }))
+        .rejects.toMatchObject({ code: 'ACP_SESSION_COLLISION' })
+      returnCollidingId = false
+      await expect(gateway.call('conn-2', { method: 'session/load', params: { backend: 'cursor', sessionId: 'colliding' } }))
+        .resolves.toMatchObject({ sessionId: 'colliding' })
+
+      // An already-owned session must keep its legitimate owner when reload fails.
+      await gateway.call('owner', { method: 'session/new', params: { backend: 'cursor', cwd } })
+      failCursorLoad = true
+      await expect(gateway.call('owner', { method: 'session/load', params: { backend: 'cursor', sessionId: 'owned-session' } }))
+        .rejects.toMatchObject({ code: 'CURSOR_UNAVAILABLE' })
+      failCursorLoad = false
+      await expect(gateway.call('other', { method: 'session/load', params: { backend: 'cursor', sessionId: 'owned-session' } }))
+        .rejects.toMatchObject({ code: 'CURSOR_SESSION_OWNED' })
+    } finally { await gateway.close() }
+  })
+
+  it('routes dsh/sessionHistory without explicit backend by public sessionId prefix', async () => {
+    const cwd = await realpath(process.cwd())
+    const cursor = readyAcp()
+    cursor.call = vi.fn(async method => method === 'session/new' ? { sessionId: 'cursor-bound' } : {})
+
+    let enteredHistory!: () => void
+    let releaseHistory!: () => void
+    let pauseHistory = false
+    const historyEvents = [{ method: 'session/update', params: { sessionId: 'saved' } }]
+    const claudeHistory = vi.fn(async () => {
+      if (pauseHistory) {
+        enteredHistory()
+        await new Promise<void>(resolve => { releaseHistory = resolve })
+      }
+      return historyEvents
+    })
+    const claude = Object.assign(readyAcp(), { history: claudeHistory })
+    claude.call = vi.fn(async method => method === 'session/list' ? { sessions: [{ sessionId: 'saved', cwd }] } : {})
+
+    const nextClaude = Object.assign(readyAcp(), { history: vi.fn(async () => []) })
+    nextClaude.call = vi.fn(async method => method === 'session/list' ? { sessions: [{ sessionId: 'saved', cwd }] } : {})
+
+    const config = {
+      enabled: true,
+      backends: [
+        { id: 'cursor', enabled: true, command: 'agent', args: ['acp'] },
+        { id: 'claude', enabled: true, command: 'claude-v1', args: [] },
+      ],
+    }
+    const gateway = new AcpRemoteGateway(
+      config,
+      silentLogger(),
+      (binary, _logger, backend) => backend.id === 'cursor' ? cursor : binary === 'claude-v1' ? claude : nextClaude,
+    )
+    await gateway.start()
+    try {
+      expect(gateway.defaultBackend()).toBe('cursor')
+      await expect(gateway.call('reader', {
+        method: 'dsh/sessionHistory',
+        params: { sessionId: 'claude:saved' },
+      })).resolves.toEqual({ events: historyEvents, running: false })
+      expect(claudeHistory).toHaveBeenCalledWith('saved', cwd)
+      expect(cursor.call).not.toHaveBeenCalled()
+
+      // Prefix conflicting with an already-bound backend must still fail closed.
+      await gateway.call('owner', { method: 'session/new', params: { backend: 'cursor', cwd } })
+      await expect(gateway.call('reader', {
+        method: 'dsh/sessionHistory',
+        params: { sessionId: 'claude:cursor-bound' },
+      })).rejects.toMatchObject({ code: 'INVALID_MESSAGE' })
+
+      // Call scope must track the resolved claude backend rather than defaultBackend().
+      pauseHistory = true
+      const historyEntered = new Promise<void>(resolve => { enteredHistory = resolve })
+      const pending = gateway.call('reader', {
+        method: 'dsh/sessionHistory',
+        params: { sessionId: 'claude:saved' },
+      }).then(result => ({ result, error: undefined }), error => ({ result: undefined, error }))
+      await historyEntered
+      await gateway.reconfigure({
+        ...config,
+        backends: [
+          config.backends[0]!,
+          { id: 'claude', enabled: true, command: 'claude-v2', args: [] },
+        ],
+      })
+      releaseHistory()
+      expect((await pending).error).toMatchObject({ code: 'CURSOR_UNAVAILABLE' })
+    } finally {
+      releaseHistory?.()
+      await gateway.close()
+    }
+  })
+
+  it('does not buffer oversized frames or pollute turnCatchUp so reconnect and prompt_completed stay healthy', async () => {
+    let inbound!: (message: CursorAcpInbound) => void
+    let resolvePrompt!: (value: unknown) => void
+    const acp = readyAcp()
+    acp.onInbound = listener => {
+      inbound = listener
+      return () => undefined
+    }
+    acp.call = vi.fn(async method => {
+      if (method === 'session/new') return { sessionId: 'sess-oversized' }
+      if (method === 'session/prompt') return new Promise(resolve => { resolvePrompt = resolve })
+      return {}
+    })
+    const gateway = new AcpRemoteGateway(
+      { enabled: true, backends: [{ id: 'cursor', enabled: true, command: 'agent', args: ['acp'] }] },
+      silentLogger(),
+      () => acp,
+    )
+    await gateway.start()
+    try {
+      const peer1Events: Array<{ event: string; data: unknown }> = []
+      let publishError: Error | undefined
+      const peer1 = gateway.createPeer(
+        { connectionId: 'conn-1', peerDeviceId: 'client-1' },
+        async (event, data) => {
+          if (publishError !== undefined && event === 'agent.acp.frame') {
+            throw publishError
+          }
+          peer1Events.push({ event, data })
+        },
+      )!
+      await gateway.call('conn-1', { method: 'session/new', params: { backend: 'cursor', cwd: process.cwd() } })
+      await peer1.openStream({ streamId: 'stream-1', sessionId: 'sess-oversized' })
+
+      // Construct a frame whose raw data JSON fits under MAX_SECURE_MESSAGE_BYTES
+      // (within (MAX - 127, MAX]), yet exceeds MAX_SECURE_MESSAGE_BYTES once
+      // wrapped in createEvent('agent.acp.frame', data).
+      const emptyFrame = {
+        method: 'session/update',
+        params: {
+          sessionId: 'sess-oversized',
+          update: { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: '' } },
+        },
+      }
+      const emptyDataBytes = new TextEncoder().encode(JSON.stringify({ streamId: 'session:sess-oversized', frame: emptyFrame })).byteLength
+      const boundaryText = 'b'.repeat(MAX_SECURE_MESSAGE_BYTES - emptyDataBytes - 32)
+      const boundaryFrame = {
+        method: 'session/update',
+        params: {
+          sessionId: 'sess-oversized',
+          update: { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: boundaryText } },
+        },
+      }
+      const boundaryData = { streamId: 'session:sess-oversized', frame: boundaryFrame }
+      const rawBoundaryBytes = new TextEncoder().encode(JSON.stringify(boundaryData)).byteLength
+      const envelopeBoundaryBytes = encodeMessage(createEvent('agent.acp.frame', boundaryData)).byteLength
+      expect(rawBoundaryBytes).toBeGreaterThan(MAX_SECURE_MESSAGE_BYTES - 127)
+      expect(rawBoundaryBytes).toBeLessThanOrEqual(MAX_SECURE_MESSAGE_BYTES)
+      expect(envelopeBoundaryBytes).toBeGreaterThan(MAX_SECURE_MESSAGE_BYTES)
+
+      inbound({ kind: 'notification', ...boundaryFrame })
+      await (gateway as unknown as { inboundChain: Promise<void> }).inboundChain
+
+      expect(peer1Events.some(item => item.event === 'agent.acp.frame')).toBe(false)
+      expect(peer1Events).toContainEqual({
+        event: 'agent.acp.stream.closed',
+        data: { streamId: 'stream-1', reason: 'failed' },
+      })
+      const recentFrames = (gateway as unknown as { recentFrames: Map<string, unknown[]> }).recentFrames
+      expect(recentFrames.get('sess-oversized')).toBeUndefined()
+
+      // Transport/codec oversized errors (including SecureMessageCodec un-coded Error and cause chain) must not be buffered.
+      const codec = new SecureMessageCodec()
+      let codecError!: Error
+      try { codec.encode(new Uint8Array(MAX_SECURE_MESSAGE_BYTES + 1)) } catch (err) { codecError = err as Error }
+      for (const err of [
+        new RpcError('RESPONSE_TOO_LARGE', 'transport frame limit exceeded'),
+        Object.assign(new Error('frame too large'), { code: 'FRAME_TOO_LARGE' }),
+        Object.assign(new Error('payload too large'), { code: 'PAYLOAD_TOO_LARGE' }),
+        codecError,
+        new Error('wrapped codec failure', { cause: codecError }),
+      ]) {
+        publishError = err
+        inbound({
+          kind: 'notification',
+          method: 'session/update',
+          params: {
+            sessionId: 'sess-oversized',
+            update: { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'transport-too-large' } },
+          },
+        })
+        await (gateway as unknown as { inboundChain: Promise<void> }).inboundChain
+        expect(recentFrames.get('sess-oversized')).toBeUndefined()
+      }
+      publishError = undefined
+
+      // While disconnected, envelope-boundary oversized frames are dropped and normal frames are buffered.
+      gateway.dropPeer('conn-1')
+      inbound({ kind: 'notification', ...boundaryFrame })
+      inbound({
+        kind: 'notification',
+        method: 'session/update',
+        params: {
+          sessionId: 'sess-oversized',
+          update: { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'healthy-after-oversized' } },
+        },
+      })
+      await (gateway as unknown as { inboundChain: Promise<void> }).inboundChain
+      expect(recentFrames.get('sess-oversized')).toHaveLength(1)
+
+      const peer2Events: Array<{ event: string; data: unknown }> = []
+      const peer2 = gateway.createPeer(
+        { connectionId: 'conn-2', peerDeviceId: 'client-1' },
+        async (event, data) => { peer2Events.push({ event, data }) },
+      )!
+      await expect(peer2.openStream({ streamId: 'stream-2', sessionId: 'sess-oversized' }))
+        .resolves.toEqual({ opened: true, streamId: 'stream-2', sessionId: 'sess-oversized' })
+      expect(peer2.hasStreamFor('sess-oversized')).toBe(true)
+      expect(peer2Events.some(item => item.event === 'agent.acp.stream.closed')).toBe(false)
+      expect(peer2Events).toContainEqual({
+        event: 'agent.acp.frame',
+        data: {
+          streamId: 'session:sess-oversized',
+          frame: {
+            method: 'session/update',
+            params: {
+              sessionId: 'sess-oversized',
+              update: { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'healthy-after-oversized' } },
+            },
+          },
+        },
+      })
+
+      // During an active prompt, an oversized chunk must not enter turnCatchUp,
+      // and combined catchUp exceeding MAX_SECURE_MESSAGE_BYTES must be trimmed
+      // so prompt_completed still delivers safely without closing the stream.
+      peer2Events.length = 0
+      await gateway.call('conn-2', {
+        method: 'session/prompt',
+        params: { backend: 'cursor', sessionId: 'sess-oversized', prompt: [{ type: 'text', text: 'go' }] },
+      })
+      inbound({ kind: 'notification', ...boundaryFrame })
+      await (gateway as unknown as { inboundChain: Promise<void> }).inboundChain
+      const turnCatchUp = (gateway as unknown as { turnCatchUp: Map<string, unknown[]> }).turnCatchUp
+      expect(turnCatchUp.get('sess-oversized')).toEqual([])
+
+      // Reopen stream after the oversized frame closed stream-2, then send 3 legal chunks (~1.6 MiB each, ~4.8 MiB combined).
+      peer2Events.length = 0
+      await peer2.openStream({ streamId: 'stream-3', sessionId: 'sess-oversized' })
+      const chunkText = 'c'.repeat(1_600_000)
+      for (const label of ['chunk-1', 'chunk-2', 'chunk-3']) {
+        inbound({
+          kind: 'notification',
+          method: 'session/update',
+          params: {
+            sessionId: 'sess-oversized',
+            update: { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: `${label}:${chunkText}` } },
+          },
+        })
+      }
+      resolvePrompt({ stopReason: 'end_turn' })
+      await vi.waitFor(() => {
+        expect(peer2Events.some(item => {
+          if (item.event !== 'agent.acp.frame') return false
+          const data = item.data as { frame?: { params?: { update?: { sessionUpdate?: string } } } }
+          return data.frame?.params?.update?.sessionUpdate === 'prompt_completed'
+        })).toBe(true)
+      })
+      expect(peer2.hasStreamFor('sess-oversized')).toBe(true)
+      expect(peer2Events.some(item => item.event === 'agent.acp.stream.closed')).toBe(false)
+      const completedEvent = peer2Events.find(item => {
+        if (item.event !== 'agent.acp.frame') return false
+        const data = item.data as { frame?: { params?: { update?: { sessionUpdate?: string } } } }
+        return data.frame?.params?.update?.sessionUpdate === 'prompt_completed'
+      })!
+      const completedData = completedEvent.data as {
+        streamId: string
+        frame: { method: string; params: { update: { stopReason: string; catchUp?: Array<{ params: { update: { content: { text: string } } } }> } } }
+      }
+      expect(encodeMessage(createEvent('agent.acp.frame', completedData)).byteLength).toBeLessThanOrEqual(MAX_SECURE_MESSAGE_BYTES)
+      expect(completedData.frame.params.update.stopReason).toBe('end_turn')
+      expect(completedData.frame.params.update.catchUp).toHaveLength(2)
+      expect(completedData.frame.params.update.catchUp?.[0]?.params.update.content.text.startsWith('chunk-2:')).toBe(true)
+      expect(completedData.frame.params.update.catchUp?.[1]?.params.update.content.text.startsWith('chunk-3:')).toBe(true)
+    } finally {
+      resolvePrompt?.({ stopReason: 'end_turn' })
+      await gateway.close()
+    }
+  })
+
+  it('serves cached read-only models/modes from history without loading the live session and reports running authority', async () => {
+    const cwd = await realpath(process.cwd())
+    let loaded = false
+    let cachedMeta: { models?: unknown; modes?: { currentModeId?: string; availableModes: Array<{ id: string; name: string }> }; commands?: unknown[] } | undefined
+    const cachedModels = {
+      providers: [{ id: 'antigravity', name: 'Antigravity', models: [{ id: 'gemini-3-pro', name: 'Gemini 3 Pro' }] }],
+      selected: { provider: 'antigravity', model: 'gemini-3-pro' },
+    }
+    const cachedModes = {
+      currentModeId: 'agent',
+      availableModes: [{ id: 'agent', name: 'Agent' }],
+    }
+    const history = vi.fn(async () => {
+      cachedMeta = { models: cachedModels, modes: cachedModes }
+      return []
+    })
+    let resolvePrompt!: (value: unknown) => void
+    const acp = Object.assign(readyAcp(), {
+      history,
+      isSessionLoaded: vi.fn(() => loaded),
+      lastHistoryMetadata: vi.fn(() => cachedMeta),
+      invalidateHistoryMetadata: vi.fn(() => { cachedMeta = undefined }),
+    })
+    acp.call = vi.fn(async (method: string) => {
+      if (method === 'session/list') return { sessions: [{ sessionId: 'saved-agy', cwd }] }
+      if (method === 'session/load') { loaded = true; cachedMeta = undefined; return { sessionId: 'saved-agy' } }
+      if (method === 'session/prompt') return new Promise(resolve => { resolvePrompt = resolve })
+      if (method === 'dsh/selectModel') return { selected: { provider: 'antigravity', model: 'gemini-3-pro' } }
+      return {}
+    })
+    const gateway = new AcpRemoteGateway(
+      { enabled: true, backends: [{ id: 'antigravity', enabled: true, command: 'agy', args: ['acp'] }] },
+      silentLogger(),
+      () => acp,
+    )
+    await gateway.start()
+    try {
+      const historyResult = await gateway.call('owner', {
+        method: 'dsh/sessionHistory',
+        params: { backend: 'antigravity', sessionId: 'antigravity:saved-agy' },
+      }) as { events: unknown[]; running?: boolean; modes?: unknown }
+      expect(historyResult).toMatchObject({ events: [], running: false, modes: cachedModes })
+
+      // Read-only model & mode queries after history must reuse cached metadata without triggering live session/load.
+      await expect(gateway.call('owner', {
+        method: 'dsh/sessionModels',
+        params: { backend: 'antigravity', sessionId: 'saved-agy' },
+      })).resolves.toEqual(cachedModels)
+      await expect(gateway.call('owner', {
+        method: 'dsh/sessionModes',
+        params: { backend: 'antigravity', sessionId: 'saved-agy' },
+      })).resolves.toEqual(cachedModes)
+      expect(acp.call).not.toHaveBeenCalledWith('session/load', expect.anything())
+
+      // Mutating calls still load the live session and invalidate cached metadata.
+      await expect(gateway.call('owner', {
+        method: 'dsh/selectModel',
+        params: { backend: 'antigravity', sessionId: 'saved-agy', model: 'gemini-3-pro' },
+      })).resolves.toBeDefined()
+      expect(acp.call).toHaveBeenCalledWith('session/load', { sessionId: 'saved-agy', cwd, mcpServers: [] })
+
+      // Active prompt makes dsh/sessionHistory report running: true until the turn settles.
+      await gateway.call('owner', {
+        method: 'session/prompt',
+        params: { backend: 'antigravity', sessionId: 'saved-agy', prompt: [{ type: 'text', text: 'hi' }] },
+      })
+      const runningHistory = await gateway.call('owner', {
+        method: 'dsh/sessionHistory',
+        params: { backend: 'antigravity', sessionId: 'antigravity:saved-agy' },
+      }) as { running?: boolean }
+      expect(runningHistory.running).toBe(true)
+
+      resolvePrompt({ stopReason: 'end_turn' })
+      await vi.waitFor(async () => {
+        const doneHistory = await gateway.call('owner', {
+          method: 'dsh/sessionHistory',
+          params: { backend: 'antigravity', sessionId: 'antigravity:saved-agy' },
+        }) as { running?: boolean }
+        expect(doneHistory.running).toBe(false)
+      })
+    } finally {
+      resolvePrompt?.({ stopReason: 'end_turn' })
+      await gateway.close()
+    }
+  })
+
+  it('converts OpenCode and Cursor adapter failures into safe RpcErrors while keeping Antigravity errors fail-closed', async () => {
+    const cwd = await realpath(process.cwd())
+    await runScenarios([
+      {
+        name: 'OPENCODE_HISTORY_TOO_LARGE',
+        backend: 'opencode',
+        error: new OpencodeAcpError('OPENCODE_HISTORY_TOO_LARGE', 'OpenCode history exceeds the transfer limit.'),
+        expectRpc: true,
+        expectedCode: 'OPENCODE_HISTORY_TOO_LARGE',
+      },
+      {
+        name: 'OPENCODE_HISTORY_BUSY',
+        backend: 'opencode',
+        error: new OpencodeAcpError('OPENCODE_HISTORY_BUSY', 'An OpenCode history read is already in progress.'),
+        expectRpc: true,
+        expectedCode: 'OPENCODE_HISTORY_BUSY',
+      },
+      {
+        name: 'OPENCODE_UPSTREAM_ERROR redacts raw guidance',
+        backend: 'opencode',
+        error: new OpencodeAcpError('OPENCODE_UPSTREAM_ERROR', 'secret:/opt/token/leak'),
+        expectRpc: true,
+        expectedCode: 'OPENCODE_UPSTREAM_ERROR',
+        forbiddenSubstring: '/opt/token/leak',
+      },
+      {
+        name: 'CURSOR_UPSTREAM_ERROR auth redacts raw guidance',
+        backend: 'cursor',
+        error: new CursorAcpError('CURSOR_UPSTREAM_ERROR', 'custom-upstream-text:/srv/secret', {
+          authDiagnostic: { authStatus: 'auth_required', errorCode: 'ACP_AUTH_REQUIRED' },
+        }),
+        expectRpc: true,
+        expectedCode: 'CURSOR_UPSTREAM_ERROR',
+        forbiddenSubstring: '/srv/secret',
+      },
+      {
+        name: 'AntigravityAcpError stays internal',
+        backend: 'antigravity',
+        error: new AntigravityAcpError('ANTIGRAVITY_TURN_FAILED', 'RAW_SECRET_PATH'),
+        expectRpc: false,
+        expectedCode: 'INTERNAL_ERROR',
+        forbiddenSubstring: 'RAW_SECRET_PATH',
+      },
+    ].map(scenario => ({
+      name: scenario.name,
+      run: async () => {
+        const acp = readyAcp() as CursorAcpLike & { history?: (sessionId: string, cwd: string) => Promise<unknown[]> }
+        acp.call = vi.fn(async (method: string) => {
+          if (method === 'session/list') {
+            if (scenario.backend === 'cursor') throw scenario.error
+            return { sessions: [{ sessionId: 'sess-1', cwd, updatedAt: new Date().toISOString() }], nextCursor: null }
+          }
+          if (method === 'session/new') {
+            if (scenario.backend === 'antigravity') throw scenario.error
+            return { sessionId: 'sess-1' }
+          }
+          return {}
+        })
+        acp.history = vi.fn(async () => { throw scenario.error })
+        const gateway = new AcpRemoteGateway(
+          { enabled: true, backends: [{ id: scenario.backend, enabled: true, command: 'agent', args: [] }] },
+          silentLogger(),
+          () => acp,
+        )
+        await gateway.start()
+        try {
+          const peer = gateway.createPeer({ connectionId: 'conn-1', peerDeviceId: 'dev-1' } as never, async () => undefined)!
+          const rpcCall = scenario.backend === 'opencode'
+            ? { method: 'dsh/sessionHistory', params: { backend: 'opencode', sessionId: 'opencode:sess-1' } }
+            : scenario.backend === 'cursor'
+              ? { method: 'dsh/workspaceList', params: { backend: 'cursor' } }
+              : { method: 'session/new', params: { backend: 'antigravity', cwd } }
+          let caught: unknown
+          try {
+            await peer.call(rpcCall)
+          } catch (error) {
+            caught = error
+          }
+          expect(caught).toBeInstanceOf(Error)
+          expect(caught instanceof RpcError).toBe(scenario.expectRpc)
+          expect(safeErrorCode(caught)).toBe(scenario.expectedCode)
+          if (scenario.forbiddenSubstring && caught instanceof RpcError) {
+            expect(caught.message).not.toContain(scenario.forbiddenSubstring)
+          }
+        } finally {
+          await gateway.close()
+        }
+      },
+    })))
+  })
+
+  it('normalizes file:// and Windows URI catalog cwds across workspaceList, sessionList, session/load, and history', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-acp-cwd-'))
+    try {
+      const dirA = join(root, 'vue fabric 中文')
+      const dirB = join(root, 'other-proj')
+      await mkdir(dirA, { recursive: true })
+      await mkdir(dirB, { recursive: true })
+      const projA = await realpath(dirA)
+      const projB = await realpath(dirB)
+      const fileUriA = pathToFileURL(projA).href
+
+      const history = vi.fn(async () => [{ method: 'session/update', params: { sessionId: 's-uri' } }])
+      const acp = Object.assign(readyAcp(), { history })
+      acp.call = vi.fn(async (method: string, params: any) => {
+        if (method === 'session/list') {
+          return {
+            sessions: [
+              { sessionId: 's-uri', cwd: fileUriA, title: 'URI Session', updatedAt: '2026-11-25T10:00:00Z' },
+              { sessionId: 's-remote-rejected', cwd: 'file://remote/share/bad' },
+            ],
+            nextCursor: null,
+          }
+        }
+        if (method === 'session/load') return { sessionId: params.sessionId }
+        return {}
+      })
+
+      const gw1 = new AcpRemoteGateway(
+        { enabled: true, backends: [{ id: 'antigravity', enabled: true, command: 'agy', args: ['acp'] }] },
+        silentLogger(),
+        () => acp,
+      )
+      await gw1.start()
+      try {
+        expect(await gw1.call('c1', { method: 'dsh/workspaceList', params: { backend: 'antigravity' } })).toEqual([
+          { path: projA, title: 'vue fabric 中文' },
+        ])
+        await expect(gw1.call('c1', { method: 'dsh/sessionList', params: { backend: 'antigravity', path: projA } })).resolves.toMatchObject({
+          items: [{ conversationId: 's-uri', title: 'URI Session', cwd: projA }],
+        })
+        await gw1.call('c1', { method: 'session/load', params: { backend: 'antigravity', sessionId: 's-uri' } })
+        expect(acp.call).toHaveBeenLastCalledWith('session/load', { backend: 'antigravity', sessionId: 's-uri', cwd: projA, mcpServers: [] })
+        await expect(gw1.call('c1', { method: 'dsh/sessionHistory', params: { backend: 'antigravity', sessionId: 'antigravity:s-uri' } })).resolves.toMatchObject({
+          events: [{ method: 'session/update', params: { sessionId: 's-uri' } }],
+        })
+        expect(history).toHaveBeenCalledWith('s-uri', projA, expect.any(AbortSignal))
+      } finally {
+        await gw1.close()
+      }
+
+      if (process.platform === 'win32') {
+        const toVscodeWinPathname = (p: string) =>
+          `/${p[0]!.toLowerCase()}%3A/${p.slice(3).split('\\').map(seg => encodeURIComponent(seg)).join('/')}`
+        const winEncodedA = toVscodeWinPathname(projA)
+        const winEncodedB = toVscodeWinPathname(projB)
+        const listCalls: Array<unknown> = []
+        const agyWin = Object.assign(readyAcp(), { history: vi.fn(async () => []) })
+        agyWin.call = vi.fn(async (method: string, params: any) => {
+          if (method === 'session/list') {
+            listCalls.push(params)
+            if (params?.cwd) return { sessions: [], nextCursor: null }
+            return {
+              sessions: [
+                { sessionId: 's-win-a', cwd: winEncodedA, title: 'Win A', updatedAt: '2026-11-25T10:00:00Z' },
+                { sessionId: 's-win-b', cwd: winEncodedB, title: 'Win B', updatedAt: '2026-11-25T09:00:00Z' },
+              ],
+              nextCursor: null,
+            }
+          }
+          if (method === 'session/load') return { sessionId: params.sessionId }
+          return {}
+        })
+        const gwWin = new AcpRemoteGateway(
+          { enabled: true, backends: [{ id: 'antigravity', enabled: true, command: 'agy', args: ['acp'] }] },
+          silentLogger(),
+          () => agyWin,
+        )
+        await gwWin.start()
+        try {
+          const workspaces = await gwWin.call('c2', { method: 'dsh/workspaceList', params: { backend: 'antigravity' } }) as Array<{ path: string }>
+          expect(workspaces.map(w => w.path).sort()).toEqual([projA, projB].sort())
+          listCalls.length = 0
+          const listed = await gwWin.call('c2', { method: 'dsh/sessionList', params: { backend: 'antigravity', path: projA } }) as { items: Array<{ conversationId: string; cwd: string }> }
+          expect(listCalls).toEqual([{ cwd: projA }, {}])
+          expect(listed.items).toEqual([expect.objectContaining({ conversationId: 's-win-a', cwd: projA })])
+          await gwWin.call('c2', { method: 'session/load', params: { backend: 'antigravity', sessionId: 's-win-a' } })
+          expect(agyWin.call).toHaveBeenLastCalledWith('session/load', { backend: 'antigravity', sessionId: 's-win-a', cwd: projA, mcpServers: [] })
+        } finally {
+          await gwWin.close()
+        }
+      }
+
+      const claudeListCalls: Array<unknown> = []
+      const claude = Object.assign(readyAcp(), { history: vi.fn(async () => []) })
+      claude.call = vi.fn(async (method: string, params: any) => {
+        if (method === 'session/list') {
+          claudeListCalls.push(params)
+          return { sessions: [], nextCursor: null }
+        }
+        return {}
+      })
+      const gwClaude = new AcpRemoteGateway(
+        { enabled: true, backends: [{ id: 'claude', enabled: true, command: 'claude-agent-acp', args: [] }] },
+        silentLogger(),
+        () => claude,
+      )
+      await gwClaude.start()
+      try {
+        await expect(gwClaude.call('c3', { method: 'dsh/sessionList', params: { backend: 'claude', path: projA } })).resolves.toEqual({ items: [] })
+        expect(claudeListCalls).toEqual([{ cwd: projA }])
+      } finally {
+        await gwClaude.close()
+      }
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
+  it('falls back to default Host workspace for empty antigravity catalog unless deleted', async () => {
+    const storeDir = await mkdtemp(join(tmpdir(), 'dsh-acp-empty-agy-'))
+    const agy = Object.assign(readyAcp(), { history: vi.fn(async () => []) })
+    agy.call = vi.fn(async method => method === 'session/list' ? { sessions: [], nextCursor: null } : {})
+    const gateway = new AcpRemoteGateway(
+      { enabled: true, backends: [{ id: 'antigravity', enabled: true, command: 'agy', args: ['acp'] }] },
+      silentLogger(),
+      () => agy,
+      undefined,
+      undefined,
+      undefined,
+      AcpWorkspaceStore.inDirectory(storeDir),
+    )
+    await gateway.start()
+    try {
+      const expectedDefault = await realpath(process.cwd())
+      const workspaces = await gateway.call('owner', { method: 'dsh/workspaceList', params: { backend: 'antigravity' } }) as Array<{ path: string }>
+      expect(workspaces.some(w => w.path === expectedDefault)).toBe(true)
+      await gateway.call('owner', { method: 'dsh/workspaceDelete', params: { backend: 'antigravity', path: expectedDefault } })
+      expect(await gateway.call('owner', { method: 'dsh/workspaceList', params: { backend: 'antigravity' } })).toEqual([])
+    } finally {
+      await gateway.close()
+      await rm(storeDir, { recursive: true, force: true })
+    }
+  })
 })
 
-async function approvalFixture(backend = 'cursor') {
+async function approvalFixture(backend = 'cursor', detachedApprovalGraceSec?: number) {
   const acp = readyAcp()
   let inbound!: (message: CursorAcpInbound) => void
   acp.onInbound = listener => { inbound = listener; return () => undefined }
   acp.call = vi.fn(async () => ({ sessionId: 'session' }))
-  const gateway = new AcpRemoteGateway({ enabled: true, backends: [{ id: backend, enabled: true, command: 'agent', args: [] }] }, silentLogger(), () => acp)
+  const gateway = new AcpRemoteGateway(
+    { enabled: true, backends: [{ id: backend, enabled: true, command: 'agent', args: [] }] },
+    silentLogger(),
+    () => acp,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    detachedApprovalGraceSec,
+  )
   await gateway.start()
   const publish = vi.fn(async () => undefined), observer = vi.fn(async () => undefined)
   const peer = gateway.createPeer({ connectionId: 'owner', peerDeviceId: 'device' } as never, publish)!

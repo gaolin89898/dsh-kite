@@ -28,7 +28,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   } catch { throw new RequestError('连接失败，请重试。', 0) }
   const data = await response.json()
   if (!response.ok) {
-    const messages: Record<string, string> = { AUTH_INVALID: '账号或密码错误，请重试。', ACCOUNT_AUTH_REQUIRED: '登录已过期，请重新登录。', RATE_LIMITED: '请求频繁，请稍后重试。' }
+    const messages: Record<string, string> = { AUTH_INVALID: '账号或密码错误，请重试。', ACCOUNT_AUTH_REQUIRED: '登录已过期，请重新登录。', RATE_LIMITED: '请求频繁，请稍后重试。', DEVICE_NOT_FOUND: '设备不存在，请刷新后重试。', DEVICE_REVOKED: '该设备已被撤销，请重新登录。' }
     throw new RequestError(messages[data.error?.code] ?? '请求失败，请稍后重试。', response.status)
   }
   return data as T

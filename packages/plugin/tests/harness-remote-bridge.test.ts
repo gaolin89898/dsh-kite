@@ -298,6 +298,233 @@ describe('HarnessRemoteBridge', () => {
     } })))
   })
 
+  it('forwards only approved translation calls and preserves native outcomes', async () => {
+    await runScenarios(['cotTranslation/limits', 'cotTranslation/translate'].flatMap(endpoint => [
+      { ok: true as const, value: { text: 'translated' } },
+      { ok: false as const, error: { code: 'gateway/lookup-not-found', message: 'Unavailable', details: {} } },
+    ].map(outcome => ({ name: `${endpoint}/${outcome.ok ? 'success' : 'unavailable'}`, run: async () => {
+      const dispatch = vi.fn(async () => outcome)
+      const open = vi.fn()
+      const bridge = new HarnessRemoteBridge(gateway({ dispatch, open }), vi.fn())
+      const payload = { args: endpoint.endsWith('/limits') ? {} : { text: 'hello' } }
+      await expect(bridge.call({ endpoint, payload })).resolves.toEqual(outcome)
+      expect(dispatch).toHaveBeenCalledTimes(1)
+      expect(dispatch).toHaveBeenCalledWith(endpoint, payload, expect.any(AbortSignal))
+      await expect(bridge.openStream({ streamId: 'translation', endpoint, payload }))
+        .rejects.toMatchObject({ code: 'METHOD_NOT_ALLOWED' })
+      expect(open).not.toHaveBeenCalled()
+      dispatch.mockClear()
+      for (const rejected of ['cotTranslation/arbitrary', 'cotTranslation/translateExtra', 'otherPlugin/translate']) {
+        await expect(bridge.call({ endpoint: rejected, payload })).rejects.toMatchObject({ code: 'METHOD_NOT_ALLOWED' })
+      }
+      expect(dispatch).not.toHaveBeenCalled()
+    } }))))
+  })
+
+  it('forwards only approved speech calls and streams with strict call-vs-stream separation', async () => {
+    const unaryEndpoints = [
+      'speech/catalog',
+      'speech/transcribe',
+      'speech/prepare',
+      'speech/configure',
+      'speech/cancelPreparation',
+    ] as const
+    await runScenarios([
+      ...unaryEndpoints.flatMap(endpoint => [
+        { ok: true as const, value: { status: 'ok' } },
+        { ok: false as const, error: { code: 'gateway/lookup-not-found', message: 'Unavailable', details: {} } },
+      ].map(outcome => ({
+        name: `${endpoint}/${outcome.ok ? 'success' : 'unavailable'}`,
+        run: async () => {
+          const dispatch = vi.fn(async () => outcome)
+          const open = vi.fn()
+          const bridge = new HarnessRemoteBridge(gateway({ dispatch, open }), vi.fn())
+          const payload = endpoint === 'speech/transcribe'
+            ? { args: { request: { audioBase64: 'UklGRg==' } } }
+            : endpoint === 'speech/prepare'
+              ? { args: { providerId: 'sensevoice' } }
+              : { args: {} }
+          await expect(bridge.call({ endpoint, payload })).resolves.toEqual(outcome)
+          expect(dispatch).toHaveBeenCalledTimes(1)
+          expect(dispatch).toHaveBeenCalledWith(endpoint, payload, expect.any(AbortSignal))
+          await expect(bridge.openStream({ streamId: 'speech-unary', endpoint, payload }))
+            .rejects.toMatchObject({ code: 'METHOD_NOT_ALLOWED' })
+          expect(open).not.toHaveBeenCalled()
+        },
+      }))),
+      {
+        name: 'speech/follow stream only',
+        run: async () => {
+          const publish = vi.fn(async () => undefined)
+          const open = vi.fn(async () => (async function* () { yield { status: 'ready' } })())
+          const dispatch = vi.fn()
+          const bridge = new HarnessRemoteBridge(gateway({ dispatch, open }), publish)
+          const payload = { args: {} }
+          await expect(bridge.openStream({ streamId: 'speech-follow-1', endpoint: 'speech/follow', payload }))
+            .resolves.toEqual({ opened: true, streamId: 'speech-follow-1' })
+          expect(open).toHaveBeenCalledWith('speech/follow', payload, expect.any(AbortSignal))
+          await vi.waitFor(() => expect(publish).toHaveBeenCalledWith('harness.remote.stream.closed', {
+            streamId: 'speech-follow-1',
+            reason: 'completed',
+          }))
+          expect(publish).toHaveBeenCalledWith('harness.remote.frame', {
+            streamId: 'speech-follow-1',
+            hasValue: true,
+            value: { status: 'ready' },
+          })
+          await expect(bridge.call({ endpoint: 'speech/follow', payload })).rejects.toMatchObject({ code: 'METHOD_NOT_ALLOWED' })
+          expect(dispatch).not.toHaveBeenCalled()
+        },
+      },
+      {
+        name: 'rejects unapproved speech endpoints in call and stream',
+        run: async () => {
+          const dispatch = vi.fn()
+          const open = vi.fn()
+          const bridge = new HarnessRemoteBridge(gateway({ dispatch, open }), vi.fn())
+          const payload = { args: {} }
+          for (const rejected of ['speech/arbitrary', 'speech/prepareExtra']) {
+            await expect(bridge.call({ endpoint: rejected, payload })).rejects.toMatchObject({ code: 'METHOD_NOT_ALLOWED' })
+            await expect(bridge.openStream({ streamId: 'speech-rejected', endpoint: rejected, payload }))
+              .rejects.toMatchObject({ code: 'METHOD_NOT_ALLOWED' })
+          }
+          expect(dispatch).not.toHaveBeenCalled()
+          expect(open).not.toHaveBeenCalled()
+        },
+      },
+      {
+        name: 'dispatches chunked transfer commit for speech/transcribe and rejects speech/follow transfer',
+        run: async () => {
+          const dispatch = vi.fn(async () => ({ ok: true as const, value: { text: 'hello' } }))
+          const bridge = new HarnessRemoteBridge(gateway({ dispatch }), vi.fn())
+          const transferId = '00000000-0000-4000-8000-000000000001'
+          const payload = { args: { request: { audioBase64: 'UklGRg==' } } }
+          const bytes = new TextEncoder().encode(JSON.stringify({
+            endpoint: 'speech/transcribe',
+            payload,
+          }))
+          expect(bridge.openTransfer({ transferId, totalBytes: bytes.byteLength, totalChunks: 1 }))
+            .toEqual({ opened: true, transferId })
+          expect(bridge.appendTransfer({ transferId, index: 0, data: Buffer.from(bytes).toString('base64') }))
+            .toEqual({ accepted: true, transferId, index: 0 })
+          await expect(bridge.commitTransfer({ transferId })).resolves.toEqual({
+            kind: 'inline',
+            response: { ok: true, value: { text: 'hello' } },
+          })
+          expect(dispatch).toHaveBeenCalledTimes(1)
+          expect(dispatch).toHaveBeenCalledWith('speech/transcribe', payload, expect.any(AbortSignal))
+
+          const followTransferId = '00000000-0000-4000-8000-000000000002'
+          const followBytes = new TextEncoder().encode(JSON.stringify({
+            endpoint: 'speech/follow',
+            payload: { args: {} },
+          }))
+          bridge.openTransfer({ transferId: followTransferId, totalBytes: followBytes.byteLength, totalChunks: 1 })
+          bridge.appendTransfer({ transferId: followTransferId, index: 0, data: Buffer.from(followBytes).toString('base64') })
+          await expect(bridge.commitTransfer({ transferId: followTransferId })).rejects.toMatchObject({ code: 'METHOD_NOT_ALLOWED' })
+          expect(dispatch).toHaveBeenCalledTimes(1)
+        },
+      },
+    ])
+  })
+
+  it('applies a 3-minute call timeout to speech/transcribe, keeps 60s for other speech endpoints, and aborts in-flight calls on closeAll', async () => {
+    await runScenarios([
+      {
+        name: 'speech/transcribe aborts at 180_000ms',
+        endpoint: 'speech/transcribe',
+        payload: { args: { request: { audioBase64: 'UklGRg==' } } },
+        timeoutMs: 180_000,
+      },
+      {
+        name: 'speech/prepare aborts at 60_000ms',
+        endpoint: 'speech/prepare',
+        payload: { args: { providerId: 'sensevoice' } },
+        timeoutMs: 60_000,
+      },
+      {
+        name: 'speech/catalog aborts at 60_000ms',
+        endpoint: 'speech/catalog',
+        payload: { args: {} },
+        timeoutMs: 60_000,
+      },
+      {
+        name: 'speech/transcribe clears timer on early completion',
+        endpoint: 'speech/transcribe',
+        payload: { args: { request: { audioBase64: 'UklGRg==' } } },
+        immediate: true,
+      },
+      {
+        name: 'closeAll aborts in-flight speech/transcribe unary call and clears its timer',
+        endpoint: 'speech/transcribe',
+        payload: { args: { request: { audioBase64: 'UklGRg==' } } },
+        closeAll: true,
+      },
+    ].map(scenario => ({
+      name: scenario.name,
+      run: async () => {
+        vi.useFakeTimers()
+        try {
+          if (scenario.immediate) {
+            const dispatch = vi.fn(async () => ({ ok: true as const, value: { text: 'hello' } }))
+            const bridge = new HarnessRemoteBridge(gateway({ dispatch }), vi.fn())
+            await expect(bridge.call({ endpoint: scenario.endpoint, payload: scenario.payload }))
+              .resolves.toEqual({ ok: true, value: { text: 'hello' } })
+            expect(vi.getTimerCount()).toBe(0)
+            return
+          }
+          let capturedSignal: AbortSignal | undefined
+          let resolveDispatch!: (value: { ok: true; value: { text: string } }) => void
+          let rejectDispatch!: (reason?: unknown) => void
+          let markDispatched!: () => void
+          const dispatched = new Promise<void>(resolve => { markDispatched = resolve })
+          const dispatch = vi.fn((_endpoint: string, _payload: unknown, signal: AbortSignal) => {
+            capturedSignal = signal
+            markDispatched()
+            return new Promise<{ ok: true; value: { text: string } }>((resolve, reject) => {
+              resolveDispatch = resolve
+              rejectDispatch = reject
+            })
+          })
+          const bridge = new HarnessRemoteBridge(gateway({ dispatch }), vi.fn())
+          const callPromise = bridge.call({ endpoint: scenario.endpoint, payload: scenario.payload })
+          await dispatched
+          if (scenario.closeAll) {
+            expect(capturedSignal?.aborted).toBe(false)
+            capturedSignal?.addEventListener('abort', () => {
+              rejectDispatch(new DOMException('Aborted', 'AbortError'))
+            }, { once: true })
+            const settled = expect(callPromise).rejects.toMatchObject({ name: 'AbortError' })
+            await bridge.closeAll('peer-disconnected')
+            expect(capturedSignal?.aborted).toBe(true)
+            expect(capturedSignal?.reason).toBe('peer-disconnected')
+            await settled
+            expect(vi.getTimerCount()).toBe(0)
+            return
+          }
+          if (scenario.timeoutMs === 180_000) {
+            await vi.advanceTimersByTimeAsync(60_000)
+            expect(capturedSignal?.aborted).toBe(false)
+            await vi.advanceTimersByTimeAsync(119_999)
+            expect(capturedSignal?.aborted).toBe(false)
+            await vi.advanceTimersByTimeAsync(1)
+          } else {
+            await vi.advanceTimersByTimeAsync(59_999)
+            expect(capturedSignal?.aborted).toBe(false)
+            await vi.advanceTimersByTimeAsync(1)
+          }
+          expect(capturedSignal?.aborted).toBe(true)
+          expect((capturedSignal?.reason as Error | undefined)?.name).toBe('TimeoutError')
+          resolveDispatch({ ok: true, value: { text: 'hello' } })
+          await callPromise
+          expect(vi.getTimerCount()).toBe(0)
+        } finally {
+          vi.useRealTimers()
+        }
+      },
+    })))
+  })
+
   it('forwards only the fixed alpha Gateway endpoint allowlist', async () => {
     const dispatch = vi.fn(async () => ({ ok: true as const, value: [{ id: 'session-1' }] }))
     const bridge = new HarnessRemoteBridge(gateway({ dispatch }), vi.fn(async () => undefined))
@@ -780,32 +1007,195 @@ describe('HarnessRemoteBridge', () => {
   })
 
   it('encodes native binary workspace responses for the JSON remote carrier', async () => {
-    const dispatch = vi.fn(async (endpoint: string) => ({
-      ok: true as const,
-      value: endpoint === 'workspaceFiles/readBytes'
-        ? { absolutePath: '/tmp/a.png', version: 'v1', bytes: 3, offset: 0, data: new Uint8Array([0, 255, 16]), eof: true }
-        : { absolutePath: '/tmp/a.docx', version: 'v1', bytes: 3, offset: 0, data: new Uint8Array([37, 80, 68]), eof: true, generation: 'g1', missingFonts: [] },
-    }))
-    const bridge = new HarnessRemoteBridge(gateway({ dispatch }), vi.fn(async () => undefined), undefined, '0.2.1-alpha.1')
-
-    await expect(bridge.call({ endpoint: 'workspaceFiles/readBytes', payload: { args: { path: '/tmp/a.png', range: { offset: 0, length: 3 } } } }))
-      .resolves.toMatchObject({ ok: true, value: { data: 'AP8Q' } })
-    await expect(bridge.call({ endpoint: 'officeToPdf/render', payload: { args: { path: '/tmp/a.docx' } } }))
-      .resolves.toMatchObject({ ok: true, value: { data: 'JVBE' } })
+    await runScenarios([
+      {
+        endpoint: 'workspaceFiles/readBytes',
+        args: { path: '/tmp/a.png', range: { offset: 0, length: 3 } },
+        value: { absolutePath: '/tmp/a.png', version: 'v1', bytes: 3, offset: 0, data: new Uint8Array([0, 255, 16]), eof: true },
+        expectedData: 'AP8Q',
+      },
+      {
+        endpoint: 'officeToPdf/render',
+        args: { path: '/tmp/a.docx' },
+        value: { absolutePath: '/tmp/a.docx', version: 'v1', bytes: 3, offset: 0, data: new Uint8Array([37, 80, 68]), eof: true, generation: 'g1', missingFonts: [] },
+        expectedData: 'JVBE',
+      },
+      {
+        endpoint: 'officeKit/render',
+        args: { path: '/tmp/a.docx' },
+        value: { absolutePath: '/tmp/a.docx', version: 'v1', bytes: 3, offset: 0, data: new Uint8Array([37, 80, 68]), eof: true, generation: 'g1', missingFonts: [] },
+        expectedData: 'JVBE',
+      },
+    ].map(({ endpoint, args, value, expectedData }) => ({
+      name: endpoint,
+      run: async () => {
+        const dispatch = vi.fn(async () => ({ ok: true as const, value }))
+        const bridge = new HarnessRemoteBridge(gateway({ dispatch }), vi.fn(async () => undefined), undefined, '0.2.2-rc.2')
+        await expect(bridge.call({ endpoint, payload: { args } }))
+          .resolves.toMatchObject({ ok: true, value: { data: expectedData } })
+      },
+    })))
   })
 
   it('materializes official Gateway binary attachments before crossing the JSON carrier', async () => {
-    const dispatch = vi.fn(async () => ({
-      ok: true as const,
-      value: { absolutePath: '/tmp/a.png', version: 'v1', bytes: 3, offset: 0, data: null, eof: true },
-      attachments: [{ path: ['data'], bytes: new Uint8Array([0, 255, 16]) }],
-    }))
-    const bridge = new HarnessRemoteBridge(gateway({ dispatch }), vi.fn(async () => undefined), undefined, '0.2.1-alpha.1')
+    await runScenarios([
+      { endpoint: 'workspaceFiles/readBytes', args: { path: '/tmp/a.png', range: { offset: 0, length: 3 } }, bytes: new Uint8Array([0, 255, 16]), expectedData: 'AP8Q' },
+      { endpoint: 'officeToPdf/render', args: { path: '/tmp/a.docx' }, bytes: new Uint8Array([37, 80, 68]), expectedData: 'JVBE' },
+      { endpoint: 'officeKit/render', args: { path: '/tmp/a.docx' }, bytes: new Uint8Array([37, 80, 68]), expectedData: 'JVBE' },
+    ].map(({ endpoint, args, bytes, expectedData }) => ({
+      name: endpoint,
+      run: async () => {
+        const dispatch = vi.fn(async () => ({
+          ok: true as const,
+          value: { absolutePath: args.path, version: 'v1', bytes: bytes.byteLength, offset: 0, data: null, eof: true },
+          attachments: [{ path: ['data'], bytes }],
+        }))
+        const bridge = new HarnessRemoteBridge(gateway({ dispatch }), vi.fn(async () => undefined), undefined, '0.2.2-rc.2')
+        const result = await bridge.call({ endpoint, payload: { args } })
+        expect(result).toMatchObject({ ok: true, value: { data: expectedData } })
+        expect(result).not.toHaveProperty('attachments')
+      },
+    })))
+  })
 
-    await expect(bridge.call({ endpoint: 'workspaceFiles/readBytes', payload: { args: { path: '/tmp/a.png', range: { offset: 0, length: 3 } } } }))
-      .resolves.toMatchObject({ ok: true, value: { data: 'AP8Q' } })
-    const result = await bridge.call({ endpoint: 'workspaceFiles/readBytes', payload: { args: { path: '/tmp/a.png', range: { offset: 0, length: 3 } } } })
-    expect(result).not.toHaveProperty('attachments')
+  it('falls back between officeKit/* and officeToPdf/* only on gateway/invocation-unavailable', async () => {
+    const unavailable = (message = 'invocation unavailable') => ({
+      ok: false as const,
+      error: { code: 'gateway/invocation-unavailable', message, details: {} },
+    })
+    const taggedError = (code: string, message: string) => Object.assign(new Error(message), { code })
+    const withFailureCode = (dispatch: LocalTypertGateway['dispatch']) => gateway({
+      dispatch,
+      failure: error => ({
+        code: error instanceof Error && 'code' in error && typeof error.code === 'string' ? error.code : 'internal',
+        message: 'Request failed.',
+        details: {},
+      }),
+    })
+
+    await runScenarios([
+      ...[
+        { from: 'officeKit/render', to: 'officeToPdf/render', args: { workspaceFileScopeId: 's1', path: 'doc.docx', priority: 'foreground' }, value: { data: new Uint8Array([37, 80, 68]), generation: 'g1' }, expectedValue: { data: 'JVBE', generation: 'g1' } },
+        { from: 'officeToPdf/render', to: 'officeKit/render', args: { workspaceFileScopeId: 's1', path: 'doc.docx', priority: 'foreground' }, value: { data: new Uint8Array([37, 80, 68]), generation: 'g1' }, expectedValue: { data: 'JVBE', generation: 'g1' } },
+        { from: 'officeKit/generation', to: 'officeToPdf/generation', args: {}, value: 'g1', expectedValue: 'g1' },
+        { from: 'officeToPdf/generation', to: 'officeKit/generation', args: {}, value: 'g1', expectedValue: 'g1' },
+      ].map(({ from, to, args, value, expectedValue }) => ({
+        name: `result fallback ${from} -> ${to}`,
+        run: async () => {
+          const dispatch = vi.fn<LocalTypertGateway['dispatch']>(async endpoint =>
+            endpoint === from ? unavailable() : { ok: true as const, value })
+          const bridge = new HarnessRemoteBridge(withFailureCode(dispatch), vi.fn(async () => undefined))
+          await expect(bridge.call({ endpoint: from, payload: { args } })).resolves.toEqual({ ok: true, value: expectedValue })
+          expect(dispatch.mock.calls.map(([endpoint, payload]) => [endpoint, payload])).toEqual([
+            [from, { args }],
+            [to, { args }],
+          ])
+        },
+      })),
+      ...[
+        { from: 'officeKit/render', to: 'officeToPdf/render', args: { path: 'doc.docx' }, value: { data: new Uint8Array([37, 80, 68]) }, expectedValue: { data: 'JVBE' } },
+        { from: 'officeToPdf/generation', to: 'officeKit/generation', args: {}, value: 'g2', expectedValue: 'g2' },
+      ].map(({ from, to, args, value, expectedValue }) => ({
+        name: `thrown invocation-unavailable fallback ${from} -> ${to}`,
+        run: async () => {
+          const dispatch = vi.fn(async (endpoint: string) => {
+            if (endpoint === from) throw taggedError('gateway/invocation-unavailable', 'primary missing')
+            return { ok: true as const, value }
+          })
+          const bridge = new HarnessRemoteBridge(withFailureCode(dispatch), vi.fn(async () => undefined))
+          await expect(bridge.call({ endpoint: from, payload: { args } })).resolves.toEqual({ ok: true, value: expectedValue })
+          expect(dispatch.mock.calls.map(([endpoint]) => endpoint)).toEqual([from, to])
+        },
+      })),
+      {
+        name: 'both return invocation-unavailable preserves primary result',
+        run: async () => {
+          const primary = unavailable('primary missing')
+          const dispatch = vi.fn(async (endpoint: string) =>
+            endpoint === 'officeKit/render' ? primary : unavailable('fallback missing'))
+          const bridge = new HarnessRemoteBridge(withFailureCode(dispatch), vi.fn(async () => undefined))
+          await expect(bridge.call({ endpoint: 'officeKit/render', payload: { args: { path: 'doc.docx' } } }))
+            .resolves.toBe(primary)
+          expect(dispatch).toHaveBeenCalledTimes(2)
+        },
+      },
+      {
+        name: 'primary return and fallback throw invocation-unavailable preserves primary result',
+        run: async () => {
+          const primary = unavailable('primary missing')
+          const dispatch = vi.fn(async (endpoint: string) => {
+            if (endpoint === 'officeKit/generation') return primary
+            throw taggedError('gateway/invocation-unavailable', 'fallback missing')
+          })
+          const bridge = new HarnessRemoteBridge(withFailureCode(dispatch), vi.fn(async () => undefined))
+          await expect(bridge.call({ endpoint: 'officeKit/generation', payload: { args: {} } }))
+            .resolves.toBe(primary)
+          expect(dispatch).toHaveBeenCalledTimes(2)
+        },
+      },
+      {
+        name: 'both throw invocation-unavailable preserves primary error',
+        run: async () => {
+          const primaryErr = taggedError('gateway/invocation-unavailable', 'primary missing')
+          const fallbackErr = taggedError('gateway/invocation-unavailable', 'fallback missing')
+          const dispatch = vi.fn(async (endpoint: string) => {
+            throw endpoint === 'officeToPdf/render' ? primaryErr : fallbackErr
+          })
+          const bridge = new HarnessRemoteBridge(withFailureCode(dispatch), vi.fn(async () => undefined))
+          await expect(bridge.call({ endpoint: 'officeToPdf/render', payload: { args: { path: 'doc.docx' } } }))
+            .rejects.toBe(primaryErr)
+          expect(dispatch).toHaveBeenCalledTimes(2)
+        },
+      },
+      {
+        name: 'primary throws and fallback returns invocation-unavailable preserves primary error',
+        run: async () => {
+          const primaryErr = taggedError('gateway/invocation-unavailable', 'primary missing')
+          const dispatch = vi.fn(async (endpoint: string) => {
+            if (endpoint === 'officeKit/generation') throw primaryErr
+            return unavailable('fallback missing')
+          })
+          const bridge = new HarnessRemoteBridge(withFailureCode(dispatch), vi.fn(async () => undefined))
+          await expect(bridge.call({ endpoint: 'officeKit/generation', payload: { args: {} } }))
+            .rejects.toBe(primaryErr)
+          expect(dispatch).toHaveBeenCalledTimes(2)
+        },
+      },
+      {
+        name: 'fallback business error replaces invocation-unavailable',
+        run: async () => {
+          const dispatch = vi.fn(async (endpoint: string) =>
+            endpoint === 'officeKit/render'
+              ? unavailable('primary missing')
+              : { ok: false as const, error: { code: 'document-render/failed', message: 'corrupt', details: {} } })
+          const bridge = new HarnessRemoteBridge(withFailureCode(dispatch), vi.fn(async () => undefined))
+          await expect(bridge.call({ endpoint: 'officeKit/render', payload: { args: { path: 'doc.docx' } } }))
+            .resolves.toEqual({ ok: false, error: { code: 'document-render/failed', message: 'corrupt', details: {} } })
+          expect(dispatch).toHaveBeenCalledTimes(2)
+        },
+      },
+      ...[
+        { endpoint: 'officeKit/render', code: 'document-render/failed', throwError: false },
+        { endpoint: 'officeToPdf/render', code: 'gateway/service-unavailable', throwError: false },
+        { endpoint: 'officeKit/generation', code: 'gateway/service-unavailable', throwError: true },
+        { endpoint: 'officeToPdf/render', code: 'document-render/failed', throwError: true },
+      ].map(({ endpoint, code, throwError }) => ({
+        name: `no fallback on ${endpoint} ${throwError ? 'thrown' : 'returned'} ${code}`,
+        run: async () => {
+          const failureErr = taggedError(code, 'non-fallback')
+          const failureRes = { ok: false as const, error: { code, message: 'non-fallback', details: {} } }
+          const dispatch = vi.fn(async () => {
+            if (throwError) throw failureErr
+            return failureRes
+          })
+          const bridge = new HarnessRemoteBridge(withFailureCode(dispatch), vi.fn(async () => undefined))
+          const call = bridge.call({ endpoint, payload: { args: {} } })
+          if (throwError) await expect(call).rejects.toBe(failureErr)
+          else await expect(call).resolves.toBe(failureRes)
+          expect(dispatch).toHaveBeenCalledTimes(1)
+        },
+      })),
+    ])
   })
 
   it('normalizes alpha stream failures without exposing the original error', async () => {
@@ -891,17 +1281,74 @@ describe('HarnessRemoteBridge', () => {
     expect(warn).toHaveBeenCalledWith('Cannot verify the Host Session API. Remote events cannot start.')
   })
 
+  it('filters native terminal roster frames by device and enforces the stream mode', async () => {
+    const entries = [{ id: 'mine' }, { id: 'other' }, { id: 'unclaimed' }]
+    const open = vi.fn(async () => (async function* () {
+      yield entries
+      yield [...entries, { id: 'another-unclaimed' }]
+      yield [{ id: 'mine', title: 'Updated' }]
+    })())
+    const publish = vi.fn(async () => undefined)
+    const terminal = new TerminalPolicy(true, 'device-a', new Map([
+      ['s1/mine', 'device-a'], ['s1/other', 'device-b'], ['s2/unclaimed', 'device-a'],
+    ]))
+    const bridge = new HarnessRemoteBridge(gateway({ open }), publish, undefined, '0.2.2-rc.5', terminal)
+    const request = { endpoint: 'terminal/watch', payload: { args: { sessionId: 's1' } } }
+    await expect(bridge.call(request)).rejects.toMatchObject({ code: 'METHOD_NOT_ALLOWED' })
+    await expect(bridge.openStream({ ...request, streamId: 'mixed', payload: { args: { sessionId: 's1', agentId: 's2' } } })).rejects.toBeInstanceOf(Error)
+    const disabled = new HarnessRemoteBridge(gateway({ open }), publish)
+    await expect(disabled.openStream({ ...request, streamId: 'disabled' })).rejects.toMatchObject({ code: 'TERMINAL_DISABLED' })
+    expect(open).not.toHaveBeenCalled()
+    await bridge.openStream({ ...request, streamId: 'roster' })
+    await vi.waitFor(() => expect(publish).toHaveBeenCalledWith('harness.remote.stream.closed', {
+      streamId: 'roster', reason: 'completed',
+    }))
+    expect(publish.mock.calls).toEqual([
+      ['harness.remote.frame', { streamId: 'roster', hasValue: true, value: [{ id: 'mine' }] }],
+      ['harness.remote.frame', { streamId: 'roster', hasValue: true, value: [{ id: 'mine', title: 'Updated' }] }],
+      ['harness.remote.stream.closed', { streamId: 'roster', reason: 'completed' }],
+    ])
+  })
+
+  it('authorizes native file search by the exact Typert session scope', async () => {
+    const dispatch = vi.fn(async () => ({ ok: true as const, value: { matches: [] } }))
+    const resolveRoot = vi.fn(async (id: string) => id === 's1' ? tmpdir() : undefined)
+    const bridge = new HarnessRemoteBridge(gateway({ dispatch }), vi.fn(), undefined, '0.2.2-rc.5',
+      undefined, undefined, resolveRoot)
+    const request = { query: 'src', excludedPaths: [], includeHidden: false, respectGitignore: true }
+    const args = { workspaceFileScopeId: 's1', request }
+    const endpoint = 'workspaceFiles/search'
+    await expect(bridge.call({ endpoint, payload: { args: { ...args, workspaceFileScopeId: 'missing' } } }))
+      .rejects.toMatchObject({ code: 'WORKSPACE_UNAVAILABLE' })
+    await expect(bridge.call({ endpoint, payload: { args: { ...args, path: '/tmp' } } })).rejects.toBeInstanceOf(Error)
+    await expect(bridge.openStream({ streamId: 'search', endpoint, payload: { args } }))
+      .rejects.toMatchObject({ code: 'METHOD_NOT_ALLOWED' })
+    expect(dispatch).not.toHaveBeenCalled()
+    await expect(bridge.call({ endpoint, payload: { args } })).resolves.toEqual({ ok: true, value: { matches: [] } })
+    expect(resolveRoot).toHaveBeenLastCalledWith('s1', expect.any(AbortSignal))
+    expect(dispatch).toHaveBeenCalledOnce()
+    expect(dispatch).toHaveBeenCalledWith(endpoint, { args }, expect.any(AbortSignal))
+  })
+
   it('routes CodeX terminal calls to the CodeX carrier and keeps device ownership', async () => {
     const root = await mkdtemp(join(tmpdir(), 'dsh-remote-codex-terminal-'))
     const dispatch = vi.fn(async () => ({ ok: true as const }))
-    const bridge = new HarnessRemoteBridge(gateway({ dispatch }), vi.fn(async () => undefined), undefined, undefined,
+    const publish = vi.fn(async () => undefined)
+    const bridge = new HarnessRemoteBridge(gateway({ dispatch }), publish, undefined, undefined,
       new TerminalPolicy(() => true, 'device-a', new Map()),
       new CodexWorkspaceBridge(async () => root, () => true, undefined, stubTerminalSpawner()))
 
     await expect(bridge.call({ endpoint: 'terminal/environment', payload: { args: { agentId: 'codex:one' } } }))
       .resolves.toMatchObject({ ok: true, value: { cwd: await realpath(root), scrollback: expect.any(Number) } })
+    await bridge.openStream({ streamId: 'codex-roster', endpoint: 'terminal/watch', payload: { args: { sessionId: 'codex:one' } } })
+    await vi.waitFor(() => expect(publish).toHaveBeenCalledWith('harness.remote.frame', {
+      streamId: 'codex-roster', hasValue: true, value: [],
+    }))
     await expect(bridge.call({ endpoint: 'terminal/create', payload: { args: { agentId: 'codex:one', request: { id: 't1', cols: 80, rows: 24 } } } }))
       .resolves.toMatchObject({ ok: true, value: { id: 't1', shell: { path: expect.any(String) } } })
+    await vi.waitFor(() => expect(publish).toHaveBeenCalledWith('harness.remote.frame', {
+      streamId: 'codex-roster', hasValue: true, value: [expect.objectContaining({ id: 't1' })],
+    }))
     expect(dispatch).not.toHaveBeenCalled()
 
     // A Harness session still reaches the official Gateway.
@@ -914,6 +1361,10 @@ describe('HarnessRemoteBridge', () => {
       new CodexWorkspaceBridge(async () => root, () => true, undefined, stubTerminalSpawner()))
     await expect(other.call({ endpoint: 'terminal/list', payload: { args: { sessionId: 'codex:one' } } }))
       .resolves.toEqual({ ok: true, value: [] })
+    bridge.closeStream({ streamId: 'codex-roster' })
+    await vi.waitFor(() => expect(publish).toHaveBeenCalledWith('harness.remote.stream.closed', {
+      streamId: 'codex-roster', reason: 'cancelled',
+    }))
     await bridge.closeAll(); await other.closeAll(); await rm(root, { recursive: true, force: true })
   })
 
@@ -1818,5 +2269,149 @@ describe('HarnessRemoteBridge 0.2.2 attachment reference recovery', () => {
     })
     expect(dispatch).toHaveBeenCalledTimes(1)
     expect(dispatch.mock.lastCall?.[1]).toEqual({ args: { request: { sessionId: 's1', attachmentId: 'a1' } } })
+  })
+})
+
+describe('HarnessRemoteBridge dsBot/* allowlist', () => {
+  it('enforces unary dsBot/call and stream dsBot/feed separation and rejects other dsBot/* methods', async () => {
+    const callPayload = { args: { endpoint: 'hello', payload: { api: [1] } } }
+    const callOutcome = { ok: true as const, value: { ok: true, value: { api: 1, capabilities: ['rpc'] } } }
+    const dispatch = vi.fn(async () => callOutcome)
+    const open = vi.fn(async () => (async function* () {
+      yield { event: 'hello', data: { revision: 1, api: 1, boot: 'b1', seq: 0 } }
+    })())
+    const publish = vi.fn(async () => undefined)
+    const bridge = new HarnessRemoteBridge(gateway({ dispatch, open }), publish)
+
+    await expect(bridge.call({ endpoint: 'dsBot/call', payload: callPayload })).resolves.toEqual(callOutcome)
+    expect(dispatch).toHaveBeenCalledTimes(1)
+    expect(dispatch).toHaveBeenCalledWith('dsBot/call', callPayload, expect.any(AbortSignal))
+    await expect(bridge.openStream({ streamId: 'dsbot-call-stream', endpoint: 'dsBot/call', payload: callPayload }))
+      .rejects.toMatchObject({ code: 'METHOD_NOT_ALLOWED' })
+    expect(open).not.toHaveBeenCalled()
+
+    const feedPayload = { args: {} }
+    await expect(bridge.openStream({ streamId: 'dsbot-feed-1', endpoint: 'dsBot/feed', payload: feedPayload }))
+      .resolves.toEqual({ opened: true, streamId: 'dsbot-feed-1' })
+    expect(open).toHaveBeenCalledWith('dsBot/feed', feedPayload, expect.any(AbortSignal))
+    await vi.waitFor(() => expect(publish).toHaveBeenCalledWith('harness.remote.stream.closed', {
+      streamId: 'dsbot-feed-1',
+      reason: 'completed',
+    }))
+    expect(publish).toHaveBeenCalledWith('harness.remote.frame', {
+      streamId: 'dsbot-feed-1',
+      hasValue: true,
+      value: { event: 'hello', data: { revision: 1, api: 1, boot: 'b1', seq: 0 } },
+    })
+    await expect(bridge.call({ endpoint: 'dsBot/feed', payload: feedPayload }))
+      .rejects.toMatchObject({ code: 'METHOD_NOT_ALLOWED' })
+    expect(dispatch).toHaveBeenCalledTimes(1)
+
+    for (const rejected of ['dsBot/other', 'dsBot/admin']) {
+      await expect(bridge.call({ endpoint: rejected, payload: { args: {} } }))
+        .rejects.toMatchObject({ code: 'METHOD_NOT_ALLOWED' })
+      await expect(bridge.openStream({ streamId: 'dsbot-rejected', endpoint: rejected, payload: { args: {} } }))
+        .rejects.toMatchObject({ code: 'METHOD_NOT_ALLOWED' })
+    }
+
+    const callTransferId = '00000000-0000-4000-8000-0000000000d1'
+    const callBytes = new TextEncoder().encode(JSON.stringify({ endpoint: 'dsBot/call', payload: callPayload }))
+    expect(bridge.openTransfer({ transferId: callTransferId, totalBytes: callBytes.byteLength, totalChunks: 1 }))
+      .toEqual({ opened: true, transferId: callTransferId })
+    expect(bridge.appendTransfer({ transferId: callTransferId, index: 0, data: Buffer.from(callBytes).toString('base64') }))
+      .toEqual({ accepted: true, transferId: callTransferId, index: 0 })
+    await expect(bridge.commitTransfer({ transferId: callTransferId })).resolves.toEqual({
+      kind: 'inline',
+      response: callOutcome,
+    })
+
+    const feedTransferId = '00000000-0000-4000-8000-0000000000d2'
+    const feedBytes = new TextEncoder().encode(JSON.stringify({ endpoint: 'dsBot/feed', payload: feedPayload }))
+    bridge.openTransfer({ transferId: feedTransferId, totalBytes: feedBytes.byteLength, totalChunks: 1 })
+    bridge.appendTransfer({ transferId: feedTransferId, index: 0, data: Buffer.from(feedBytes).toString('base64') })
+    await expect(bridge.commitTransfer({ transferId: feedTransferId }))
+      .rejects.toMatchObject({ code: 'METHOD_NOT_ALLOWED' })
+
+    await bridge.closeAll()
+  })
+
+  it('forwards successful dsBot/call responses to forwardedEventsObserver.onDsBotCall without disrupting RPC', async () => {
+    const observed: Array<{ body: { endpoint: string; payload?: Record<string, unknown> | null }; result: unknown }> = []
+    let shouldThrow = false
+    const observer = {
+      onFrame: vi.fn(),
+      onDsBotCall: vi.fn((body: { endpoint: string; payload?: Record<string, unknown> | null }, result: unknown) => {
+        observed.push({ body, result })
+        if (shouldThrow) throw new Error('observer boom')
+      }),
+    }
+    const dispatch = vi.fn(async (_method: string, payload: unknown) => {
+      const endpoint = (payload as { args?: { endpoint?: string } })?.args?.endpoint
+      if (endpoint === 'fail-native') {
+        return { ok: false as const, error: { code: 'gateway/invocation-unavailable', message: 'unavailable', details: {} } }
+      }
+      if (endpoint === 'non-record') {
+        return { ok: true as const, value: 'plain-string' }
+      }
+      return { ok: true as const, value: { ok: true, value: { resolved: endpoint } } }
+    })
+    const bridge = new HarnessRemoteBridge(
+      gateway({ dispatch }),
+      vi.fn(async () => undefined),
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      observer,
+    )
+
+    // Direct unary call with object payload
+    await expect(bridge.call({
+      endpoint: 'dsBot/call',
+      payload: { args: { endpoint: 'approval-answer', payload: { id: 'apr-1', choice: 'allow' } } },
+    })).resolves.toEqual({ ok: true, value: { ok: true, value: { resolved: 'approval-answer' } } })
+
+    // Direct unary call with omitted payload normalizes payload to null
+    await bridge.call({ endpoint: 'dsBot/call', payload: { args: { endpoint: 'state' } } })
+
+    // Failed native result, non-record value, and missing endpoint must be skipped
+    await bridge.call({ endpoint: 'dsBot/call', payload: { args: { endpoint: 'fail-native' } } })
+    await bridge.call({ endpoint: 'dsBot/call', payload: { args: { endpoint: 'non-record' } } })
+    await bridge.call({ endpoint: 'dsBot/call', payload: { args: {} } })
+
+    // Observer exception must not disrupt RPC settlement (including chunked transfer commit)
+    shouldThrow = true
+    const transferId = '00000000-0000-4000-8000-0000000000d3'
+    const transferBytes = new TextEncoder().encode(JSON.stringify({
+      endpoint: 'dsBot/call',
+      payload: { args: { endpoint: 'notices', payload: { since: 1 } } },
+    }))
+    bridge.openTransfer({ transferId, totalBytes: transferBytes.byteLength, totalChunks: 1 })
+    bridge.appendTransfer({ transferId, index: 0, data: Buffer.from(transferBytes).toString('base64') })
+    await expect(bridge.commitTransfer({ transferId })).resolves.toEqual({
+      kind: 'inline',
+      response: { ok: true, value: { ok: true, value: { resolved: 'notices' } } },
+    })
+
+    expect(observed).toEqual([
+      {
+        body: { endpoint: 'approval-answer', payload: { id: 'apr-1', choice: 'allow' } },
+        result: { ok: true, value: { resolved: 'approval-answer' } },
+      },
+      {
+        body: { endpoint: 'state', payload: null },
+        result: { ok: true, value: { resolved: 'state' } },
+      },
+      {
+        body: { endpoint: 'notices', payload: { since: 1 } },
+        result: { ok: true, value: { resolved: 'notices' } },
+      },
+    ])
+
+    await bridge.closeAll()
   })
 })

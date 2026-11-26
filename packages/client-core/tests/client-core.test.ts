@@ -314,6 +314,49 @@ describe('RemoteClientCore', () => {
     transport.push(encodeMessage(createRpcResponse(request.id, { late: true })))
   })
 
+  it('isolates throwing event and close handlers without breaking other subscribers or the transport', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const transport = new LoopbackTransport()
+    const client = new RemoteClientCore(transport)
+    await client.connect()
+
+    const received: string[] = []
+    let unsubscribeSecond!: () => void
+    client.onEvent(() => {
+      unsubscribeSecond()
+      throw new ReferenceError('subscriber failure')
+    })
+    unsubscribeSecond = client.onEvent(() => {
+      received.push('unsubscribed-mid-dispatch')
+    })
+    client.onEvent(event => {
+      received.push(event.event)
+    })
+
+    expect(() => {
+      transport.push(encodeMessage(createEvent('agent.acp.stream.closed', { streamId: 's1', reason: 'failed' })))
+    }).not.toThrow()
+    expect(received).toEqual(['agent.acp.stream.closed'])
+
+    const closeCalls: string[] = []
+    let unsubscribeSecondClose!: () => void
+    client.onClose(() => {
+      unsubscribeSecondClose()
+      throw new Error('close subscriber failure')
+    })
+    unsubscribeSecondClose = client.onClose(() => {
+      closeCalls.push('unsubscribed-close')
+    })
+    client.onClose(() => {
+      closeCalls.push('second')
+    })
+
+    expect(() => transport.drop()).not.toThrow()
+    expect(closeCalls).toEqual(['second'])
+    expect(errorSpy).toHaveBeenCalledWith('[dsh-remote] event handler error:', 'ReferenceError')
+    expect(errorSpy).toHaveBeenCalledWith('[dsh-remote] close handler error:', 'Error')
+  })
+
 })
 
 describe('Remote Host feature probing', () => {
@@ -455,25 +498,34 @@ describe('RemoteTypertGateway', () => {
   })
 
   it('restores binary workspace preview fields for the native Client API codec', async () => {
-    const rpc = vi.fn(async () => ({
-      ok: true,
-      value: {
-        absolutePath: '/tmp/image.png',
-        version: 'v1',
-        bytes: 3,
-        offset: 0,
-        data: 'AP8Q',
-        eof: true,
-      },
-    }))
-    const client = { rpc } as unknown as RemoteClientCore
+    await runScenarios(
+      (['workspaceFiles/readBytes', 'officeKit/render', 'officeToPdf/render'] as const).map(endpoint => ({
+        name: endpoint,
+        run: async () => {
+          const rpc = vi.fn(async () => ({
+            ok: true,
+            value: {
+              absolutePath: endpoint === 'workspaceFiles/readBytes' ? '/tmp/image.png' : '/tmp/report.docx',
+              version: 'v1',
+              bytes: 3,
+              offset: 0,
+              data: 'AP8Q',
+              eof: true,
+            },
+          }))
+          const client = { rpc } as unknown as RemoteClientCore
 
-    const result = await new RemoteTypertGateway(client).dispatch(
-      'workspaceFiles/readBytes',
-      { args: { path: '/tmp/image.png', range: { offset: 0, length: 3 } } },
+          const result = await new RemoteTypertGateway(client).dispatch(
+            endpoint,
+            endpoint === 'workspaceFiles/readBytes'
+              ? { args: { path: '/tmp/image.png', range: { offset: 0, length: 3 } } }
+              : { args: { path: '/tmp/report.docx', priority: 'foreground' } },
+          )
+          expect(result).toMatchObject({ ok: true, value: { data: expect.any(Uint8Array) } })
+          expect(Array.from((result as { ok: true; value: { data: Uint8Array } }).value.data)).toEqual([0, 255, 16])
+        },
+      })),
     )
-    expect(result).toMatchObject({ ok: true, value: { data: expect.any(Uint8Array) } })
-    expect(Array.from((result as { ok: true; value: { data: Uint8Array } }).value.data)).toEqual([0, 255, 16])
   })
 
   it('keeps a transfer deadline across upload and commit and bounds the cleanup close', async () => {
@@ -861,6 +913,159 @@ describe('RemoteTypertGateway', () => {
     })
     transport.push(encodeMessage(createRpcResponse(close.id, {})))
     await closing
+  })
+
+  it('preserves the original size error after a mutation without submitting a second call', async () => {
+    const error = Object.assign(new Error('response too large'), { code: 'RESPONSE_TOO_LARGE' })
+    const rpc = vi.fn().mockRejectedValue(error)
+    const client = { rpc } as unknown as RemoteClientCore
+    await expect(new RemoteTypertGateway(client).call('session/prompt', { args: {} })).rejects.toBe(error)
+    expect(rpc).toHaveBeenCalledTimes(1)
+  })
+
+  it('applies a 3-minute default timeout to speech/transcribe with upload headroom while honoring explicit overrides', async () => {
+    await runScenarios(
+      [
+        {
+          name: 'defaults speech/transcribe direct calls to 180_000ms',
+          run: async () => {
+            const rpc = vi.fn(async () => ({ ok: true, value: { text: 'hello' } }))
+            const client = { rpc } as unknown as RemoteClientCore
+            const payload = { args: { request: { audioBase64: 'UklGRg==' } } }
+            await expect(new RemoteTypertGateway(client).dispatch('speech/transcribe', payload))
+              .resolves.toEqual({ ok: true, value: { text: 'hello' } })
+            expect(rpc).toHaveBeenCalledWith(
+              'harness.remote.call',
+              { endpoint: 'speech/transcribe', payload },
+              expect.any(AbortSignal),
+              { timeoutMs: 180_000 },
+            )
+          },
+        },
+        {
+          name: 'preserves explicit timeoutMs override and additional options on speech/transcribe',
+          run: async () => {
+            const rpc = vi.fn(async () => ({ ok: true, value: { text: 'hello' } }))
+            const gateway = new RemoteTypertGateway({ rpc } as unknown as RemoteClientCore)
+            const payload = { args: { request: { audioBase64: 'UklGRg==' } } }
+            await gateway.dispatch('speech/transcribe', payload, undefined, {
+              timeoutMs: 120_000,
+              maxResponseBytes: 4096,
+            })
+            expect(rpc).toHaveBeenLastCalledWith(
+              'harness.remote.call',
+              { endpoint: 'speech/transcribe', payload },
+              expect.any(AbortSignal),
+              { timeoutMs: 120_000, maxResponseBytes: 4096 },
+            )
+            await gateway.dispatch('speech/transcribe', payload, undefined, {
+              maxResponseBytes: 4096,
+            })
+            expect(rpc).toHaveBeenLastCalledWith(
+              'harness.remote.call',
+              { endpoint: 'speech/transcribe', payload },
+              expect.any(AbortSignal),
+              { maxResponseBytes: 4096, timeoutMs: 180_000 },
+            )
+          },
+        },
+        {
+          name: 'reserves chunk upload headroom on top of 180_000ms for oversized speech/transcribe transfer commit',
+          run: async () => {
+            let now = 0
+            vi.spyOn(performance, 'now').mockImplementation(() => now)
+            try {
+              let totalChunks = 0
+              const calls: Array<{ method: string; options?: unknown }> = []
+              const rpc = vi.fn(async (method: string, params: unknown, _signal?: unknown, options?: unknown) => {
+                calls.push({ method, options })
+                if (method === 'harness.remote.transfer.open') {
+                  totalChunks = (params as { totalChunks: number }).totalChunks
+                  return { opened: true }
+                }
+                if (method === 'harness.remote.transfer.chunk') {
+                  if ((params as { index: number }).index + 1 === totalChunks) now = 15_000
+                  return { accepted: true }
+                }
+                if (method === 'harness.remote.transfer.commit') {
+                  return { kind: 'inline', response: { ok: true, value: { text: 'long audio' } } }
+                }
+                if (method === 'harness.remote.transfer.close') return { closed: true }
+                return { accepted: true }
+              })
+              const audioBase64 = 'A'.repeat(2 * 1024 * 1024 + 64)
+              await expect(new RemoteTypertGateway({ rpc } as unknown as RemoteClientCore).call(
+                'speech/transcribe',
+                { args: { request: { audioBase64 } } },
+              )).resolves.toEqual({ text: 'long audio' })
+              expect(calls.some(call => call.method === 'harness.remote.call')).toBe(false)
+              expect(totalChunks).toBeGreaterThan(1)
+              const expectedTransferHeadroom = Math.max(60_000, totalChunks * 2_000)
+              expect(calls.find(call => call.method === 'harness.remote.transfer.commit')?.options).toEqual({
+                timeoutMs: 180_000 + expectedTransferHeadroom - 15_000,
+              })
+            } finally {
+              vi.restoreAllMocks()
+            }
+          },
+        },
+        {
+          name: 'honors explicit timeoutMs override without adding transfer headroom on oversized speech/transcribe',
+          run: async () => {
+            vi.spyOn(performance, 'now').mockReturnValue(0)
+            try {
+              const calls: Array<{ method: string; options?: unknown }> = []
+              const rpc = vi.fn(async (method: string, _params: unknown, _signal?: unknown, options?: unknown) => {
+                calls.push({ method, options })
+                if (method === 'harness.remote.transfer.commit') {
+                  return { kind: 'inline', response: { ok: true, value: { text: 'long audio' } } }
+                }
+                if (method === 'harness.remote.transfer.close') return { closed: true }
+                return { accepted: true }
+              })
+              const audioBase64 = 'A'.repeat(2 * 1024 * 1024 + 64)
+              await expect(new RemoteTypertGateway({ rpc } as unknown as RemoteClientCore).call(
+                'speech/transcribe',
+                { args: { request: { audioBase64 } } },
+                undefined,
+                { timeoutMs: 120_000 },
+              )).resolves.toEqual({ text: 'long audio' })
+              expect(calls.find(call => call.method === 'harness.remote.transfer.commit')?.options).toEqual({
+                timeoutMs: 120_000,
+              })
+            } finally {
+              vi.restoreAllMocks()
+            }
+          },
+        },
+        {
+          name: 'leaves speech/prepare and speech/catalog with undefined rpc options',
+          run: async () => {
+            const rpc = vi.fn(async () => ({ ok: true }))
+            const gateway = new RemoteTypertGateway({ rpc } as unknown as RemoteClientCore)
+            await expect(gateway.dispatch('speech/prepare', { args: { providerId: 'sensevoice' } }))
+              .resolves.toEqual({ ok: true })
+            expect(rpc).toHaveBeenLastCalledWith(
+              'harness.remote.call',
+              { endpoint: 'speech/prepare', payload: { args: { providerId: 'sensevoice' } } },
+              expect.any(AbortSignal),
+              undefined,
+            )
+            await expect(gateway.dispatch('speech/catalog', { args: {} }))
+              .resolves.toEqual({ ok: true })
+            expect(rpc).toHaveBeenLastCalledWith(
+              'harness.remote.call',
+              { endpoint: 'speech/catalog', payload: { args: {} } },
+              expect.any(AbortSignal),
+              undefined,
+            )
+          },
+        },
+      ],
+      async () => {
+        await cleanupContract1()
+      },
+    )
   })
 })
 
@@ -1277,6 +1482,460 @@ describe('HarnessAlphaClient', () => {
     expect(frames.filter(item => item.rpcId === 'evt-a-1')).toHaveLength(2)
     await client.close()
   })
+
+  it('restarts $events and session/control via start() after stream completion or failure', async () => {
+    await runScenarios([
+      {
+        name: 'restarts after next.done stream/closed completed (including synchronous restart in onFrame)',
+        run: async () => {
+          const core = new ScriptedCore()
+          const frames: Array<{ rpcId: string; payload: Record<string, unknown> }> = []
+          const client = new HarnessAlphaClient(core as unknown as RemoteClientCore, { sessionFormat: 3 }, frame => {
+            frames.push(frame)
+            if (frame.payload.type === 'stream/closed' && frame.payload.reason === 'completed') {
+              client.start()
+            }
+          })
+          const openedIds = (endpoint: string) => core.rpcCalls
+            .filter(call => call.method === 'harness.remote.stream.open' && (call.params as { endpoint?: string }).endpoint === endpoint)
+            .map(call => (call.params as { streamId: string }).streamId)
+
+          client.start()
+          await vi.waitFor(() => {
+            expect(openedIds('$events')).toHaveLength(1)
+            expect(openedIds('session/control')).toHaveLength(1)
+          })
+
+          // Complete $events -> should emit stream/closed(completed) and restart $events only.
+          core.emit({ event: 'harness.remote.stream.closed', data: { streamId: openedIds('$events')[0], reason: 'completed' } })
+          await vi.waitFor(() => expect(openedIds('$events')).toHaveLength(2))
+          expect(openedIds('session/control')).toHaveLength(1)
+
+          // Complete session/control -> should emit stream/closed(completed) and restart session/control only.
+          core.emit({ event: 'harness.remote.stream.closed', data: { streamId: openedIds('session/control')[0], reason: 'completed' } })
+          await vi.waitFor(() => expect(openedIds('session/control')).toHaveLength(2))
+          expect(frames.filter(f => f.payload.type === 'stream/closed' && f.payload.reason === 'completed')).toHaveLength(2)
+
+          // client.close() must not emit spurious stream/closed.
+          await client.close()
+          expect(frames.filter(f => f.payload.type === 'stream/closed')).toHaveLength(2)
+        },
+      },
+      {
+        name: 'clears handles before emitting stream/closed failed so start() restarts after error',
+        run: async () => {
+          const core = new ScriptedCore()
+          let failNextOpen = true
+          const baseRpc = core.rpc.bind(core)
+          vi.spyOn(core, 'rpc').mockImplementation(async (method, params) => {
+            if (method === 'harness.remote.stream.open' && (params as { endpoint?: string }).endpoint === '$events' && failNextOpen) {
+              failNextOpen = false
+              core.rpcCalls.push({ method, params })
+              throw Object.assign(new Error('events open failed'), { code: 'TRANSPORT_CLOSED' })
+            }
+            return baseRpc(method, params)
+          })
+          const frames: Array<{ rpcId: string; payload: Record<string, unknown> }> = []
+          const client = new HarnessAlphaClient(core as unknown as RemoteClientCore, { sessionFormat: 3 }, frame => frames.push(frame))
+          const openedIds = (endpoint: string) => core.rpcCalls
+            .filter(call => call.method === 'harness.remote.stream.open' && (call.params as { endpoint?: string }).endpoint === endpoint)
+            .map(call => (call.params as { streamId: string }).streamId)
+
+          client.start()
+          await vi.waitFor(() => {
+            expect(frames.some(f => f.payload.type === 'stream/closed' && f.payload.reason === 'failed')).toBe(true)
+            expect(openedIds('session/control')).toHaveLength(1)
+          })
+
+          // Fail session/control mid-stream as well.
+          core.emit({
+            event: 'harness.remote.stream.closed',
+            data: { streamId: openedIds('session/control')[0], reason: 'failed', failure: { code: 'DISCONNECTED', message: 'dropped', details: {} } },
+          })
+          await vi.waitFor(() => expect(frames.filter(f => f.payload.type === 'stream/closed' && f.payload.reason === 'failed')).toHaveLength(2))
+
+          // start() must now reopen both $events and session/control.
+          client.start()
+          await vi.waitFor(() => {
+            expect(openedIds('$events')).toHaveLength(2)
+            expect(openedIds('session/control')).toHaveLength(2)
+          })
+          await client.close()
+        },
+      },
+    ])
+  })
+
+  it('replays activeAttempt.stream on mid-stream sessionHistory join and continues with monotonic seq across abandonment retry', async () => {
+    const core = new ScriptedCore()
+    const frames: Array<{ rpcId: string; payload: Record<string, unknown> }> = []
+    const client = new HarnessAlphaClient(
+      core as unknown as RemoteClientCore,
+      { sessionFormat: 3 },
+      frame => frames.push(frame),
+    )
+
+    const historyPromise = client.sessionHistory('session-mid')
+    await vi.waitFor(() => expect(core.streamIdFor('session/follow')).toBeTruthy())
+    const streamId = core.streamIdFor('session/follow')
+
+    // Snapshot has durable cursor 4 and activeAttempt with 5 packed/raw chunks (nextIndex = 5),
+    // plus an extra 6th chunk in stream beyond nextIndex to verify capping at nextIndex.
+    core.emit({
+      event: 'harness.remote.frame',
+      data: {
+        streamId,
+        hasValue: true,
+        value: {
+          type: 'snapshot',
+          cursor: 4,
+          records: [{
+            type: 'event',
+            event: { type: 'step/start', seq: 4, time: 100, data: { turn: 2, step: 1 } },
+          }],
+          hasMore: false,
+          projections: { asOfSeq: 4, values: {} },
+          assistantStream: {
+            revision: 5,
+            activeAttempt: {
+              attemptId: 'att-1',
+              startedAfterSeq: 4,
+              turn: 2,
+              step: 1,
+              nextIndex: 5,
+              stream: [
+                { type: 'chunk', time: 101, chunk: { type: 'block-start', index: 0, blockType: 'reasoning' } },
+                { type: 'reasoning-chunks', time0: 102, index: 0, dt: [], texts: ['think'] },
+                { type: 'text-chunks', time0: 105, index: 1, dt: [3], texts: ['hel', 'lo'] },
+                { type: 'tool-call-chunks', time0: 110, index: 2, dt: [1], id: 'tc-1', name: 'bash', args: ['{"cmd":', '"ls"}'] },
+              ],
+            },
+          },
+        },
+      },
+    })
+
+    const page = await historyPromise
+    expect(page.throughSeq).toBe(4)
+    expect(page.events).toHaveLength(6)
+    expect(page.events.slice(1)).toEqual([
+      { event: { type: 'assistant/chunk', seq: 4 + 1 - 1 / 2, time: 101, data: { turn: 2, step: 1, chunk: { type: 'block-start', index: 0, blockType: 'reasoning' } } } },
+      { event: { type: 'assistant/chunk', seq: 4 + 1 - 1 / 3, time: 102, data: { turn: 2, step: 1, chunk: { type: 'reasoning-delta', index: 0, text: 'think' } } } },
+      { event: { type: 'assistant/chunk', seq: 4 + 1 - 1 / 4, time: 105, data: { turn: 2, step: 1, chunk: { type: 'text-delta', index: 1, text: 'hel' } } } },
+      { event: { type: 'assistant/chunk', seq: 4 + 1 - 1 / 5, time: 108, data: { turn: 2, step: 1, chunk: { type: 'text-delta', index: 1, text: 'lo' } } } },
+      { event: { type: 'assistant/chunk', seq: 4 + 1 - 1 / 6, time: 110, data: { turn: 2, step: 1, chunk: { type: 'tool-call-delta', index: 2, id: 'tc-1', name: 'bash', argumentsDelta: '{"cmd":' } } } },
+    ])
+
+    // Live suffix chunk (index 5) continues seamlessly at transientInGap = 6.
+    core.emit({
+      event: 'harness.remote.frame',
+      data: {
+        streamId,
+        hasValue: true,
+        value: {
+          type: 'assistant-stream',
+          frame: { type: 'chunk', attemptId: 'att-1', revision: 6, index: 5, time: 112, chunk: { type: 'text-delta', index: 1, text: ' world' } },
+        },
+      },
+    })
+    // Attempt 1 is abandoned -> synthetic assistant/attempt-abandoned at transientInGap = 7.
+    core.emit({
+      event: 'harness.remote.frame',
+      data: {
+        streamId,
+        hasValue: true,
+        value: {
+          type: 'assistant-stream',
+          frame: { type: 'end', attemptId: 'att-1', revision: 7, index: 6, outcome: { kind: 'abandoned' } },
+        },
+      },
+    })
+    // Attempt 2 retries in the same (turn=2, step=1) durable gap (startedAfterSeq: 4).
+    core.emit({
+      event: 'harness.remote.frame',
+      data: {
+        streamId,
+        hasValue: true,
+        value: {
+          type: 'assistant-stream',
+          frame: { type: 'start', attemptId: 'att-2', revision: 8, startedAfterSeq: 4, turn: 2, step: 1 },
+        },
+      },
+    })
+    core.emit({
+      event: 'harness.remote.frame',
+      data: {
+        streamId,
+        hasValue: true,
+        value: {
+          type: 'assistant-stream',
+          frame: { type: 'chunk', attemptId: 'att-2', revision: 9, index: 0, time: 120, chunk: { type: 'text-delta', index: 0, text: 'retry' } },
+        },
+      },
+    })
+    // Durable event at seq 5 advances durableCursor and resets transientInGap, so next attempt gets 5.5.
+    core.emit({
+      event: 'harness.remote.frame',
+      data: {
+        streamId,
+        hasValue: true,
+        value: {
+          type: 'event',
+          event: { type: 'step/end', seq: 5, time: 130, data: { turn: 2, step: 1 } },
+        },
+      },
+    })
+    core.emit({
+      event: 'harness.remote.frame',
+      data: {
+        streamId,
+        hasValue: true,
+        value: {
+          type: 'assistant-stream',
+          frame: { type: 'start', attemptId: 'att-3', revision: 10, startedAfterSeq: 5, turn: 2, step: 2 },
+        },
+      },
+    })
+    core.emit({
+      event: 'harness.remote.frame',
+      data: {
+        streamId,
+        hasValue: true,
+        value: {
+          type: 'assistant-stream',
+          frame: { type: 'chunk', attemptId: 'att-3', revision: 11, index: 0, time: 140, chunk: { type: 'text-delta', index: 0, text: 'next' } },
+        },
+      },
+    })
+
+    await vi.waitFor(() => expect(frames.filter(f => f.payload.type === 'session/event')).toHaveLength(5))
+    const sessionEvents = frames
+      .filter(f => f.payload.type === 'session/event')
+      .map(f => f.payload.event as { type: string; seq: number; data: Record<string, unknown> })
+
+    expect(sessionEvents.map(e => e.type)).toEqual([
+      'assistant/chunk',
+      'assistant/attempt-abandoned',
+      'assistant/chunk',
+      'step/end',
+      'assistant/chunk',
+    ])
+    expect(sessionEvents[0]!.seq).toBe(4 + 1 - 1 / 7)
+    expect(sessionEvents[1]).toMatchObject({
+      type: 'assistant/attempt-abandoned',
+      seq: 4 + 1 - 1 / 8,
+      data: { turn: 2, step: 1, attemptId: 'att-1' },
+    })
+    expect(sessionEvents[2]!.seq).toBe(4 + 1 - 1 / 9)
+    expect(sessionEvents[3]!.seq).toBe(5)
+    expect(sessionEvents[4]!.seq).toBe(5.5)
+    // All seqs from mid-stream replay through retry stay strictly monotonic.
+    const allSeqs = [...page.events.map(e => e.event.seq), ...sessionEvents.map(e => e.seq)]
+    for (let i = 1; i < allSeqs.length; i += 1) {
+      expect(allSeqs[i]).toBeGreaterThan(allSeqs[i - 1]!)
+    }
+
+    await client.close()
+  })
+
+  it('reads another session read-only via session/page without closing an active sessionFollow', async () => {
+    const core = new ScriptedCore()
+    const frames: Array<{ rpcId: string; payload: Record<string, unknown> }> = []
+    const client = new HarnessAlphaClient(core as unknown as RemoteClientCore, {}, frame => frames.push(frame))
+    const originalRpc = core.rpc.bind(core)
+    vi.spyOn(core, 'rpc').mockImplementation(async (method, params) => {
+      if (method === 'harness.remote.call' && (params as { endpoint?: string }).endpoint === 'session/page') {
+        await originalRpc(method, params)
+        const req = (params as { payload?: { args?: { request?: Record<string, unknown> } } }).payload?.args?.request
+        if ((req?.address as { sessionId?: string } | undefined)?.sessionId === 'other-session') {
+          return {
+            ok: true,
+            value: {
+              records: [
+                { type: 'event', event: { type: 'user/message', seq: 1, time: 100, data: { content: 'hi' } } },
+                { type: 'chunks', event: { type: 'chunkrow/text-chunks', seq: 2, time: 110, data: { turn: 1, step: 1, index: 0, dt: [4], texts: ['he', 'y'] } } },
+              ],
+              hasMore: true,
+            },
+          }
+        }
+        return { ok: true, value: { records: [], hasMore: false } }
+      }
+      return await originalRpc(method, params)
+    })
+
+    const activeHistory = client.sessionHistory('active-session')
+    await vi.waitFor(() => expect(core.streamIdFor('session/follow')).toBeTruthy())
+    const activeStreamId = core.streamIdFor('session/follow')
+    core.emit({
+      event: 'harness.remote.frame',
+      data: {
+        streamId: activeStreamId,
+        hasValue: true,
+        value: { type: 'snapshot', cursor: 4, records: [], hasMore: false, projections: { asOfSeq: 4, values: {} } },
+      },
+    })
+    await expect(activeHistory).resolves.toEqual({ events: [], hasMore: false, throughSeq: 4 })
+
+    const readOnly = await client.sessionReadOnlyHistory('other-session', 60)
+    expect(readOnly).toEqual({
+      events: [
+        { event: { type: 'user/message', seq: 1, time: 100, data: { content: 'hi' } } },
+        { event: { type: 'assistant/chunk', seq: 2, time: 110, data: { turn: 1, step: 1, chunk: { type: 'text-delta', index: 0, text: 'he' } } } },
+        { event: { type: 'assistant/chunk', seq: 3, time: 114, data: { turn: 1, step: 1, chunk: { type: 'text-delta', index: 0, text: 'y' } } } },
+      ],
+      hasMore: true,
+      throughSeq: 3,
+    })
+
+    // Active sessionFollow must remain open and still receive live frames.
+    expect(core.rpcCalls.filter(call => call.method === 'harness.remote.stream.close')).toHaveLength(0)
+    expect(core.rpcCalls.filter(call => call.method === 'harness.remote.stream.open')).toHaveLength(1)
+    core.emit({
+      event: 'harness.remote.frame',
+      data: {
+        streamId: activeStreamId,
+        hasValue: true,
+        value: { type: 'event', event: { type: 'user/message', seq: 5, time: 200, data: { content: 'still live' } } },
+      },
+    })
+    await vi.waitFor(() => expect(frames).toContainEqual({
+      rpcId: '',
+      payload: {
+        type: 'session/event',
+        sessionId: 'active-session',
+        event: { type: 'user/message', seq: 5, time: 200, data: { content: 'still live' } },
+      },
+    }))
+
+    // Active session pagination still sees its preserved followCursor.
+    await client.sessionHistory('active-session', 2, 20)
+    const activePageCall = core.rpcCalls.findLast(call => call.method === 'harness.remote.call'
+      && (call.params as { endpoint?: string }).endpoint === 'session/page')
+    expect((activePageCall?.params as { payload?: unknown })?.payload).toEqual({
+      args: { request: { address: { kind: 'session', sessionId: 'active-session' }, throughSeq: 4, beforeSeq: 2, maxMessages: 20 } },
+    })
+    await client.close()
+  })
+
+  it('falls back to session/events and slices maxMessages when session/page returns METHOD_NOT_FOUND', async () => {
+    const core = new ScriptedCore()
+    const client = new HarnessAlphaClient(core as unknown as RemoteClientCore)
+    const originalRpc = core.rpc.bind(core)
+    vi.spyOn(core, 'rpc').mockImplementation(async (method, params) => {
+      if (method === 'harness.remote.call') {
+        const request = params as { endpoint?: string; payload?: unknown }
+        if (request.endpoint === 'session/page') {
+          return { ok: false, error: { code: 'METHOD_NOT_FOUND', message: 'session/page unsupported', details: {} } }
+        }
+        if (request.endpoint === 'session/events') {
+          expect(request.payload).toEqual({
+            args: {
+              request: {
+                address: { kind: 'subagent', parentSessionId: 'parent-1', childSessionId: 'child-1', mode: 'unknown' },
+              },
+            },
+          })
+          return {
+            ok: true,
+            value: {
+              events: [
+                { type: 'user/message', seq: 1, time: 100, data: { content: 'old' } },
+                { type: 'assistant/message', seq: 2, time: 105, data: { content: 'mid' } },
+                { type: 'user/message', seq: 3, time: 110, data: { content: 'new' } },
+              ],
+            },
+          }
+        }
+      }
+      return await originalRpc(method, params)
+    })
+
+    const page = await client.sessionReadOnlyHistory('child-1', 2, 'parent-1')
+    expect(page).toEqual({
+      events: [
+        { event: { type: 'assistant/message', seq: 2, time: 105, data: { content: 'mid' } } },
+        { event: { type: 'user/message', seq: 3, time: 110, data: { content: 'new' } } },
+      ],
+      hasMore: true,
+      throughSeq: 3,
+    })
+    await client.close()
+  })
+
+  it('preserves user prompt and complete chunked assistant stream (>60 chunks) on session/events fallback', async () => {
+    const core = new ScriptedCore()
+    const client = new HarnessAlphaClient(core as unknown as RemoteClientCore)
+    const originalRpc = core.rpc.bind(core)
+    const texts = Array.from({ length: 75 }, (_, idx) => `tok-${idx} `)
+    vi.spyOn(core, 'rpc').mockImplementation(async (method, params) => {
+      if (method === 'harness.remote.call') {
+        const request = params as { endpoint?: string }
+        if (request.endpoint === 'session/page') {
+          return { ok: false, error: { code: 'gateway/arguments-invalid', message: 'invalid page args', details: {} } }
+        }
+        if (request.endpoint === 'session/events') {
+          return {
+            ok: true,
+            value: {
+              records: [
+                { type: 'event', event: { type: 'user/message', seq: 1, time: 100, data: { content: 'keep this goal' } } },
+                {
+                  type: 'chunks',
+                  event: {
+                    type: 'chunkrow/text-chunks',
+                    seq: 2,
+                    time: 101,
+                    data: { turn: 1, step: 1, index: 0, texts, dt: texts.slice(1).map(() => 1) },
+                  },
+                },
+                { type: 'event', event: { type: 'turn/end', seq: 80, time: 200, data: { turn: 1 } } },
+              ],
+            },
+          }
+        }
+      }
+      return await originalRpc(method, params)
+    })
+
+    const page = await client.sessionReadOnlyHistory('chunked-1', 60)
+    expect(page.hasMore).toBe(false)
+    expect(page.throughSeq).toBe(80)
+    expect(page.events[0]).toEqual({
+      event: { type: 'user/message', seq: 1, time: 100, data: { content: 'keep this goal' } },
+    })
+    const chunkEntries = page.events.filter(entry => entry.event.type === 'assistant/chunk')
+    expect(chunkEntries).toHaveLength(75)
+    expect(page.events.at(-1)).toEqual({
+      event: { type: 'turn/end', seq: 80, time: 200, data: { turn: 1 } },
+    })
+    await client.close()
+  })
+
+  it('returns empty session/page records without calling session/events fallback', async () => {
+    const core = new ScriptedCore()
+    const client = new HarnessAlphaClient(core as unknown as RemoteClientCore)
+    const originalRpc = core.rpc.bind(core)
+    const eventsCalled = vi.fn()
+    vi.spyOn(core, 'rpc').mockImplementation(async (method, params) => {
+      if (method === 'harness.remote.call') {
+        const request = params as { endpoint?: string }
+        if (request.endpoint === 'session/page') {
+          return { ok: true, value: { records: [], hasMore: false } }
+        }
+        if (request.endpoint === 'session/events') {
+          eventsCalled()
+          return { ok: false, error: { code: 'INTERNAL_ERROR', message: 'should not be called', details: {} } }
+        }
+      }
+      return await originalRpc(method, params)
+    })
+
+    const page = await client.sessionReadOnlyHistory('empty-session', 60)
+    expect(page).toEqual({ events: [], hasMore: false })
+    expect(eventsCalled).not.toHaveBeenCalled()
+    await client.close()
+  })
 })
 
 
@@ -1521,14 +2180,34 @@ describe('HarnessAlphaClient file attachments', () => {
     expect(rpc.mock.calls[0]?.[1]).toEqual({ endpoint: 'fileUploads/upload', payload: { args: {
       agentId: 's1', request: { data: 'JVBERi0x', name: 'report.pdf' },
     } } })
+    expect(rpc.mock.calls[1]?.[1].payload.args.request.mode).toBe('queue')
     expect(rpc.mock.calls[1]?.[1].payload.args.request.content).toEqual([
       { type: 'file', receiptId: 'receipt-s1' }, { type: 'text', text: 'Read this' },
     ])
   })
+
+  it('forwards explicit steer mode on sessionPrompt when requested', async () => {
+    const rpc = vi.fn(async () => ({ ok: true, value: {} }))
+    const client = new HarnessAlphaClient({ rpc } as any)
+    await client.sessionPrompt('s1', 'Interrupt now', 'request-steer-1', [], [], 'steer')
+    expect(rpc.mock.calls[0]?.[1]).toEqual({
+      endpoint: 'session/prompt',
+      payload: {
+        args: {
+          request: expect.objectContaining({
+            requestId: 'request-steer-1',
+            sessionId: 's1',
+            mode: 'steer',
+            content: [{ type: 'text', text: 'Interrupt now' }],
+          }),
+        },
+      },
+    })
+  })
 })
 
 describe('HarnessAlphaClient live session events and control changes', () => {
-  it('recognizes remote.session.events.v1 capability in probeRemoteHostFeatures', async () => {
+  it('recognizes session events and valid IPv6 endpoint hints in transport discovery', async () => {
     const transport = new LoopbackTransport()
     const client = new RemoteClientCore(transport)
     await client.connect()
@@ -1539,6 +2218,7 @@ describe('HarnessAlphaClient live session events and control changes', () => {
       encodeMessage(
         createRpcResponse(request.id, {
           capabilities: ['harness.remote.v3', 'remote.session.events.v1'],
+          sameLinkIpv6Endpoints: ['2001:db8::1:443', '2001:db8::1:65536', '192.168.1.1:443'],
         }),
       ),
     )
@@ -1547,6 +2227,7 @@ describe('HarnessAlphaClient live session events and control changes', () => {
       remoteGateway: true,
       sessionFormat: 3,
       sessionEvents: true,
+      sameLinkIpv6Endpoints: ['2001:db8::1:443'],
     })
     await cleanupContract1()
   })
