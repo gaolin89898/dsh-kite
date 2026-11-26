@@ -1,5 +1,16 @@
 # Repository Guide for Agents
 
+## Mobile trimmed to Android only (2026-11-26, after the merge)
+
+合并当天用户决定移动端只保留 Android：apps/ios（上游 0.6.8 新增）、apps/harmony
+（上游新增）与 .github/workflows/harmony-hap.yml 已删除（211 文件，−37759 行），
+pnpm-lock 的 apps/ios importer 经 `pnpm install --no-frozen-lockfile` 重算清除，
+app-core 注释同步。保留：apps/android + packages/app-core（Android 依赖）；
+apps/server/src/gateway.ts 的 HarmonyOS NetStack Origin 兼容分支也保留——它是
+server 端逻辑、不依赖 apps/harmony 目录，删掉只会制造与上游的无谓差异。
+验证：android 与 app-core tsc 单独通过、排除 android 的全仓生产 build 全绿、
+verify-dsh-plugin 通过（1.0.7）。提交 b48b62f1。未升版本、未发布。
+
 ## liguobao fork merge 2 and mobile restore (2026-11-26)
 
 upstream/main（liguobao，0.6.8，486 commits，分叉点 f214c5ab 2026-11-15）已合并进
