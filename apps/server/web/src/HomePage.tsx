@@ -5,7 +5,7 @@ import { navigate } from './main'
 import { SiteFooter } from './SiteFooter'
 
 const REPOSITORY = 'https://github.com/gaolin89898/dsh-kite'
-const PLUGIN_ARCHIVE = `${REPOSITORY}/releases/latest/download/dsh-kite.tgz`
+const PLUGIN_ARCHIVE = `${REPOSITORY}/releases/latest/download/ds-harness-remote.tgz`
 
 function internal(event: React.MouseEvent<HTMLAnchorElement>, path: string) {
   if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return

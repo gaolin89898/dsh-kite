@@ -26,7 +26,7 @@ Harness 始终运行在工作电脑上，原有的工作区、工具和项目配
 在 Desktop 的「插件 → 添加插件」中粘贴此地址，安装最新发布版。
 
 ```text
-https://github.com/gaolin89898/dsh-kite/releases/latest/download/dsh-kite.tgz
+https://github.com/gaolin89898/dsh-kite/releases/latest/download/ds-harness-remote.tgz
 ```
 
 ## 主要特性
@@ -61,12 +61,12 @@ https://github.com/gaolin89898/dsh-kite/releases/latest/download/dsh-kite.tgz
 
 在 DeepSeek Harness Desktop 的 **扩展 / 插件管理** 中，使用以下 GitHub Release 安装包地址安装 **dsh-kite**：
 
-`https://github.com/gaolin89898/dsh-kite/releases/latest/download/dsh-kite.tgz`
+`https://github.com/gaolin89898/dsh-kite/releases/latest/download/ds-harness-remote.tgz`
 
 Windows 默认安装目录下，也可以在 PowerShell 中调用 Desktop 自带的启动器。安装后重新打开 Desktop。
 
 ```powershell
-& "$env:LOCALAPPDATA\Programs\DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd" plugin --profile desktop add -w https://github.com/gaolin89898/dsh-kite/releases/latest/download/dsh-kite.tgz
+& "$env:LOCALAPPDATA\Programs\DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd" plugin --profile desktop add -w https://github.com/gaolin89898/dsh-kite/releases/latest/download/ds-harness-remote.tgz
 ```
 
 升级已有安装时，将地址换为发布页提供的带版本号的 `.tgz` 地址。

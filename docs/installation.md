@@ -9,7 +9,7 @@
 在 Desktop 的「插件 → 添加插件」中粘贴 GitHub Release 的 `.tgz` 地址即可安装。Windows 使用默认安装目录时，也可以在 PowerShell 中直接调用 Desktop 自带的启动器。
 
 ```powershell
-& "$env:LOCALAPPDATA\Programs\DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd" plugin --profile desktop add -w https://github.com/gaolin89898/dsh-kite/releases/latest/download/dsh-kite.tgz
+& "$env:LOCALAPPDATA\Programs\DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd" plugin --profile desktop add -w https://github.com/gaolin89898/dsh-kite/releases/latest/download/ds-harness-remote.tgz
 ```
 
 若提示 `profile "desktop" is managed exclusively by the Electron application`，请使用上面的 `dsh.cmd` 完整路径。自定义安装目录需相应修改路径。安装后重新打开 Desktop。
@@ -17,7 +17,7 @@
 Web Host 使用启动它的 `dsh`、`DSH_HOME` 和 profile。例如使用 `web` 的实例可执行以下命令并重启 Harness。
 
 ```sh
-dsh plugin --profile web add -w https://github.com/gaolin89898/dsh-kite/releases/latest/download/dsh-kite.tgz
+dsh plugin --profile web add -w https://github.com/gaolin89898/dsh-kite/releases/latest/download/ds-harness-remote.tgz
 ```
 
 侧栏版本提示检查本仓库的 GitHub Releases，不会自动升级。升级已有安装时，从[发布页](https://github.com/gaolin89898/dsh-kite/releases)复制带版本号的 `.tgz` 地址，替换命令中的 `latest` 安装包地址，避免锁文件继续使用旧包。更新会中断该插件承载的远程连接。
@@ -122,7 +122,7 @@ Desktop 默认 `desktop` profile，独立 CLI 默认 `web`，可用 `DSH_COMMAND
 Desktop 也可打开 **扩展 / 插件管理**，使用本仓库的安装包地址：
 
 ```text
-https://github.com/gaolin89898/dsh-kite/releases/latest/download/dsh-kite.tgz
+https://github.com/gaolin89898/dsh-kite/releases/latest/download/ds-harness-remote.tgz
 ```
 
 普通独立 CLI 不能管理保留的 `desktop` profile，必须使用 Desktop 官方 launcher。

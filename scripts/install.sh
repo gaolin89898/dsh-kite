@@ -95,7 +95,7 @@ fi
 [[ "$DSH_PROFILE" =~ ^[A-Za-z0-9_-]+$ ]] || fail 'Invalid DSH_PROFILE.'
 REMOTE_VERSION=${REMOTE_VERSION:-latest}
 if [[ "$REMOTE_VERSION" = latest ]]; then
-  remote_package_url='https://github.com/gaolin89898/dsh-kite/releases/latest/download/dsh-kite.tgz'
+  remote_package_url='https://github.com/gaolin89898/dsh-kite/releases/latest/download/ds-harness-remote.tgz'
 else
   REMOTE_VERSION=${REMOTE_VERSION#v}
   [[ "$REMOTE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || fail 'REMOTE_VERSION must be latest or a release version.'
