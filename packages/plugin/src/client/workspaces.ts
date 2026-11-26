@@ -1061,7 +1061,7 @@ export function createRemoteWorkspaceAction(React: ClientReact, portal?: PortalR
     React.useEffect(() => {
       if (!open || needsAuthorization !== false) return undefined
       let disposed = false
-      let timer: number | undefined
+      let timer: ReturnType<typeof setTimeout> | undefined
       let reading = false
       let known = new Map<string, boolean>(devicesRef.current.map(device => [device.deviceId, device.online]))
       function schedule(): void {

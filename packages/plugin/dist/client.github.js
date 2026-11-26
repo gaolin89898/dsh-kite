@@ -1625,7 +1625,7 @@ Minimum version required to store current data is: ` + bestVersion + `.
   // packages/plugin/src/remote-upload-client.ts
   var REMOTE_UPLOAD_MAX_BYTES = 192 * 1024 * 1024;
   function createRemoteUploadFetch(original, baseUrl) {
-    let sequence = 0, control = async (method, payload, signal) => {
+    let sequence = 0, lastMode, control = async (method, payload, signal) => {
       let rpcId = `remote-upload-${++sequence}`, response = await original(new URL(`${CONTROL_RPC_PREFIX.slice(1)}/${method}`, baseUrl), {
         method: "POST",
         credentials: "same-origin",
@@ -1633,25 +1633,31 @@ Minimum version required to store current data is: ` + bestVersion + `.
         body: JSON.stringify({ type: "client-request", rpcId, method, payload }),
         signal
       });
+      if (method === "status" && lastMode !== "remote" && (response.status === 404 || response.status === 405))
+        return { mode: "local" };
       if (!response.ok) throw new Error(`Remote upload control failed (HTTP ${response.status}).`);
       let envelope = await response.json();
       if (envelope.type !== "server-response" || envelope.rpcId !== rpcId || envelope.result?.ok !== !0)
         throw new Error(envelope.result?.error?.message ?? "Remote upload requires an updated Host plugin.");
+      if (method === "status") {
+        let mode = envelope.result.value?.mode;
+        (mode === "local" || mode === "remote") && (lastMode = mode);
+      }
       return envelope.result.value;
     };
     return async (input, init) => {
       let url = new URL(input instanceof Request ? input.url : String(input), baseUrl), target = new URL("api/session/uploadFileBinary", baseUrl);
       if (url.origin !== target.origin || url.pathname !== target.pathname) return original(input, init);
-      let request = new Request(url, input instanceof Request ? new Request(input, init) : init);
-      if (request.method !== "POST") return original(input, init);
-      let signal = AbortSignal.any([request.signal, AbortSignal.timeout(6e4)]), status = await control("status", {}, signal);
+      let source = input instanceof Request ? input : void 0;
+      if ((init?.method ?? source?.method ?? "GET").toUpperCase() !== "POST") return original(input, init);
+      let signal = AbortSignal.any([init?.signal ?? source?.signal ?? new AbortController().signal, AbortSignal.timeout(6e4)]), status = await control("status", {}, signal);
       if (status.mode === "local") return original(input, init);
       if (status.mode !== "remote" || !status.connected) throw new Error("Remote Host is disconnected. Reconnect before uploading a file.");
-      if (status.backend !== void 0 && status.backend !== "harness") throw new Error("Remote attachment receipts require a Harness session.");
+      if (status.backend !== void 0 && status.backend !== "harness" && status.backend !== "codex") throw new Error("Remote attachment receipts require a Harness or CodeX session.");
       let sessionId = url.searchParams.get("sessionId"), mediaType = url.searchParams.get("mediaType");
       if (!sessionId || mediaType !== null && !["image/png", "image/jpeg", "image/webp", "image/gif"].includes(mediaType))
         throw new Error("A Session and a supported image media type, when provided, are required.");
-      let reader = request.body?.getReader(), abortRead = () => {
+      let reader = (source ? new Request(source, init) : new Request(url, init)).body?.getReader(), abortRead = () => {
         reader?.cancel(signal.reason).catch(() => {
         });
       };
@@ -1703,13 +1709,16 @@ Minimum version required to store current data is: ` + bestVersion + `.
     saveServerBeforeLogin: "Save the Server address before continuing sign-in or pairing.",
     pairingLoginTab: "DSH Go",
     pairingTitle: "Pair with DSH Go",
-    pairingHint: `Scan in DSH Go and confirm on your phone.
-Then enter the phone code on this computer and confirm binding.`,
+    pairingHint: `Click below to generate a pairing QR code, then scan it in DSH Go.
+This Host accepts connections only; use another sign-in method to control other devices.`,
     pairingHostOnly: "New Hosts accept connections only. Pairing does not enable control of other devices.",
+    pairingHostOnlyDetail: "DSH Go QR pairing supports one device at a time and accepts connections only. To switch devices or control other Hosts, sign out below and pair again or use account sign-in.",
     pairingSaveServer: "Save the Server address before pairing.",
-    pairingScan: "Scan this QR code in DSH Go and confirm on your phone.",
+    pairingScan: `Scan this QR code in DSH Go and confirm on your phone.
+This Host accepts connections only; use another sign-in method to control other devices.`,
     pairingEnter: "Check the requesting phone, then enter its code.",
-    pairingComplete: "Paired. DSH Go can now connect to this Host.",
+    pairingComplete: `Paired. DSH Go can now connect to this Host.
+DSH Go QR pairing supports one device at a time. To switch devices or control other Hosts, sign out and pair again or use account sign-in.`,
     pairingPending: "Recover the original submission without changing the code.",
     pairingClosed: "Pairing ended. Generate a new QR code to start again.",
     pairingQr: "One-time DSH Go pairing QR code",
@@ -1721,6 +1730,7 @@ Then enter the phone code on this computer and confirm binding.`,
     pairingRetry: "Recover original submission",
     pairingCancel: "Cancel pairing",
     pairingStart: "Generate pairing QR code",
+    pairingDone: "Done",
     pairingBusy: "Please wait\u2026",
     pairingUnsupported: "This Server does not support device pairing.",
     pairingError: `Could not finish pairing. Check the connection.
@@ -1809,6 +1819,8 @@ If a code was sent, recover the original submission without changing it.`,
     registrationCodeHint: "Generate it after signing in on the Server website. Use it once to connect this device.",
     accountHint: "The account must belong to the selected Server.",
     password: "Password",
+    twoFactorCode: "Verification or recovery code",
+    twoFactorRestart: "Enter password again",
     passwordHint: "Only DSH Remote Web or self-hosted service accounts; not DeepSeek Harness official.",
     modeSavedNeedsAuthorization: "Mode saved. Authorize {role} before connecting. Existing registrations were kept.",
     modeSavedReused: "Mode saved. Existing registration reused. Restart Harness to apply.",
@@ -1829,7 +1841,7 @@ If a code was sent, recover the original submission without changing it.`,
     resetIdentity: "Reset Remote Identity",
     resetIdentityHint: "Recreate local device key pairs if they are corrupted. You will need to sign in again.",
     resetIdentityConfirm: "Are you sure you want to reset the local Remote identity? You will need to sign in again.",
-    resetIdentitySuccess: "Remote identity has been reset.",
+    resetIdentitySuccess: "Remote identity has been reset. Restart DSH, then sign in again.",
     resettingAction: "Resetting\u2026",
     remoteStartupFailed: "Remote plugin failed to start.",
     switchTarget: "Switch Local / Remote Harness target",
@@ -1862,6 +1874,7 @@ If a code was sent, recover the original submission without changing it.`,
     connectionAuthorizationExpired: "Authorization expired. Sign out and authorize this Host again.",
     connectionReplaced: "Another instance is using this Host identity. Stop it or use a separate DSH_HOME before reconnecting.",
     connectionCredentialsBusy: "Credential refresh is busy. The Host will retry. Remove a legacy refresh lock only after every instance stops.",
+    connectionCredentialsLockDirectory: "The credential refresh lock is a directory. Stop all Harness instances, then move the old lock directory aside and restart.",
     connectionDeviceRevoked: "This Host was revoked on the Server. Sign out and authorize it again.",
     connectionOwnershipRequired: "The Server no longer recognizes this Host as an owned device.",
     connectionRateLimited: "The Server is receiving too many requests. Automatic retry will continue.",
@@ -2051,7 +2064,7 @@ If a code was sent, recover the original submission without changing it.`,
     acpAvailable: "ACP available",
     acpUnavailable: "ACP unavailable",
     agentBackends: "More Coding Agents",
-    acpDocumentation: "Read the documentation.",
+    acpDocumentation: "Read the documentation",
     acpHint: "Connect through ACP. ",
     acpCheckPassed: "Check passed",
     acpCheckFailed: "Check failed",
@@ -2063,6 +2076,14 @@ If a code was sent, recover the original submission without changing it.`,
     acpInstalledNotice: "ACP backend installed and enabled.",
     acpDownloadRequired: "Please download and install {backend} first: {url}",
     addAcp: "Add ACP",
+    addCustomAcp: "Add custom ACP agent",
+    acpAddedNotice: "Custom ACP backend added.",
+    acpIdHint: "ID (e.g. my-agent)",
+    acpAuthRequired: "Authentication required on Host",
+    acpLoginCommand: "Login command: {command}",
+    customAcpWorkspaces: "{name} virtual workspace",
+    addCustomAcpWorkspace: "Add {name} workspace",
+    noCustomAcpWorkspaces: "No {name} workspaces yet",
     acpName: "Service name",
     acpCommand: "Command",
     acpArguments: "Arguments",
@@ -2071,6 +2092,9 @@ If a code was sent, recover the original submission without changing it.`,
     noConnectedClients: "No devices are currently connected to this Host.",
     unknownDevice: "Unknown device",
     exitRemoteAccount: "Sign out",
+    membershipPlans: "Membership plans",
+    membershipPlansIntro: "Want more speed and power? Explore ",
+    membershipPlansOutro: ".",
     githubLogin: "Github",
     providerLogin: "{provider}",
     scanWithProvider: "Scan to continue with {provider}",
@@ -2103,14 +2127,16 @@ If a code was sent, recover the original submission without changing it.`,
     saveServerBeforeLogin: "\u8BF7\u5148\u4FDD\u5B58\u670D\u52A1\u5668\u5730\u5740\uFF0C\u518D\u7EE7\u7EED\u767B\u5F55\u6216\u914D\u5BF9\u3002",
     pairingLoginTab: "DSH Go",
     pairingTitle: "\u4E0E DSH Go \u914D\u5BF9",
-    pairingHint: `\u8BF7\u4F7F\u7528 DSH Go \u626B\u7801\u5E76\u5728\u624B\u673A\u4E0A\u786E\u8BA4\u3002
-\u5F53\u524D\u4E3B\u673A\u4EC5\u88AB\u63A7\uFF0C\u5982\u9700\u8981\u4E3B\u63A7\u8BF7\u4F7F\u7528\u5176\u4ED6\u767B\u5F55\u65B9\u5F0F\u3002`,
+    pairingHint: `\u70B9\u51FB\u4E0B\u65B9\u751F\u6210\u914D\u5BF9\u4E8C\u7EF4\u7801\uFF0C\u518D\u7528 DSH Go \u626B\u7801\u5E76\u786E\u8BA4\u3002
+\u5F53\u524D\u4E3B\u673A\u4EC5\u88AB\u63A7\uFF0C\u5982\u9700\u63A7\u5236\u5176\u4ED6\u8BBE\u5907\u8BF7\u4F7F\u7528\u5176\u4ED6\u767B\u5F55\u65B9\u5F0F\u3002`,
     pairingHostOnly: "\u6B64\u6388\u6743\u4E3B\u673A\u53EA\u5141\u8BB8\u88AB\u63A7\uFF0C\u65E0\u6CD5\u63A7\u5236\u5176\u4ED6\u8BBE\u5907\u3002",
+    pairingHostOnlyDetail: "DSH Go \u626B\u7801\u6682\u4E0D\u652F\u6301\u591A\u53F0\u8BBE\u5907\u63A7\u5236\uFF0C\u5F53\u524D\u4E3B\u673A\u4EC5\u63A5\u53D7\u5DF2\u914D\u5BF9\u624B\u673A\u63A5\u5165\u3002\u5982\u9700\u66F4\u6362\u8BBE\u5907\u6216\u63A7\u5236\u5176\u4ED6\u4E3B\u673A\uFF0C\u8BF7\u70B9\u51FB\u53F3\u4E0B\u89D2\u300C\u9000\u51FA\u8D26\u53F7\u300D\u540E\u91CD\u65B0\u914D\u5BF9\u6216\u6539\u7528\u6388\u6743\u767B\u5F55\u3002",
     pairingSaveServer: "\u8BF7\u5148\u4FDD\u5B58\u670D\u52A1\u5668\u5730\u5740\uFF0C\u518D\u5F00\u59CB\u914D\u5BF9\u3002",
-    pairingScan: `\u8BF7\u4F7F\u7528 DSH Go \u626B\u7801\u5E76\u5728\u624B\u673A\u4E0A\u786E\u8BA4\u3002
-\u5F53\u524D\u4E3B\u673A\u4EC5\u88AB\u63A7\uFF0C\u5982\u9700\u8981\u4E3B\u63A7\u8BF7\u4F7F\u7528\u5176\u4ED6\u767B\u5F55\u65B9\u5F0F\u3002`,
+    pairingScan: `\u8BF7\u4F7F\u7528 DSH Go \u626B\u63CF\u6B64\u4E8C\u7EF4\u7801\u5E76\u5728\u624B\u673A\u4E0A\u786E\u8BA4\u3002
+\u5F53\u524D\u4E3B\u673A\u4EC5\u88AB\u63A7\uFF0C\u5982\u9700\u63A7\u5236\u5176\u4ED6\u8BBE\u5907\u8BF7\u4F7F\u7528\u5176\u4ED6\u767B\u5F55\u65B9\u5F0F\u3002`,
     pairingEnter: "\u8BF7\u6838\u5B9E\u7533\u8BF7\u624B\u673A",
-    pairingComplete: "\u914D\u5BF9\u5B8C\u6210\uFF0CDSH Go \u73B0\u5728\u53EF\u4EE5\u8FDE\u63A5\u6B64 Host\u3002",
+    pairingComplete: `\u914D\u5BF9\u5B8C\u6210\uFF0CDSH Go \u73B0\u5728\u53EF\u4EE5\u8FDE\u63A5\u6B64 Host\u3002
+DSH Go \u626B\u7801\u6682\u4E0D\u652F\u6301\u591A\u53F0\u8BBE\u5907\u63A7\u5236\uFF1B\u5982\u9700\u66F4\u6362\u8BBE\u5907\u6216\u63A7\u5236\u5176\u4ED6\u4E3B\u673A\uFF0C\u8BF7\u9000\u51FA\u540E\u91CD\u65B0\u914D\u5BF9\u6216\u6539\u7528\u8D26\u53F7\u6388\u6743\u767B\u5F55\u3002`,
     pairingPending: "\u8BF7\u6062\u590D\u539F\u63D0\u4EA4\u7ED3\u679C\uFF0C\u4E0D\u8981\u66F4\u6362\u9A8C\u8BC1\u7801\u3002",
     pairingClosed: "\u914D\u5BF9\u5DF2\u7ED3\u675F\uFF0C\u8BF7\u91CD\u65B0\u751F\u6210\u4E8C\u7EF4\u7801\u3002",
     pairingQr: "DSH Go \u4E00\u6B21\u6027\u914D\u5BF9\u4E8C\u7EF4\u7801",
@@ -2122,6 +2148,7 @@ If a code was sent, recover the original submission without changing it.`,
     pairingRetry: "\u6062\u590D\u539F\u63D0\u4EA4\u7ED3\u679C",
     pairingCancel: "\u53D6\u6D88\u914D\u5BF9",
     pairingStart: "\u751F\u6210\u914D\u5BF9\u4E8C\u7EF4\u7801",
+    pairingDone: "\u5B8C\u6210",
     pairingBusy: "\u8BF7\u7A0D\u5019\u2026",
     pairingUnsupported: "\u5F53\u524D\u670D\u52A1\u5668\u4E0D\u652F\u6301\u8BBE\u5907\u626B\u7801\u914D\u5BF9\u3002",
     pairingError: `\u6682\u65F6\u65E0\u6CD5\u5B8C\u6210\u914D\u5BF9\uFF0C\u8BF7\u68C0\u67E5\u7F51\u7EDC\u3002
@@ -2210,6 +2237,8 @@ If a code was sent, recover the original submission without changing it.`,
     registrationCodeHint: "\u767B\u5F55 Server \u7F51\u9875\u540E\u751F\u6210\uFF0C\u7528\u4E00\u6B21\u5373\u53EF\u8FDE\u63A5\u8FD9\u53F0\u8BBE\u5907\u3002",
     accountHint: "\u8D26\u53F7\u5FC5\u987B\u5C5E\u4E8E\u6240\u9009 Server\u3002",
     password: "\u5BC6\u7801",
+    twoFactorCode: "\u9A8C\u8BC1\u7801\u6216\u6062\u590D\u7801",
+    twoFactorRestart: "\u91CD\u65B0\u8F93\u5165\u5BC6\u7801",
     passwordHint: "\u4EC5\u9650DSH Remote Web\u8D26\u53F7\u6216\u81EA\u6258\u7BA1\u670D\u52A1\u8D26\u53F7\uFF0C\u975E DeepSeek Harness\u5B98\u65B9\u3002",
     modeSavedNeedsAuthorization: "\u6A21\u5F0F\u5DF2\u4FDD\u5B58\u3002\u8FDE\u63A5\u524D\u8BF7\u5148\u6388\u6743 {role}\uFF1B\u5DF2\u6709\u6CE8\u518C\u4FE1\u606F\u5DF2\u4FDD\u7559\u3002",
     modeSavedReused: "\u6A21\u5F0F\u5DF2\u4FDD\u5B58\u5E76\u590D\u7528\u5DF2\u6709\u6CE8\u518C\u4FE1\u606F\u3002\u91CD\u542F Harness \u540E\u751F\u6548\u3002",
@@ -2230,7 +2259,7 @@ If a code was sent, recover the original submission without changing it.`,
     resetIdentity: "\u91CD\u7F6E\u672C\u673A Remote \u8EAB\u4EFD",
     resetIdentityHint: "\u5F53\u672C\u673A\u8EAB\u4EFD\u5BC6\u94A5\u5BF9\u635F\u574F\u65F6\u91CD\u5EFA\u8EAB\u4EFD\u3002\u91CD\u7F6E\u540E\u9700\u8981\u91CD\u65B0\u767B\u5F55\u3002",
     resetIdentityConfirm: "\u786E\u5B9A\u8981\u91CD\u7F6E\u672C\u673A Remote \u8EAB\u4EFD\u5417\uFF1F\u91CD\u7F6E\u540E\u9700\u8981\u91CD\u65B0\u767B\u5F55\u3002",
-    resetIdentitySuccess: "\u672C\u673A Remote \u8EAB\u4EFD\u5DF2\u91CD\u7F6E\u3002",
+    resetIdentitySuccess: "\u672C\u673A Remote \u8EAB\u4EFD\u5DF2\u91CD\u7F6E\u3002\u8BF7\u91CD\u542F DSH\uFF0C\u7136\u540E\u91CD\u65B0\u767B\u5F55\u3002",
     resettingAction: "\u6B63\u5728\u91CD\u7F6E\u2026",
     remoteStartupFailed: "Remote \u63D2\u4EF6\u542F\u52A8\u5931\u8D25\u3002",
     switchTarget: "\u5207\u6362\u672C\u5730\u6216\u8FDC\u7A0B Harness",
@@ -2263,6 +2292,7 @@ If a code was sent, recover the original submission without changing it.`,
     connectionAuthorizationExpired: "\u6388\u6743\u5DF2\u5931\u6548\uFF0C\u8BF7\u9000\u51FA\u6388\u6743\u540E\u91CD\u65B0\u8FDE\u63A5\u6B64 Host\u3002",
     connectionReplaced: "\u53E6\u4E00\u5B9E\u4F8B\u6B63\u5728\u4F7F\u7528\u6B64 Host \u8EAB\u4EFD\u3002\u8BF7\u505C\u6B62\u8BE5\u5B9E\u4F8B\uFF0C\u6216\u4F7F\u7528\u72EC\u7ACB\u7684 DSH_HOME \u540E\u91CD\u65B0\u8FDE\u63A5\u3002",
     connectionCredentialsBusy: "\u51ED\u636E\u5237\u65B0\u6B63\u5FD9\uFF0C\u4E3B\u673A\u5C06\u91CD\u8BD5\u3002\u53EA\u6709\u505C\u6B62\u6240\u6709\u5B9E\u4F8B\u540E\uFF0C\u624D\u80FD\u79FB\u9664\u65E7\u7248\u6B8B\u7559\u7684\u5237\u65B0\u9501\u3002",
+    connectionCredentialsLockDirectory: "\u51ED\u636E\u5237\u65B0\u9501\u662F\u4E00\u4E2A\u76EE\u5F55\u3002\u8BF7\u505C\u6B62\u6240\u6709 Harness \u5B9E\u4F8B\uFF0C\u5C06\u65E7\u9501\u76EE\u5F55\u79FB\u5230\u5176\u4ED6\u4F4D\u7F6E\u540E\u91CD\u542F\u3002",
     connectionDeviceRevoked: "\u6B64 Host \u5DF2\u5728 Server \u4E0A\u88AB\u64A4\u9500\uFF0C\u8BF7\u9000\u51FA\u6388\u6743\u540E\u91CD\u65B0\u8FDE\u63A5\u3002",
     connectionOwnershipRequired: "Server \u5DF2\u4E0D\u518D\u5C06\u6B64 Host \u8BC6\u522B\u4E3A\u5F53\u524D\u8D26\u53F7\u7684\u8BBE\u5907\u3002",
     connectionRateLimited: "Server \u8BF7\u6C42\u8FC7\u591A\uFF0C\u63D2\u4EF6\u5C06\u7EE7\u7EED\u81EA\u52A8\u91CD\u8BD5\u3002",
@@ -2452,18 +2482,26 @@ If a code was sent, recover the original submission without changing it.`,
     acpAvailable: "ACP \u53EF\u7528",
     acpUnavailable: "ACP \u4E0D\u53EF\u7528",
     agentBackends: "\u66F4\u591A Coding Agent",
-    acpDocumentation: "\u8BE6\u7EC6\u8BF7\u67E5\u9605\u3002",
+    acpDocumentation: "\u8BE6\u7EC6\u8BF7\u67E5\u9605",
     acpHint: "\u901A\u8FC7 ACP \u7EDF\u4E00\u63A5\u5165\uFF0C",
     acpCheckPassed: "\u68C0\u6D4B\u901A\u8FC7",
     acpCheckFailed: "\u68C0\u6D4B\u5931\u8D25",
     installOrConfigureAcp: "\u4E00\u952E\u914D\u7F6E/\u5B89\u88C5",
-    configureAcp: "\u81EA\u52A8\u626B\u63CF\u914D\u7F6E",
-    installAcp: "\u4E00\u952E\u5B89\u88C5\u914D\u7F6E",
+    configureAcp: "\u626B\u63CF\u914D\u7F6E",
+    installAcp: "\u5B89\u88C5\u914D\u7F6E",
     installingAcp: "\u6B63\u5728\u914D\u7F6E\u2026",
     acpConfiguredNotice: "\u5DF2\u81EA\u52A8\u5B9A\u4F4D\u5E76\u542F\u7528 ACP \u540E\u7AEF\u3002",
     acpInstalledNotice: "\u5DF2\u5B8C\u6210\u9759\u9ED8\u5B89\u88C5\u5E76\u81EA\u52A8\u542F\u7528\u3002",
     acpDownloadRequired: "\u8BF7\u5148\u4E0B\u8F7D\u5B89\u88C5 {backend}\uFF1A{url}",
     addAcp: "\u6DFB\u52A0 ACP",
+    addCustomAcp: "\u6DFB\u52A0\u81EA\u5B9A\u4E49 ACP Agent",
+    acpAddedNotice: "\u5DF2\u6DFB\u52A0\u81EA\u5B9A\u4E49 ACP \u540E\u7AEF\u3002",
+    acpIdHint: "\u6807\u8BC6\uFF08\u5982 my-agent\uFF09",
+    acpAuthRequired: "Host \u9700\u8981\u5148\u5B8C\u6210\u767B\u5F55\u8BA4\u8BC1",
+    acpLoginCommand: "\u767B\u5F55\u547D\u4EE4\uFF1A{command}",
+    customAcpWorkspaces: "{name} \u5DE5\u4F5C\u533A",
+    addCustomAcpWorkspace: "\u6DFB\u52A0 {name} \u5DE5\u4F5C\u533A",
+    noCustomAcpWorkspaces: "\u6682\u65E0 {name} \u5DE5\u4F5C\u533A",
     acpName: "\u670D\u52A1\u540D\u79F0",
     acpCommand: "\u542F\u52A8\u547D\u4EE4",
     acpArguments: "\u547D\u4EE4\u53C2\u6570",
@@ -2472,6 +2510,9 @@ If a code was sent, recover the original submission without changing it.`,
     noConnectedClients: "\u76EE\u524D\u6CA1\u6709\u8BBE\u5907\u8FDE\u63A5\u5230\u8FD9\u53F0\u4E3B\u673A\u3002",
     unknownDevice: "\u672A\u77E5\u8BBE\u5907",
     exitRemoteAccount: "\u9000\u51FA\u8D26\u53F7",
+    membershipPlans: "\u4F1A\u5458\u65B9\u6848",
+    membershipPlansIntro: "\u66F4\u5FEB\u66F4\u5F3A\uFF1F\u8BF7\u67E5\u9605\u300C",
+    membershipPlansOutro: "\u300D\u3002",
     githubLogin: "Github",
     providerLogin: "{provider}",
     scanWithProvider: "\u4F7F\u7528 {provider} \u626B\u7801\u767B\u5F55",
@@ -2504,13 +2545,16 @@ If a code was sent, recover the original submission without changing it.`,
     saveServerBeforeLogin: "\u0421\u043E\u0445\u0440\u0430\u043D\u0438\u0442\u0435 \u0430\u0434\u0440\u0435\u0441 \u0441\u0435\u0440\u0432\u0435\u0440\u0430, \u043F\u0440\u0435\u0436\u0434\u0435 \u0447\u0435\u043C \u043F\u0440\u043E\u0434\u043E\u043B\u0436\u0438\u0442\u044C \u0432\u0445\u043E\u0434 \u0438\u043B\u0438 \u0441\u043E\u043F\u0440\u044F\u0436\u0435\u043D\u0438\u0435.",
     pairingLoginTab: "DSH Go",
     pairingTitle: "\u0421\u043E\u043F\u0440\u044F\u0436\u0435\u043D\u0438\u0435 \u0441 DSH Go",
-    pairingHint: `\u041E\u0442\u0441\u043A\u0430\u043D\u0438\u0440\u0443\u0439\u0442\u0435 \u043A\u043E\u0434 \u0432 DSH Go \u0438 \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0434\u0438\u0442\u0435 \u043D\u0430 \u0442\u0435\u043B\u0435\u0444\u043E\u043D\u0435.
-\u0417\u0430\u0442\u0435\u043C \u0432\u0432\u0435\u0434\u0438\u0442\u0435 \u043A\u043E\u0434 \u0441 \u0442\u0435\u043B\u0435\u0444\u043E\u043D\u0430 \u043D\u0430 \u044D\u0442\u043E\u043C \u043A\u043E\u043C\u043F\u044C\u044E\u0442\u0435\u0440\u0435 \u0438 \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0434\u0438\u0442\u0435 \u043F\u0440\u0438\u0432\u044F\u0437\u043A\u0443.`,
+    pairingHint: `\u041D\u0430\u0436\u043C\u0438\u0442\u0435 \u043A\u043D\u043E\u043F\u043A\u0443 \u043D\u0438\u0436\u0435, \u0447\u0442\u043E\u0431\u044B \u0441\u043E\u0437\u0434\u0430\u0442\u044C QR-\u043A\u043E\u0434 \u0441\u043E\u043F\u0440\u044F\u0436\u0435\u043D\u0438\u044F, \u0437\u0430\u0442\u0435\u043C \u043E\u0442\u0441\u043A\u0430\u043D\u0438\u0440\u0443\u0439\u0442\u0435 \u0435\u0433\u043E \u0432 DSH Go.
+\u042D\u0442\u043E\u0442 \u0445\u043E\u0441\u0442 \u0442\u043E\u043B\u044C\u043A\u043E \u043F\u0440\u0438\u043D\u0438\u043C\u0430\u0435\u0442 \u043F\u043E\u0434\u043A\u043B\u044E\u0447\u0435\u043D\u0438\u044F; \u0434\u043B\u044F \u0443\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u0438\u044F \u0434\u0440\u0443\u0433\u0438\u043C\u0438 \u0443\u0441\u0442\u0440\u043E\u0439\u0441\u0442\u0432\u0430\u043C\u0438 \u0432\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u0434\u0440\u0443\u0433\u043E\u0439 \u0441\u043F\u043E\u0441\u043E\u0431 \u0432\u0445\u043E\u0434\u0430.`,
     pairingHostOnly: "\u041D\u043E\u0432\u044B\u0435 \u0445\u043E\u0441\u0442\u044B \u0442\u043E\u043B\u044C\u043A\u043E \u043F\u0440\u0438\u043D\u0438\u043C\u0430\u044E\u0442 \u043F\u043E\u0434\u043A\u043B\u044E\u0447\u0435\u043D\u0438\u044F. \u0421\u043E\u043F\u0440\u044F\u0436\u0435\u043D\u0438\u0435 \u043D\u0435 \u0434\u0430\u0451\u0442 \u0443\u043F\u0440\u0430\u0432\u043B\u044F\u0442\u044C \u0434\u0440\u0443\u0433\u0438\u043C\u0438 \u0443\u0441\u0442\u0440\u043E\u0439\u0441\u0442\u0432\u0430\u043C\u0438.",
+    pairingHostOnlyDetail: "\u0421\u043E\u043F\u0440\u044F\u0436\u0435\u043D\u0438\u0435 \u043F\u043E QR-\u043A\u043E\u0434\u0443 DSH Go \u043F\u043E\u0434\u0434\u0435\u0440\u0436\u0438\u0432\u0430\u0435\u0442 \u0442\u043E\u043B\u044C\u043A\u043E \u043E\u0434\u043D\u043E \u0443\u0441\u0442\u0440\u043E\u0439\u0441\u0442\u0432\u043E \u0438 \u043F\u0440\u0438\u043D\u0438\u043C\u0430\u0435\u0442 \u0442\u043E\u043B\u044C\u043A\u043E \u0432\u0445\u043E\u0434\u044F\u0449\u0438\u0435 \u043F\u043E\u0434\u043A\u043B\u044E\u0447\u0435\u043D\u0438\u044F. \u0427\u0442\u043E\u0431\u044B \u0441\u043C\u0435\u043D\u0438\u0442\u044C \u0443\u0441\u0442\u0440\u043E\u0439\u0441\u0442\u0432\u043E \u0438\u043B\u0438 \u0443\u043F\u0440\u0430\u0432\u043B\u044F\u0442\u044C \u0434\u0440\u0443\u0433\u0438\u043C\u0438 \u0445\u043E\u0441\u0442\u0430\u043C\u0438, \u043D\u0430\u0436\u043C\u0438\u0442\u0435 \xAB\u0412\u044B\u0439\u0442\u0438\xBB \u043D\u0438\u0436\u0435 \u0438 \u043F\u043E\u0432\u0442\u043E\u0440\u0438\u0442\u0435 \u0441\u043E\u043F\u0440\u044F\u0436\u0435\u043D\u0438\u0435 \u0438\u043B\u0438 \u0432\u043E\u0439\u0434\u0438\u0442\u0435 \u0447\u0435\u0440\u0435\u0437 \u0430\u043A\u043A\u0430\u0443\u043D\u0442.",
     pairingSaveServer: "\u0421\u043E\u0445\u0440\u0430\u043D\u0438\u0442\u0435 \u0430\u0434\u0440\u0435\u0441 \u0441\u0435\u0440\u0432\u0435\u0440\u0430 \u043F\u0435\u0440\u0435\u0434 \u0441\u043E\u043F\u0440\u044F\u0436\u0435\u043D\u0438\u0435\u043C.",
-    pairingScan: "\u041E\u0442\u0441\u043A\u0430\u043D\u0438\u0440\u0443\u0439\u0442\u0435 \u044D\u0442\u043E\u0442 QR-\u043A\u043E\u0434 \u0432 DSH Go \u0438 \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0434\u0438\u0442\u0435 \u043D\u0430 \u0442\u0435\u043B\u0435\u0444\u043E\u043D\u0435.",
+    pairingScan: `\u041E\u0442\u0441\u043A\u0430\u043D\u0438\u0440\u0443\u0439\u0442\u0435 \u044D\u0442\u043E\u0442 QR-\u043A\u043E\u0434 \u0432 DSH Go \u0438 \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0434\u0438\u0442\u0435 \u043D\u0430 \u0442\u0435\u043B\u0435\u0444\u043E\u043D\u0435.
+\u042D\u0442\u043E\u0442 \u0445\u043E\u0441\u0442 \u0442\u043E\u043B\u044C\u043A\u043E \u043F\u0440\u0438\u043D\u0438\u043C\u0430\u0435\u0442 \u043F\u043E\u0434\u043A\u043B\u044E\u0447\u0435\u043D\u0438\u044F; \u0434\u043B\u044F \u0443\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u0438\u044F \u0434\u0440\u0443\u0433\u0438\u043C\u0438 \u0443\u0441\u0442\u0440\u043E\u0439\u0441\u0442\u0432\u0430\u043C\u0438 \u0432\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u0434\u0440\u0443\u0433\u043E\u0439 \u0441\u043F\u043E\u0441\u043E\u0431 \u0432\u0445\u043E\u0434\u0430.`,
     pairingEnter: "\u041F\u0440\u043E\u0432\u0435\u0440\u044C\u0442\u0435 \u0442\u0435\u043B\u0435\u0444\u043E\u043D, \u043E\u0442\u043F\u0440\u0430\u0432\u0438\u0432\u0448\u0438\u0439 \u0437\u0430\u043F\u0440\u043E\u0441, \u0438 \u0432\u0432\u0435\u0434\u0438\u0442\u0435 \u0435\u0433\u043E \u043A\u043E\u0434.",
-    pairingComplete: "\u0421\u043E\u043F\u0440\u044F\u0436\u0435\u043D\u0438\u0435 \u0432\u044B\u043F\u043E\u043B\u043D\u0435\u043D\u043E. \u0422\u0435\u043F\u0435\u0440\u044C DSH Go \u043C\u043E\u0436\u0435\u0442 \u043F\u043E\u0434\u043A\u043B\u044E\u0447\u0430\u0442\u044C\u0441\u044F \u043A \u044D\u0442\u043E\u043C\u0443 \u0445\u043E\u0441\u0442\u0443.",
+    pairingComplete: `\u0421\u043E\u043F\u0440\u044F\u0436\u0435\u043D\u0438\u0435 \u0432\u044B\u043F\u043E\u043B\u043D\u0435\u043D\u043E. \u0422\u0435\u043F\u0435\u0440\u044C DSH Go \u043C\u043E\u0436\u0435\u0442 \u043F\u043E\u0434\u043A\u043B\u044E\u0447\u0430\u0442\u044C\u0441\u044F \u043A \u044D\u0442\u043E\u043C\u0443 \u0445\u043E\u0441\u0442\u0443.
+\u0421\u043E\u043F\u0440\u044F\u0436\u0435\u043D\u0438\u0435 \u043F\u043E QR-\u043A\u043E\u0434\u0443 DSH Go \u043F\u043E\u0434\u0434\u0435\u0440\u0436\u0438\u0432\u0430\u0435\u0442 \u0442\u043E\u043B\u044C\u043A\u043E \u043E\u0434\u043D\u043E \u0443\u0441\u0442\u0440\u043E\u0439\u0441\u0442\u0432\u043E; \u0447\u0442\u043E\u0431\u044B \u0441\u043C\u0435\u043D\u0438\u0442\u044C \u0443\u0441\u0442\u0440\u043E\u0439\u0441\u0442\u0432\u043E \u0438\u043B\u0438 \u0443\u043F\u0440\u0430\u0432\u043B\u044F\u0442\u044C \u0434\u0440\u0443\u0433\u0438\u043C\u0438 \u0445\u043E\u0441\u0442\u0430\u043C\u0438, \u0432\u044B\u0439\u0434\u0438\u0442\u0435 \u0438 \u043F\u043E\u0432\u0442\u043E\u0440\u0438\u0442\u0435 \u0441\u043E\u043F\u0440\u044F\u0436\u0435\u043D\u0438\u0435 \u0438\u043B\u0438 \u0432\u043E\u0439\u0434\u0438\u0442\u0435 \u0447\u0435\u0440\u0435\u0437 \u0430\u043A\u043A\u0430\u0443\u043D\u0442.`,
     pairingPending: "\u0412\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u0435 \u0438\u0441\u0445\u043E\u0434\u043D\u0443\u044E \u043E\u0442\u043F\u0440\u0430\u0432\u043A\u0443, \u043D\u0435 \u043C\u0435\u043D\u044F\u044F \u043A\u043E\u0434.",
     pairingClosed: "\u0421\u043E\u043F\u0440\u044F\u0436\u0435\u043D\u0438\u0435 \u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043D\u043E. \u0427\u0442\u043E\u0431\u044B \u043D\u0430\u0447\u0430\u0442\u044C \u0437\u0430\u043D\u043E\u0432\u043E, \u0441\u043E\u0437\u0434\u0430\u0439\u0442\u0435 \u043D\u043E\u0432\u044B\u0439 QR-\u043A\u043E\u0434.",
     pairingQr: "\u041E\u0434\u043D\u043E\u0440\u0430\u0437\u043E\u0432\u044B\u0439 QR-\u043A\u043E\u0434 \u0441\u043E\u043F\u0440\u044F\u0436\u0435\u043D\u0438\u044F DSH Go",
@@ -2522,6 +2566,7 @@ If a code was sent, recover the original submission without changing it.`,
     pairingRetry: "\u0412\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C \u0438\u0441\u0445\u043E\u0434\u043D\u0443\u044E \u043E\u0442\u043F\u0440\u0430\u0432\u043A\u0443",
     pairingCancel: "\u041E\u0442\u043C\u0435\u043D\u0438\u0442\u044C \u0441\u043E\u043F\u0440\u044F\u0436\u0435\u043D\u0438\u0435",
     pairingStart: "\u0421\u043E\u0437\u0434\u0430\u0442\u044C QR-\u043A\u043E\u0434 \u0441\u043E\u043F\u0440\u044F\u0436\u0435\u043D\u0438\u044F",
+    pairingDone: "\u0413\u043E\u0442\u043E\u0432\u043E",
     pairingBusy: "\u041F\u043E\u0434\u043E\u0436\u0434\u0438\u0442\u0435\u2026",
     pairingUnsupported: "\u042D\u0442\u043E\u0442 \u0441\u0435\u0440\u0432\u0435\u0440 \u043D\u0435 \u043F\u043E\u0434\u0434\u0435\u0440\u0436\u0438\u0432\u0430\u0435\u0442 \u0441\u043E\u043F\u0440\u044F\u0436\u0435\u043D\u0438\u0435 \u0443\u0441\u0442\u0440\u043E\u0439\u0441\u0442\u0432.",
     pairingError: `\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0437\u0430\u0432\u0435\u0440\u0448\u0438\u0442\u044C \u0441\u043E\u043F\u0440\u044F\u0436\u0435\u043D\u0438\u0435. \u041F\u0440\u043E\u0432\u0435\u0440\u044C\u0442\u0435 \u043F\u043E\u0434\u043A\u043B\u044E\u0447\u0435\u043D\u0438\u0435.
@@ -2610,6 +2655,8 @@ If a code was sent, recover the original submission without changing it.`,
     registrationCodeHint: "\u0421\u043E\u0437\u0434\u0430\u0439\u0442\u0435 \u0435\u0433\u043E \u043F\u043E\u0441\u043B\u0435 \u0432\u0445\u043E\u0434\u0430 \u043D\u0430 \u0441\u0430\u0439\u0442\u0435 \u0441\u0435\u0440\u0432\u0435\u0440\u0430. \u041A\u043E\u0434 \u043E\u0434\u043D\u043E\u0440\u0430\u0437\u043E\u0432\u044B\u0439 \u0438 \u0441\u043B\u0443\u0436\u0438\u0442 \u0434\u043B\u044F \u043F\u043E\u0434\u043A\u043B\u044E\u0447\u0435\u043D\u0438\u044F \u044D\u0442\u043E\u0433\u043E \u0443\u0441\u0442\u0440\u043E\u0439\u0441\u0442\u0432\u0430.",
     accountHint: "\u0410\u043A\u043A\u0430\u0443\u043D\u0442 \u0434\u043E\u043B\u0436\u0435\u043D \u043F\u0440\u0438\u043D\u0430\u0434\u043B\u0435\u0436\u0430\u0442\u044C \u0432\u044B\u0431\u0440\u0430\u043D\u043D\u043E\u043C\u0443 \u0441\u0435\u0440\u0432\u0435\u0440\u0443.",
     password: "\u041F\u0430\u0440\u043E\u043B\u044C",
+    twoFactorCode: "\u041A\u043E\u0434 \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043D\u0438\u044F \u0438\u043B\u0438 \u0432\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D\u0438\u044F",
+    twoFactorRestart: "\u0412\u0432\u0435\u0441\u0442\u0438 \u043F\u0430\u0440\u043E\u043B\u044C \u0437\u0430\u043D\u043E\u0432\u043E",
     passwordHint: "\u0422\u043E\u043B\u044C\u043A\u043E \u0430\u043A\u043A\u0430\u0443\u043D\u0442\u044B DSH Remote Web \u0438\u043B\u0438 \u0441\u043E\u0431\u0441\u0442\u0432\u0435\u043D\u043D\u043E\u0433\u043E \u0441\u0435\u0440\u0432\u0438\u0441\u0430; \u043D\u0435 \u043E\u0444\u0438\u0446\u0438\u0430\u043B\u044C\u043D\u044B\u0435 \u0430\u043A\u043A\u0430\u0443\u043D\u0442\u044B DeepSeek Harness.",
     modeSavedNeedsAuthorization: "\u0420\u0435\u0436\u0438\u043C \u0441\u043E\u0445\u0440\u0430\u043D\u0451\u043D. \u041F\u0435\u0440\u0435\u0434 \u043F\u043E\u0434\u043A\u043B\u044E\u0447\u0435\u043D\u0438\u0435\u043C \u0432\u044B\u043F\u043E\u043B\u043D\u0438\u0442\u0435 \u0430\u0432\u0442\u043E\u0440\u0438\u0437\u0430\u0446\u0438\u044E ({role}). \u0421\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044E\u0449\u0438\u0435 \u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0430\u0446\u0438\u0438 \u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u044B.",
     modeSavedReused: "\u0420\u0435\u0436\u0438\u043C \u0441\u043E\u0445\u0440\u0430\u043D\u0451\u043D, \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u043D\u0430 \u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044E\u0449\u0430\u044F \u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0430\u0446\u0438\u044F. \u041F\u0435\u0440\u0435\u0437\u0430\u043F\u0443\u0441\u0442\u0438\u0442\u0435 Harness, \u0447\u0442\u043E\u0431\u044B \u043F\u0440\u0438\u043C\u0435\u043D\u0438\u0442\u044C.",
@@ -2630,7 +2677,7 @@ If a code was sent, recover the original submission without changing it.`,
     resetIdentity: "\u0421\u0431\u0440\u043E\u0441\u0438\u0442\u044C \u0438\u0434\u0435\u043D\u0442\u0438\u0447\u043D\u043E\u0441\u0442\u044C Remote",
     resetIdentityHint: "\u0421\u043E\u0437\u0434\u0430\u0451\u0442 \u0437\u0430\u043D\u043E\u0432\u043E \u043B\u043E\u043A\u0430\u043B\u044C\u043D\u044B\u0435 \u043F\u0430\u0440\u044B \u043A\u043B\u044E\u0447\u0435\u0439 \u0443\u0441\u0442\u0440\u043E\u0439\u0441\u0442\u0432\u0430, \u0435\u0441\u043B\u0438 \u043E\u043D\u0438 \u043F\u043E\u0432\u0440\u0435\u0436\u0434\u0435\u043D\u044B. \u041F\u043E\u0442\u0440\u0435\u0431\u0443\u0435\u0442\u0441\u044F \u0432\u043E\u0439\u0442\u0438 \u0441\u043D\u043E\u0432\u0430.",
     resetIdentityConfirm: "\u0421\u0431\u0440\u043E\u0441\u0438\u0442\u044C \u043B\u043E\u043A\u0430\u043B\u044C\u043D\u0443\u044E \u0438\u0434\u0435\u043D\u0442\u0438\u0447\u043D\u043E\u0441\u0442\u044C Remote? \u041F\u043E\u0442\u0440\u0435\u0431\u0443\u0435\u0442\u0441\u044F \u0432\u043E\u0439\u0442\u0438 \u0441\u043D\u043E\u0432\u0430.",
-    resetIdentitySuccess: "\u0418\u0434\u0435\u043D\u0442\u0438\u0447\u043D\u043E\u0441\u0442\u044C Remote \u0441\u0431\u0440\u043E\u0448\u0435\u043D\u0430.",
+    resetIdentitySuccess: "\u0418\u0434\u0435\u043D\u0442\u0438\u0447\u043D\u043E\u0441\u0442\u044C Remote \u0441\u0431\u0440\u043E\u0448\u0435\u043D\u0430. \u041F\u0435\u0440\u0435\u0437\u0430\u043F\u0443\u0441\u0442\u0438\u0442\u0435 DSH \u0438 \u0432\u043E\u0439\u0434\u0438\u0442\u0435 \u0441\u043D\u043E\u0432\u0430.",
     resettingAction: "\u0421\u0431\u0440\u043E\u0441\u2026",
     remoteStartupFailed: "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0437\u0430\u043F\u0443\u0441\u0442\u0438\u0442\u044C \u043F\u043B\u0430\u0433\u0438\u043D Remote.",
     switchTarget: "\u041F\u0435\u0440\u0435\u043A\u043B\u044E\u0447\u0438\u0442\u044C \u0446\u0435\u043B\u044C Harness: \u043B\u043E\u043A\u0430\u043B\u044C\u043D\u0430\u044F / \u0443\u0434\u0430\u043B\u0451\u043D\u043D\u0430\u044F",
@@ -2662,6 +2709,7 @@ If a code was sent, recover the original submission without changing it.`,
     connectionAuthorizationExpired: "\u0421\u0440\u043E\u043A \u0430\u0432\u0442\u043E\u0440\u0438\u0437\u0430\u0446\u0438\u0438 \u0438\u0441\u0442\u0451\u043A. \u0412\u044B\u0439\u0434\u0438\u0442\u0435 \u0438 \u0441\u043D\u043E\u0432\u0430 \u0430\u0432\u0442\u043E\u0440\u0438\u0437\u0443\u0439\u0442\u0435 \u044D\u0442\u043E\u0442 \u0445\u043E\u0441\u0442.",
     connectionReplaced: "\u0418\u0434\u0435\u043D\u0442\u0438\u0447\u043D\u043E\u0441\u0442\u044C \u044D\u0442\u043E\u0433\u043E \u0445\u043E\u0441\u0442\u0430 \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u0443\u0435\u0442 \u0434\u0440\u0443\u0433\u043E\u0439 \u044D\u043A\u0437\u0435\u043C\u043F\u043B\u044F\u0440. \u041E\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u0435 \u0435\u0433\u043E \u0438\u043B\u0438 \u0437\u0430\u0434\u0430\u0439\u0442\u0435 \u043E\u0442\u0434\u0435\u043B\u044C\u043D\u044B\u0439 DSH_HOME, \u043F\u0440\u0435\u0436\u0434\u0435 \u0447\u0435\u043C \u043F\u0435\u0440\u0435\u043F\u043E\u0434\u043A\u043B\u044E\u0447\u0430\u0442\u044C\u0441\u044F.",
     connectionCredentialsBusy: "\u0423\u0447\u0451\u0442\u043D\u044B\u0435 \u0434\u0430\u043D\u043D\u044B\u0435 \u0441\u0435\u0439\u0447\u0430\u0441 \u043E\u0431\u043D\u043E\u0432\u043B\u044F\u044E\u0442\u0441\u044F. \u0425\u043E\u0441\u0442 \u043F\u043E\u0432\u0442\u043E\u0440\u0438\u0442 \u043F\u043E\u043F\u044B\u0442\u043A\u0443. \u0423\u0434\u0430\u043B\u044F\u0439\u0442\u0435 \u0443\u0441\u0442\u0430\u0440\u0435\u0432\u0448\u0443\u044E \u0431\u043B\u043E\u043A\u0438\u0440\u043E\u0432\u043A\u0443 \u043E\u0431\u043D\u043E\u0432\u043B\u0435\u043D\u0438\u044F \u0442\u043E\u043B\u044C\u043A\u043E \u043F\u043E\u0441\u043B\u0435 \u043E\u0441\u0442\u0430\u043D\u043E\u0432\u043A\u0438 \u0432\u0441\u0435\u0445 \u044D\u043A\u0437\u0435\u043C\u043F\u043B\u044F\u0440\u043E\u0432.",
+    connectionCredentialsLockDirectory: "\u0411\u043B\u043E\u043A\u0438\u0440\u043E\u0432\u043A\u0430 \u043E\u0431\u043D\u043E\u0432\u043B\u0435\u043D\u0438\u044F \u0443\u0447\u0451\u0442\u043D\u044B\u0445 \u0434\u0430\u043D\u043D\u044B\u0445 \u044F\u0432\u043B\u044F\u0435\u0442\u0441\u044F \u043A\u0430\u0442\u0430\u043B\u043E\u0433\u043E\u043C. \u041E\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u0435 \u0432\u0441\u0435 \u044D\u043A\u0437\u0435\u043C\u043F\u043B\u044F\u0440\u044B Harness, \u043F\u0435\u0440\u0435\u043C\u0435\u0441\u0442\u0438\u0442\u0435 \u0441\u0442\u0430\u0440\u044B\u0439 \u043A\u0430\u0442\u0430\u043B\u043E\u0433 \u0431\u043B\u043E\u043A\u0438\u0440\u043E\u0432\u043A\u0438 \u0438 \u043F\u0435\u0440\u0435\u0437\u0430\u043F\u0443\u0441\u0442\u0438\u0442\u0435 Harness.",
     connectionDeviceRevoked: "\u0414\u043E\u0441\u0442\u0443\u043F \u044D\u0442\u043E\u0433\u043E \u0445\u043E\u0441\u0442\u0430 \u043E\u0442\u043E\u0437\u0432\u0430\u043D \u043D\u0430 \u0441\u0435\u0440\u0432\u0435\u0440\u0435. \u0412\u044B\u0439\u0434\u0438\u0442\u0435 \u0438 \u0430\u0432\u0442\u043E\u0440\u0438\u0437\u0443\u0439\u0442\u0435 \u0435\u0433\u043E \u0441\u043D\u043E\u0432\u0430.",
     connectionOwnershipRequired: "\u0421\u0435\u0440\u0432\u0435\u0440 \u0431\u043E\u043B\u044C\u0448\u0435 \u043D\u0435 \u0441\u0447\u0438\u0442\u0430\u0435\u0442 \u044D\u0442\u043E\u0442 \u0445\u043E\u0441\u0442 \u0432\u0430\u0448\u0438\u043C \u0443\u0441\u0442\u0440\u043E\u0439\u0441\u0442\u0432\u043E\u043C.",
     connectionRateLimited: "\u0421\u0435\u0440\u0432\u0435\u0440 \u043F\u043E\u043B\u0443\u0447\u0430\u0435\u0442 \u0441\u043B\u0438\u0448\u043A\u043E\u043C \u043C\u043D\u043E\u0433\u043E \u0437\u0430\u043F\u0440\u043E\u0441\u043E\u0432. \u0410\u0432\u0442\u043E\u043C\u0430\u0442\u0438\u0447\u0435\u0441\u043A\u0438\u0435 \u043F\u043E\u0432\u0442\u043E\u0440\u043D\u044B\u0435 \u043F\u043E\u043F\u044B\u0442\u043A\u0438 \u043F\u0440\u043E\u0434\u043E\u043B\u0436\u0430\u0442\u0441\u044F.",
@@ -2835,7 +2883,7 @@ If a code was sent, recover the original submission without changing it.`,
     acpAvailable: "ACP \u0434\u043E\u0441\u0442\u0443\u043F\u0435\u043D",
     acpUnavailable: "ACP \u043D\u0435\u0434\u043E\u0441\u0442\u0443\u043F\u0435\u043D",
     agentBackends: "\u0414\u0440\u0443\u0433\u0438\u0435 \u0430\u0433\u0435\u043D\u0442\u044B \u0434\u043B\u044F \u043A\u043E\u0434\u0430",
-    acpDocumentation: "\u041F\u043E\u0434\u0440\u043E\u0431\u043D\u0435\u0435 \u0432 \u0434\u043E\u043A\u0443\u043C\u0435\u043D\u0442\u0430\u0446\u0438\u0438.",
+    acpDocumentation: "\u041F\u043E\u0434\u0440\u043E\u0431\u043D\u0435\u0435 \u0432 \u0434\u043E\u043A\u0443\u043C\u0435\u043D\u0442\u0430\u0446\u0438\u0438",
     acpHint: "\u041F\u043E\u0434\u043A\u043B\u044E\u0447\u0435\u043D\u0438\u0435 \u0447\u0435\u0440\u0435\u0437 ACP. ",
     acpCheckPassed: "\u041F\u0440\u043E\u0432\u0435\u0440\u043A\u0430 \u043F\u0440\u043E\u0439\u0434\u0435\u043D\u0430",
     acpCheckFailed: "\u041F\u0440\u043E\u0432\u0435\u0440\u043A\u0430 \u043D\u0435 \u043F\u0440\u043E\u0439\u0434\u0435\u043D\u0430",
@@ -2847,6 +2895,14 @@ If a code was sent, recover the original submission without changing it.`,
     acpInstalledNotice: "\u0411\u044D\u043A\u0435\u043D\u0434 ACP \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D \u0438 \u0432\u043A\u043B\u044E\u0447\u0451\u043D.",
     acpDownloadRequired: "\u0421\u043D\u0430\u0447\u0430\u043B\u0430 \u0441\u043A\u0430\u0447\u0430\u0439\u0442\u0435 \u0438 \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u0435 {backend}: {url}",
     addAcp: "\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C ACP",
+    addCustomAcp: "\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C \u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044C\u0441\u043A\u0438\u0439 ACP-\u0430\u0433\u0435\u043D\u0442",
+    acpAddedNotice: "\u041F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044C\u0441\u043A\u0438\u0439 \u0431\u044D\u043A\u0435\u043D\u0434 ACP \u0434\u043E\u0431\u0430\u0432\u043B\u0435\u043D.",
+    acpIdHint: "ID (\u043D\u0430\u043F\u0440. my-agent)",
+    acpAuthRequired: "\u0422\u0440\u0435\u0431\u0443\u0435\u0442\u0441\u044F \u0430\u0432\u0442\u043E\u0440\u0438\u0437\u0430\u0446\u0438\u044F \u043D\u0430 \u0445\u043E\u0441\u0442\u0435",
+    acpLoginCommand: "\u041A\u043E\u043C\u0430\u043D\u0434\u0430 \u0432\u0445\u043E\u0434\u0430: {command}",
+    customAcpWorkspaces: "\u0420\u0430\u0431\u043E\u0447\u0430\u044F \u043E\u0431\u043B\u0430\u0441\u0442\u044C {name}",
+    addCustomAcpWorkspace: "\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C \u0440\u0430\u0431\u043E\u0447\u0443\u044E \u043E\u0431\u043B\u0430\u0441\u0442\u044C {name}",
+    noCustomAcpWorkspaces: "\u0420\u0430\u0431\u043E\u0447\u0438\u0445 \u043E\u0431\u043B\u0430\u0441\u0442\u0435\u0439 {name} \u043F\u043E\u043A\u0430 \u043D\u0435\u0442",
     acpName: "\u0418\u043C\u044F \u0441\u0435\u0440\u0432\u0438\u0441\u0430",
     acpCommand: "\u041A\u043E\u043C\u0430\u043D\u0434\u0430",
     acpArguments: "\u0410\u0440\u0433\u0443\u043C\u0435\u043D\u0442\u044B",
@@ -2855,6 +2911,9 @@ If a code was sent, recover the original submission without changing it.`,
     noConnectedClients: "\u0421\u0435\u0439\u0447\u0430\u0441 \u043A \u044D\u0442\u043E\u043C\u0443 \u0445\u043E\u0441\u0442\u0443 \u043D\u0435 \u043F\u043E\u0434\u043A\u043B\u044E\u0447\u0435\u043D\u043E \u043D\u0438 \u043E\u0434\u043D\u043E\u0433\u043E \u0443\u0441\u0442\u0440\u043E\u0439\u0441\u0442\u0432\u0430.",
     unknownDevice: "\u041D\u0435\u0438\u0437\u0432\u0435\u0441\u0442\u043D\u043E\u0435 \u0443\u0441\u0442\u0440\u043E\u0439\u0441\u0442\u0432\u043E",
     exitRemoteAccount: "\u0412\u044B\u0439\u0442\u0438",
+    membershipPlans: "\u0422\u0430\u0440\u0438\u0444\u044B \u043F\u043E\u0434\u043F\u0438\u0441\u043A\u0438",
+    membershipPlansIntro: "\u0425\u043E\u0442\u0438\u0442\u0435 \u0431\u043E\u043B\u044C\u0448\u0435 \u0441\u043A\u043E\u0440\u043E\u0441\u0442\u0438 \u0438 \u0432\u043E\u0437\u043C\u043E\u0436\u043D\u043E\u0441\u0442\u0435\u0439? \u041F\u043E\u0441\u043C\u043E\u0442\u0440\u0438\u0442\u0435 \xAB",
+    membershipPlansOutro: "\xBB.",
     githubLogin: "Github",
     providerLogin: "{provider}",
     scanWithProvider: "\u041E\u0442\u0441\u043A\u0430\u043D\u0438\u0440\u0443\u0439\u0442\u0435, \u0447\u0442\u043E\u0431\u044B \u043F\u0440\u043E\u0434\u043E\u043B\u0436\u0438\u0442\u044C \u0447\u0435\u0440\u0435\u0437 {provider}",
@@ -2904,13 +2963,16 @@ If a code was sent, recover the original submission without changing it.`,
     saveServerBeforeLogin: "\u0417\u0431\u0435\u0440\u0435\u0436\u0456\u0442\u044C \u0430\u0434\u0440\u0435\u0441\u0443 \u0441\u0435\u0440\u0432\u0435\u0440\u0430, \u043F\u0435\u0440\u0448 \u043D\u0456\u0436 \u043F\u0440\u043E\u0434\u043E\u0432\u0436\u0438\u0442\u0438 \u0432\u0445\u0456\u0434 \u0430\u0431\u043E \u0441\u043F\u0430\u0440\u044E\u0432\u0430\u043D\u043D\u044F.",
     pairingLoginTab: "DSH Go",
     pairingTitle: "\u0421\u043F\u0430\u0440\u044E\u0432\u0430\u043D\u043D\u044F \u0437 DSH Go",
-    pairingHint: `\u0412\u0456\u0434\u0441\u043A\u0430\u043D\u0443\u0439\u0442\u0435 \u043A\u043E\u0434 \u0443 DSH Go \u0456 \u043F\u0456\u0434\u0442\u0432\u0435\u0440\u0434\u044C\u0442\u0435 \u043D\u0430 \u0442\u0435\u043B\u0435\u0444\u043E\u043D\u0456.
-\u041F\u043E\u0442\u0456\u043C \u0432\u0432\u0435\u0434\u0456\u0442\u044C \u043A\u043E\u0434 \u0456\u0437 \u0442\u0435\u043B\u0435\u0444\u043E\u043D\u0430 \u043D\u0430 \u0446\u044C\u043E\u043C\u0443 \u043A\u043E\u043C\u043F\u02BC\u044E\u0442\u0435\u0440\u0456 \u0439 \u043F\u0456\u0434\u0442\u0432\u0435\u0440\u0434\u044C\u0442\u0435 \u043F\u0440\u0438\u0432\u02BC\u044F\u0437\u043A\u0443.`,
+    pairingHint: `\u041D\u0430\u0442\u0438\u0441\u043D\u0456\u0442\u044C \u043A\u043D\u043E\u043F\u043A\u0443 \u043D\u0438\u0436\u0447\u0435, \u0449\u043E\u0431 \u0437\u0433\u0435\u043D\u0435\u0440\u0443\u0432\u0430\u0442\u0438 QR-\u043A\u043E\u0434 \u0441\u043F\u0430\u0440\u044E\u0432\u0430\u043D\u043D\u044F, \u0430 \u043F\u043E\u0442\u0456\u043C \u0432\u0456\u0434\u0441\u043A\u0430\u043D\u0443\u0439\u0442\u0435 \u0439\u043E\u0433\u043E \u0432 DSH Go.
+\u0426\u0435\u0439 \u0445\u043E\u0441\u0442 \u043B\u0438\u0448\u0435 \u043F\u0440\u0438\u0439\u043C\u0430\u0454 \u0437\u02BC\u0454\u0434\u043D\u0430\u043D\u043D\u044F; \u0449\u043E\u0431 \u043A\u0435\u0440\u0443\u0432\u0430\u0442\u0438 \u0456\u043D\u0448\u0438\u043C\u0438 \u043F\u0440\u0438\u0441\u0442\u0440\u043E\u044F\u043C\u0438, \u0441\u043A\u043E\u0440\u0438\u0441\u0442\u0430\u0439\u0442\u0435\u0441\u044F \u0456\u043D\u0448\u0438\u043C \u0441\u043F\u043E\u0441\u043E\u0431\u043E\u043C \u0432\u0445\u043E\u0434\u0443.`,
     pairingHostOnly: "\u041D\u043E\u0432\u0456 \u0445\u043E\u0441\u0442\u0438 \u043B\u0438\u0448\u0435 \u043F\u0440\u0438\u0439\u043C\u0430\u044E\u0442\u044C \u0437\u02BC\u0454\u0434\u043D\u0430\u043D\u043D\u044F. \u0421\u043F\u0430\u0440\u044E\u0432\u0430\u043D\u043D\u044F \u043D\u0435 \u0434\u0430\u0454 \u0437\u043C\u043E\u0433\u0438 \u043A\u0435\u0440\u0443\u0432\u0430\u0442\u0438 \u0456\u043D\u0448\u0438\u043C\u0438 \u043F\u0440\u0438\u0441\u0442\u0440\u043E\u044F\u043C\u0438.",
+    pairingHostOnlyDetail: "\u0421\u043F\u0430\u0440\u044E\u0432\u0430\u043D\u043D\u044F \u0437\u0430 QR-\u043A\u043E\u0434\u043E\u043C DSH Go \u043F\u0456\u0434\u0442\u0440\u0438\u043C\u0443\u0454 \u043B\u0438\u0448\u0435 \u043E\u0434\u0438\u043D \u043F\u0440\u0438\u0441\u0442\u0440\u0456\u0439 \u0456 \u043F\u0440\u0438\u0439\u043C\u0430\u0454 \u043B\u0438\u0448\u0435 \u0432\u0445\u0456\u0434\u043D\u0456 \u043F\u0456\u0434\u043A\u043B\u044E\u0447\u0435\u043D\u043D\u044F. \u0429\u043E\u0431 \u0437\u043C\u0456\u043D\u0438\u0442\u0438 \u043F\u0440\u0438\u0441\u0442\u0440\u0456\u0439 \u0430\u0431\u043E \u043A\u0435\u0440\u0443\u0432\u0430\u0442\u0438 \u0456\u043D\u0448\u0438\u043C\u0438 \u0445\u043E\u0441\u0442\u0430\u043C\u0438, \u043D\u0430\u0442\u0438\u0441\u043D\u0456\u0442\u044C \xAB\u0412\u0438\u0439\u0442\u0438\xBB \u043D\u0438\u0436\u0447\u0435 \u0442\u0430 \u043F\u043E\u0432\u0442\u043E\u0440\u0456\u0442\u044C \u0441\u043F\u0430\u0440\u044E\u0432\u0430\u043D\u043D\u044F \u0430\u0431\u043E \u0443\u0432\u0456\u0439\u0434\u0456\u0442\u044C \u0447\u0435\u0440\u0435\u0437 \u043E\u0431\u043B\u0456\u043A\u043E\u0432\u0438\u0439 \u0437\u0430\u043F\u0438\u0441.",
     pairingSaveServer: "\u0417\u0431\u0435\u0440\u0435\u0436\u0456\u0442\u044C \u0430\u0434\u0440\u0435\u0441\u0443 \u0441\u0435\u0440\u0432\u0435\u0440\u0430 \u043F\u0435\u0440\u0435\u0434 \u0441\u043F\u0430\u0440\u044E\u0432\u0430\u043D\u043D\u044F\u043C.",
-    pairingScan: "\u0412\u0456\u0434\u0441\u043A\u0430\u043D\u0443\u0439\u0442\u0435 \u0446\u0435\u0439 QR-\u043A\u043E\u0434 \u0443 DSH Go \u0456 \u043F\u0456\u0434\u0442\u0432\u0435\u0440\u0434\u044C\u0442\u0435 \u043D\u0430 \u0442\u0435\u043B\u0435\u0444\u043E\u043D\u0456.",
+    pairingScan: `\u0412\u0456\u0434\u0441\u043A\u0430\u043D\u0443\u0439\u0442\u0435 \u0446\u0435\u0439 QR-\u043A\u043E\u0434 \u0443 DSH Go \u0456 \u043F\u0456\u0434\u0442\u0432\u0435\u0440\u0434\u044C\u0442\u0435 \u043D\u0430 \u0442\u0435\u043B\u0435\u0444\u043E\u043D\u0456.
+\u0426\u0435\u0439 \u0445\u043E\u0441\u0442 \u043B\u0438\u0448\u0435 \u043F\u0440\u0438\u0439\u043C\u0430\u0454 \u0437\u02BC\u0454\u0434\u043D\u0430\u043D\u043D\u044F; \u0449\u043E\u0431 \u043A\u0435\u0440\u0443\u0432\u0430\u0442\u0438 \u0456\u043D\u0448\u0438\u043C\u0438 \u043F\u0440\u0438\u0441\u0442\u0440\u043E\u044F\u043C\u0438, \u0441\u043A\u043E\u0440\u0438\u0441\u0442\u0430\u0439\u0442\u0435\u0441\u044F \u0456\u043D\u0448\u0438\u043C \u0441\u043F\u043E\u0441\u043E\u0431\u043E\u043C \u0432\u0445\u043E\u0434\u0443.`,
     pairingEnter: "\u041F\u0435\u0440\u0435\u0432\u0456\u0440\u0442\u0435 \u0442\u0435\u043B\u0435\u0444\u043E\u043D, \u0449\u043E \u043D\u0430\u0434\u0456\u0441\u043B\u0430\u0432 \u0437\u0430\u043F\u0438\u0442, \u0456 \u0432\u0432\u0435\u0434\u0456\u0442\u044C \u0439\u043E\u0433\u043E \u043A\u043E\u0434.",
-    pairingComplete: "\u0421\u043F\u0430\u0440\u0435\u043D\u043E. \u0422\u0435\u043F\u0435\u0440 DSH Go \u043C\u043E\u0436\u0435 \u043F\u0456\u0434\u043A\u043B\u044E\u0447\u0430\u0442\u0438\u0441\u044F \u0434\u043E \u0446\u044C\u043E\u0433\u043E \u0445\u043E\u0441\u0442\u0430.",
+    pairingComplete: `\u0421\u043F\u0430\u0440\u0435\u043D\u043E. \u0422\u0435\u043F\u0435\u0440 DSH Go \u043C\u043E\u0436\u0435 \u043F\u0456\u0434\u043A\u043B\u044E\u0447\u0430\u0442\u0438\u0441\u044F \u0434\u043E \u0446\u044C\u043E\u0433\u043E \u0445\u043E\u0441\u0442\u0430.
+\u0421\u043F\u0430\u0440\u044E\u0432\u0430\u043D\u043D\u044F \u0437\u0430 QR-\u043A\u043E\u0434\u043E\u043C DSH Go \u043F\u0456\u0434\u0442\u0440\u0438\u043C\u0443\u0454 \u043B\u0438\u0448\u0435 \u043E\u0434\u0438\u043D \u043F\u0440\u0438\u0441\u0442\u0440\u0456\u0439; \u0449\u043E\u0431 \u0437\u043C\u0456\u043D\u0438\u0442\u0438 \u043F\u0440\u0438\u0441\u0442\u0440\u0456\u0439 \u0430\u0431\u043E \u043A\u0435\u0440\u0443\u0432\u0430\u0442\u0438 \u0456\u043D\u0448\u0438\u043C\u0438 \u0445\u043E\u0441\u0442\u0430\u043C\u0438, \u0432\u0438\u0439\u0434\u0456\u0442\u044C \u0456 \u043F\u043E\u0432\u0442\u043E\u0440\u0456\u0442\u044C \u0441\u043F\u0430\u0440\u044E\u0432\u0430\u043D\u043D\u044F \u0430\u0431\u043E \u0443\u0432\u0456\u0439\u0434\u0456\u0442\u044C \u0447\u0435\u0440\u0435\u0437 \u043E\u0431\u043B\u0456\u043A\u043E\u0432\u0438\u0439 \u0437\u0430\u043F\u0438\u0441.`,
     pairingPending: "\u0412\u0456\u0434\u043D\u043E\u0432\u0456\u0442\u044C \u043F\u043E\u0447\u0430\u0442\u043A\u043E\u0432\u0435 \u043D\u0430\u0434\u0441\u0438\u043B\u0430\u043D\u043D\u044F, \u043D\u0435 \u0437\u043C\u0456\u043D\u044E\u044E\u0447\u0438 \u043A\u043E\u0434.",
     pairingClosed: "\u0421\u043F\u0430\u0440\u044E\u0432\u0430\u043D\u043D\u044F \u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043D\u043E. \u0417\u0433\u0435\u043D\u0435\u0440\u0443\u0439\u0442\u0435 \u043D\u043E\u0432\u0438\u0439 QR-\u043A\u043E\u0434, \u0449\u043E\u0431 \u043F\u043E\u0447\u0430\u0442\u0438 \u0437\u043D\u043E\u0432\u0443.",
     pairingQr: "\u041E\u0434\u043D\u043E\u0440\u0430\u0437\u043E\u0432\u0438\u0439 QR-\u043A\u043E\u0434 \u0434\u043B\u044F \u0441\u043F\u0430\u0440\u044E\u0432\u0430\u043D\u043D\u044F \u0437 DSH Go",
@@ -2922,6 +2984,7 @@ If a code was sent, recover the original submission without changing it.`,
     pairingRetry: "\u0412\u0456\u0434\u043D\u043E\u0432\u0438\u0442\u0438 \u043F\u043E\u0447\u0430\u0442\u043A\u043E\u0432\u0435 \u043D\u0430\u0434\u0441\u0438\u043B\u0430\u043D\u043D\u044F",
     pairingCancel: "\u0421\u043A\u0430\u0441\u0443\u0432\u0430\u0442\u0438 \u0441\u043F\u0430\u0440\u044E\u0432\u0430\u043D\u043D\u044F",
     pairingStart: "\u0417\u0433\u0435\u043D\u0435\u0440\u0443\u0432\u0430\u0442\u0438 QR-\u043A\u043E\u0434 \u0434\u043B\u044F \u0441\u043F\u0430\u0440\u044E\u0432\u0430\u043D\u043D\u044F",
+    pairingDone: "\u0413\u043E\u0442\u043E\u0432\u043E",
     pairingBusy: "\u0417\u0430\u0447\u0435\u043A\u0430\u0439\u0442\u0435\u2026",
     pairingUnsupported: "\u0426\u0435\u0439 \u0441\u0435\u0440\u0432\u0435\u0440 \u043D\u0435 \u043F\u0456\u0434\u0442\u0440\u0438\u043C\u0443\u0454 \u0441\u043F\u0430\u0440\u044E\u0432\u0430\u043D\u043D\u044F \u043F\u0440\u0438\u0441\u0442\u0440\u043E\u0457\u0432.",
     pairingError: `\u041D\u0435 \u0432\u0434\u0430\u043B\u043E\u0441\u044F \u0437\u0430\u0432\u0435\u0440\u0448\u0438\u0442\u0438 \u0441\u043F\u0430\u0440\u044E\u0432\u0430\u043D\u043D\u044F. \u041F\u0435\u0440\u0435\u0432\u0456\u0440\u0442\u0435 \u0437\u02BC\u0454\u0434\u043D\u0430\u043D\u043D\u044F.
@@ -3010,6 +3073,8 @@ If a code was sent, recover the original submission without changing it.`,
     registrationCodeHint: "\u0417\u0433\u0435\u043D\u0435\u0440\u0443\u0439\u0442\u0435 \u0439\u043E\u0433\u043E \u043F\u0456\u0441\u043B\u044F \u0432\u0445\u043E\u0434\u0443 \u043D\u0430 \u0441\u0430\u0439\u0442\u0456 \u0441\u0435\u0440\u0432\u0435\u0440\u0430. \u0412\u0438\u043A\u043E\u0440\u0438\u0441\u0442\u0430\u0439\u0442\u0435 \u043E\u0434\u0438\u043D \u0440\u0430\u0437, \u0449\u043E\u0431 \u043F\u0456\u0434\u043A\u043B\u044E\u0447\u0438\u0442\u0438 \u0446\u0435\u0439 \u043F\u0440\u0438\u0441\u0442\u0440\u0456\u0439.",
     accountHint: "\u041E\u0431\u043B\u0456\u043A\u043E\u0432\u0438\u0439 \u0437\u0430\u043F\u0438\u0441 \u043C\u0430\u0454 \u043D\u0430\u043B\u0435\u0436\u0430\u0442\u0438 \u0434\u043E \u0432\u0438\u0431\u0440\u0430\u043D\u043E\u0433\u043E \u0441\u0435\u0440\u0432\u0435\u0440\u0430.",
     password: "\u041F\u0430\u0440\u043E\u043B\u044C",
+    twoFactorCode: "\u041A\u043E\u0434 \u043F\u0456\u0434\u0442\u0432\u0435\u0440\u0434\u0436\u0435\u043D\u043D\u044F \u0430\u0431\u043E \u0432\u0456\u0434\u043D\u043E\u0432\u043B\u0435\u043D\u043D\u044F",
+    twoFactorRestart: "\u0412\u0432\u0435\u0441\u0442\u0438 \u043F\u0430\u0440\u043E\u043B\u044C \u0437\u043D\u043E\u0432\u0443",
     passwordHint: "\u041B\u0438\u0448\u0435 \u043E\u0431\u043B\u0456\u043A\u043E\u0432\u0456 \u0437\u0430\u043F\u0438\u0441\u0438 DSH Remote Web \u0430\u0431\u043E \u0432\u043B\u0430\u0441\u043D\u043E\u0433\u043E \u0440\u043E\u0437\u0433\u043E\u0440\u043D\u0443\u0442\u043E\u0433\u043E \u0441\u0435\u0440\u0432\u0456\u0441\u0443; \u043D\u0435 \u043E\u0444\u0456\u0446\u0456\u0439\u043D\u0456 \u043E\u0431\u043B\u0456\u043A\u043E\u0432\u0456 \u0437\u0430\u043F\u0438\u0441\u0438 DeepSeek Harness.",
     modeSavedNeedsAuthorization: "\u0420\u0435\u0436\u0438\u043C \u0437\u0431\u0435\u0440\u0435\u0436\u0435\u043D\u043E. \u0410\u0432\u0442\u043E\u0440\u0438\u0437\u0443\u0439\u0442\u0435 {role} \u043F\u0435\u0440\u0435\u0434 \u043F\u0456\u0434\u043A\u043B\u044E\u0447\u0435\u043D\u043D\u044F\u043C. \u041D\u0430\u044F\u0432\u043D\u0456 \u0440\u0435\u0454\u0441\u0442\u0440\u0430\u0446\u0456\u0457 \u0437\u0431\u0435\u0440\u0435\u0436\u0435\u043D\u043E.",
     modeSavedReused: "\u0420\u0435\u0436\u0438\u043C \u0437\u0431\u0435\u0440\u0435\u0436\u0435\u043D\u043E. \u0412\u0438\u043A\u043E\u0440\u0438\u0441\u0442\u0430\u043D\u043E \u043D\u0430\u044F\u0432\u043D\u0443 \u0440\u0435\u0454\u0441\u0442\u0440\u0430\u0446\u0456\u044E. \u041F\u0435\u0440\u0435\u0437\u0430\u043F\u0443\u0441\u0442\u0456\u0442\u044C Harness, \u0449\u043E\u0431 \u0437\u0430\u0441\u0442\u043E\u0441\u0443\u0432\u0430\u0442\u0438.",
@@ -3030,7 +3095,7 @@ If a code was sent, recover the original submission without changing it.`,
     resetIdentity: "\u0421\u043A\u0438\u043D\u0443\u0442\u0438 \u0456\u0434\u0435\u043D\u0442\u0438\u0447\u043D\u0456\u0441\u0442\u044C Remote",
     resetIdentityHint: "\u041F\u043E\u0432\u0442\u043E\u0440\u043D\u043E \u0441\u0442\u0432\u043E\u0440\u0438\u0442\u0438 \u043B\u043E\u043A\u0430\u043B\u044C\u043D\u0456 \u043F\u0430\u0440\u0438 \u043A\u043B\u044E\u0447\u0456\u0432 \u043F\u0440\u0438\u0441\u0442\u0440\u043E\u044E, \u044F\u043A\u0449\u043E \u0457\u0445 \u043F\u043E\u0448\u043A\u043E\u0434\u0436\u0435\u043D\u043E. \u041F\u043E\u0442\u0440\u0456\u0431\u043D\u043E \u0431\u0443\u0434\u0435 \u0443\u0432\u0456\u0439\u0442\u0438 \u0437\u043D\u043E\u0432\u0443.",
     resetIdentityConfirm: "\u0421\u043F\u0440\u0430\u0432\u0434\u0456 \u0441\u043A\u0438\u043D\u0443\u0442\u0438 \u043B\u043E\u043A\u0430\u043B\u044C\u043D\u0443 \u0456\u0434\u0435\u043D\u0442\u0438\u0447\u043D\u0456\u0441\u0442\u044C Remote? \u041F\u043E\u0442\u0440\u0456\u0431\u043D\u043E \u0431\u0443\u0434\u0435 \u0443\u0432\u0456\u0439\u0442\u0438 \u0437\u043D\u043E\u0432\u0443.",
-    resetIdentitySuccess: "\u0406\u0434\u0435\u043D\u0442\u0438\u0447\u043D\u0456\u0441\u0442\u044C Remote \u0441\u043A\u0438\u043D\u0443\u0442\u043E.",
+    resetIdentitySuccess: "\u0406\u0434\u0435\u043D\u0442\u0438\u0447\u043D\u0456\u0441\u0442\u044C Remote \u0441\u043A\u0438\u043D\u0443\u0442\u043E. \u041F\u0435\u0440\u0435\u0437\u0430\u043F\u0443\u0441\u0442\u0456\u0442\u044C DSH \u0442\u0430 \u0443\u0432\u0456\u0439\u0434\u0456\u0442\u044C \u0437\u043D\u043E\u0432\u0443.",
     resettingAction: "\u0421\u043A\u0438\u0434\u0430\u043D\u043D\u044F\u2026",
     remoteStartupFailed: "\u041D\u0435 \u0432\u0434\u0430\u043B\u043E\u0441\u044F \u0437\u0430\u043F\u0443\u0441\u0442\u0438\u0442\u0438 \u043F\u043B\u0430\u0433\u0456\u043D Remote.",
     switchTarget: "\u041F\u0435\u0440\u0435\u043C\u043A\u043D\u0443\u0442\u0438 \u0446\u0456\u043B\u044C Harness: \u043B\u043E\u043A\u0430\u043B\u044C\u043D\u0430 / \u0432\u0456\u0434\u0434\u0430\u043B\u0435\u043D\u0430",
@@ -3062,6 +3127,7 @@ If a code was sent, recover the original submission without changing it.`,
     connectionAuthorizationExpired: "\u0422\u0435\u0440\u043C\u0456\u043D \u0434\u0456\u0457 \u0430\u0432\u0442\u043E\u0440\u0438\u0437\u0430\u0446\u0456\u0457 \u043C\u0438\u043D\u0443\u0432. \u0412\u0438\u0439\u0434\u0456\u0442\u044C \u0456 \u0437\u043D\u043E\u0432\u0443 \u0430\u0432\u0442\u043E\u0440\u0438\u0437\u0443\u0439\u0442\u0435 \u0446\u0435\u0439 \u0445\u043E\u0441\u0442.",
     connectionReplaced: "\u0406\u043D\u0448\u0438\u0439 \u0435\u043A\u0437\u0435\u043C\u043F\u043B\u044F\u0440 \u0432\u0438\u043A\u043E\u0440\u0438\u0441\u0442\u043E\u0432\u0443\u0454 \u0456\u0434\u0435\u043D\u0442\u0438\u0447\u043D\u0456\u0441\u0442\u044C \u0446\u044C\u043E\u0433\u043E \u0445\u043E\u0441\u0442\u0430. \u041F\u0435\u0440\u0448 \u043D\u0456\u0436 \u043F\u0435\u0440\u0435\u043F\u0456\u0434\u043A\u043B\u044E\u0447\u0430\u0442\u0438\u0441\u044F, \u0437\u0443\u043F\u0438\u043D\u0456\u0442\u044C \u0439\u043E\u0433\u043E \u0430\u0431\u043E \u0432\u0438\u043A\u043E\u0440\u0438\u0441\u0442\u0430\u0439\u0442\u0435 \u043E\u043A\u0440\u0435\u043C\u0438\u0439 DSH_HOME.",
     connectionCredentialsBusy: "\u041E\u043D\u043E\u0432\u043B\u0435\u043D\u043D\u044F \u043E\u0431\u043B\u0456\u043A\u043E\u0432\u0438\u0445 \u0434\u0430\u043D\u0438\u0445 \u0437\u0430\u0439\u043D\u044F\u0442\u0435. \u0425\u043E\u0441\u0442 \u043F\u043E\u0432\u0442\u043E\u0440\u0438\u0442\u044C \u0441\u043F\u0440\u043E\u0431\u0443. \u0412\u0438\u0434\u0430\u043B\u044F\u0439\u0442\u0435 \u0437\u0430\u0441\u0442\u0430\u0440\u0456\u043B\u0435 \u0431\u043B\u043E\u043A\u0443\u0432\u0430\u043D\u043D\u044F \u043E\u043D\u043E\u0432\u043B\u0435\u043D\u043D\u044F \u043B\u0438\u0448\u0435 \u043F\u0456\u0441\u043B\u044F \u0437\u0443\u043F\u0438\u043D\u043A\u0438 \u0432\u0441\u0456\u0445 \u0435\u043A\u0437\u0435\u043C\u043F\u043B\u044F\u0440\u0456\u0432.",
+    connectionCredentialsLockDirectory: "\u0411\u043B\u043E\u043A\u0443\u0432\u0430\u043D\u043D\u044F \u043E\u043D\u043E\u0432\u043B\u0435\u043D\u043D\u044F \u043E\u0431\u043B\u0456\u043A\u043E\u0432\u0438\u0445 \u0434\u0430\u043D\u0438\u0445 \u0454 \u043A\u0430\u0442\u0430\u043B\u043E\u0433\u043E\u043C. \u0417\u0443\u043F\u0438\u043D\u0456\u0442\u044C \u0443\u0441\u0456 \u0435\u043A\u0437\u0435\u043C\u043F\u043B\u044F\u0440\u0438 Harness, \u043F\u0435\u0440\u0435\u043C\u0456\u0441\u0442\u0456\u0442\u044C \u0441\u0442\u0430\u0440\u0438\u0439 \u043A\u0430\u0442\u0430\u043B\u043E\u0433 \u0431\u043B\u043E\u043A\u0443\u0432\u0430\u043D\u043D\u044F \u0439 \u043F\u0435\u0440\u0435\u0437\u0430\u043F\u0443\u0441\u0442\u0456\u0442\u044C Harness.",
     connectionDeviceRevoked: "\u0426\u0435\u0439 \u0445\u043E\u0441\u0442 \u0432\u0456\u0434\u043A\u043B\u0438\u043A\u0430\u043D\u043E \u043D\u0430 \u0441\u0435\u0440\u0432\u0435\u0440\u0456. \u0412\u0438\u0439\u0434\u0456\u0442\u044C \u0456 \u0430\u0432\u0442\u043E\u0440\u0438\u0437\u0443\u0439\u0442\u0435 \u0439\u043E\u0433\u043E \u0437\u043D\u043E\u0432\u0443.",
     connectionOwnershipRequired: "\u0421\u0435\u0440\u0432\u0435\u0440 \u0431\u0456\u043B\u044C\u0448\u0435 \u043D\u0435 \u0440\u043E\u0437\u043F\u0456\u0437\u043D\u0430\u0454 \u0446\u0435\u0439 \u0445\u043E\u0441\u0442 \u044F\u043A \u0432\u043B\u0430\u0441\u043D\u0438\u0439 \u043F\u0440\u0438\u0441\u0442\u0440\u0456\u0439.",
     connectionRateLimited: "\u0421\u0435\u0440\u0432\u0435\u0440 \u043E\u0442\u0440\u0438\u043C\u0443\u0454 \u0437\u0430\u0431\u0430\u0433\u0430\u0442\u043E \u0437\u0430\u043F\u0438\u0442\u0456\u0432. \u0410\u0432\u0442\u043E\u043C\u0430\u0442\u0438\u0447\u043D\u0456 \u043F\u043E\u0432\u0442\u043E\u0440\u043D\u0456 \u0441\u043F\u0440\u043E\u0431\u0438 \u0442\u0440\u0438\u0432\u0430\u044E\u0442\u044C.",
@@ -3235,7 +3301,7 @@ If a code was sent, recover the original submission without changing it.`,
     acpAvailable: "ACP \u0434\u043E\u0441\u0442\u0443\u043F\u043D\u0438\u0439",
     acpUnavailable: "ACP \u043D\u0435\u0434\u043E\u0441\u0442\u0443\u043F\u043D\u0438\u0439",
     agentBackends: "\u0406\u043D\u0448\u0456 \u0430\u0433\u0435\u043D\u0442\u0438 \u0434\u043B\u044F \u043A\u043E\u0434\u0443\u0432\u0430\u043D\u043D\u044F",
-    acpDocumentation: "\u041E\u0437\u043D\u0430\u0439\u043E\u043C\u0442\u0435\u0441\u044F \u0437 \u0434\u043E\u043A\u0443\u043C\u0435\u043D\u0442\u0430\u0446\u0456\u0454\u044E.",
+    acpDocumentation: "\u041E\u0437\u043D\u0430\u0439\u043E\u043C\u0442\u0435\u0441\u044F \u0437 \u0434\u043E\u043A\u0443\u043C\u0435\u043D\u0442\u0430\u0446\u0456\u0454\u044E",
     acpHint: "\u041F\u0456\u0434\u043A\u043B\u044E\u0447\u0435\u043D\u043D\u044F \u0447\u0435\u0440\u0435\u0437 ACP. ",
     acpCheckPassed: "\u041F\u0435\u0440\u0435\u0432\u0456\u0440\u043A\u0443 \u043F\u0440\u043E\u0439\u0434\u0435\u043D\u043E",
     acpCheckFailed: "\u041F\u0435\u0440\u0435\u0432\u0456\u0440\u043A\u0443 \u043D\u0435 \u043F\u0440\u043E\u0439\u0434\u0435\u043D\u043E",
@@ -3247,6 +3313,14 @@ If a code was sent, recover the original submission without changing it.`,
     acpInstalledNotice: "\u0411\u0435\u043A\u0435\u043D\u0434 ACP \u0432\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D\u043E \u0439 \u0443\u0432\u0456\u043C\u043A\u043D\u0435\u043D\u043E.",
     acpDownloadRequired: "\u0421\u043F\u043E\u0447\u0430\u0442\u043A\u0443 \u0437\u0430\u0432\u0430\u043D\u0442\u0430\u0436\u0442\u0435 \u0439 \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u0456\u0442\u044C {backend}: {url}",
     addAcp: "\u0414\u043E\u0434\u0430\u0442\u0438 ACP",
+    addCustomAcp: "\u0414\u043E\u0434\u0430\u0442\u0438 \u0432\u043B\u0430\u0441\u043D\u0438\u0439 ACP-\u0430\u0433\u0435\u043D\u0442",
+    acpAddedNotice: "\u0412\u043B\u0430\u0441\u043D\u0438\u0439 \u0431\u0435\u043A\u0435\u043D\u0434 ACP \u0434\u043E\u0434\u0430\u043D\u043E.",
+    acpIdHint: "ID (\u043D\u0430\u043F\u0440. my-agent)",
+    acpAuthRequired: "\u041D\u0430 \u0445\u043E\u0441\u0442\u0456 \u043F\u043E\u0442\u0440\u0456\u0431\u043D\u0430 \u0430\u0432\u0442\u0435\u043D\u0442\u0438\u0444\u0456\u043A\u0430\u0446\u0456\u044F",
+    acpLoginCommand: "\u041A\u043E\u043C\u0430\u043D\u0434\u0430 \u0432\u0445\u043E\u0434\u0443: {command}",
+    customAcpWorkspaces: "\u0420\u043E\u0431\u043E\u0447\u0438\u0439 \u043F\u0440\u043E\u0441\u0442\u0456\u0440 {name}",
+    addCustomAcpWorkspace: "\u0414\u043E\u0434\u0430\u0442\u0438 \u0440\u043E\u0431\u043E\u0447\u0438\u0439 \u043F\u0440\u043E\u0441\u0442\u0456\u0440 {name}",
+    noCustomAcpWorkspaces: "\u041F\u043E\u043A\u0438 \u0449\u043E \u043D\u0435\u043C\u0430\u0454 \u0440\u043E\u0431\u043E\u0447\u0438\u0445 \u043F\u0440\u043E\u0441\u0442\u043E\u0440\u0456\u0432 {name}",
     acpName: "\u041D\u0430\u0437\u0432\u0430 \u0441\u0435\u0440\u0432\u0456\u0441\u0443",
     acpCommand: "\u041A\u043E\u043C\u0430\u043D\u0434\u0430",
     acpArguments: "\u0410\u0440\u0433\u0443\u043C\u0435\u043D\u0442\u0438",
@@ -3255,6 +3329,9 @@ If a code was sent, recover the original submission without changing it.`,
     noConnectedClients: "\u0417\u0430\u0440\u0430\u0437 \u0434\u043E \u0446\u044C\u043E\u0433\u043E \u0445\u043E\u0441\u0442\u0430 \u043D\u0435 \u043F\u0456\u0434\u043A\u043B\u044E\u0447\u0435\u043D\u043E \u0436\u043E\u0434\u043D\u043E\u0433\u043E \u043F\u0440\u0438\u0441\u0442\u0440\u043E\u044E.",
     unknownDevice: "\u041D\u0435\u0432\u0456\u0434\u043E\u043C\u0438\u0439 \u043F\u0440\u0438\u0441\u0442\u0440\u0456\u0439",
     exitRemoteAccount: "\u0412\u0438\u0439\u0442\u0438",
+    membershipPlans: "\u041F\u043B\u0430\u043D\u0438 \u043F\u0456\u0434\u043F\u0438\u0441\u043A\u0438",
+    membershipPlansIntro: "\u0425\u043E\u0447\u0435\u0442\u0435 \u0431\u0456\u043B\u044C\u0448\u0435 \u0448\u0432\u0438\u0434\u043A\u043E\u0441\u0442\u0456 \u0439 \u043C\u043E\u0436\u043B\u0438\u0432\u043E\u0441\u0442\u0435\u0439? \u041F\u0435\u0440\u0435\u0433\u043B\u044F\u043D\u044C\u0442\u0435 \xAB",
+    membershipPlansOutro: "\xBB.",
     githubLogin: "Github",
     providerLogin: "{provider}",
     scanWithProvider: "\u0412\u0456\u0434\u0441\u043A\u0430\u043D\u0443\u0439\u0442\u0435, \u0449\u043E\u0431 \u043F\u0440\u043E\u0434\u043E\u0432\u0436\u0438\u0442\u0438 \u0447\u0435\u0440\u0435\u0437 {provider}",
@@ -3419,7 +3496,7 @@ If a code was sent, recover the original submission without changing it.`,
     };
   }
   function connectionErrorMessage(code, t) {
-    return t(code === "ACCOUNT_AUTH_REQUIRED" || code === "AUTH_REQUIRED" ? "hostSignInHint" : code === "AUTH_INVALID" || code === "TOKEN_EXPIRED" ? "connectionAuthorizationExpired" : code === "CONNECTION_REPLACED" ? "connectionReplaced" : code === "SERVER_CREDENTIALS_BUSY" ? "connectionCredentialsBusy" : code === "DEVICE_REVOKED" ? "connectionDeviceRevoked" : code === "DEVICE_OWNERSHIP_REQUIRED" ? "connectionOwnershipRequired" : code === "RATE_LIMITED" ? "connectionRateLimited" : code === "UNSUPPORTED_VERSION" ? "connectionVersionMismatch" : code === "INVALID_MESSAGE" ? "connectionInvalidResponse" : code === "CONNECTION_FAILED" ? "serverUnavailableError" : code === "SERVER_NOT_CONFIGURED" ? "connectionReachability" : code === "RESTART_UNSUPPORTED" ? "hostRestartUnsupported" : code === "RESTART_DENIED" ? "hostRestartDenied" : "connectionUnexpected");
+    return t(code === "ACCOUNT_AUTH_REQUIRED" || code === "AUTH_REQUIRED" ? "hostSignInHint" : code === "AUTH_INVALID" || code === "TOKEN_EXPIRED" ? "connectionAuthorizationExpired" : code === "CONNECTION_REPLACED" ? "connectionReplaced" : code === "SERVER_CREDENTIALS_BUSY" ? "connectionCredentialsBusy" : code === "SERVER_CREDENTIALS_LOCK_DIRECTORY" ? "connectionCredentialsLockDirectory" : code === "DEVICE_REVOKED" ? "connectionDeviceRevoked" : code === "DEVICE_OWNERSHIP_REQUIRED" ? "connectionOwnershipRequired" : code === "RATE_LIMITED" ? "connectionRateLimited" : code === "UNSUPPORTED_VERSION" ? "connectionVersionMismatch" : code === "INVALID_MESSAGE" ? "connectionInvalidResponse" : code === "CONNECTION_FAILED" ? "serverUnavailableError" : code === "SERVER_NOT_CONFIGURED" ? "connectionReachability" : code === "RESTART_UNSUPPORTED" ? "hostRestartUnsupported" : code === "RESTART_DENIED" ? "hostRestartDenied" : "connectionUnexpected");
   }
   function connectionStatusLabel(status, t) {
     return status === void 0 ? t("checkingConnection") : status.online ? t("online") : status.error !== void 0 ? connectionErrorMessage(status.error, t) : status.reconnecting ? t(status.lastActiveAt === void 0 ? "connecting" : "serverUnavailableShort") : t("offline");
@@ -3428,7 +3505,7 @@ If a code was sent, recover the original submission without changing it.`,
     return status?.online ? " isOnline" : status?.reconnecting ? " isReconnecting" : status === void 0 ? "" : " isOffline";
   }
   function startupErrorMessage(error, t) {
-    return error.code === "IDENTITY_INVALID" ? t("identityCorrupted") : error.code === "SERVER_CREDENTIALS_INVALID" ? t("credentialsCorrupted") : error.code === "IDENTITY_LOCKED" ? t("identityLocked") : error.code === "STORAGE_CONFLICT" ? storageConflictMessage(error.message, t) : error.code === "SERVER_CREDENTIALS_BUSY" ? t("connectionCredentialsBusy") : error.message || t("remoteStartupFailed");
+    return error.code === "IDENTITY_INVALID" ? t("identityCorrupted") : error.code === "SERVER_CREDENTIALS_INVALID" ? t("credentialsCorrupted") : error.code === "IDENTITY_LOCKED" ? t("identityLocked") : error.code === "STORAGE_CONFLICT" ? storageConflictMessage(error.message, t) : error.code === "SERVER_CREDENTIALS_BUSY" ? t("connectionCredentialsBusy") : error.code === "SERVER_CREDENTIALS_LOCK_DIRECTORY" ? t("connectionCredentialsLockDirectory") : error.message || t("remoteStartupFailed");
   }
   function storageConflictMessage(message, t) {
     let match = /^Remote storage ownership could not be verified; nothing was moved\. Inspect the legacy directory manually\. Unexpected entry "([A-Za-z0-9._-]{1,160})" was found\.$/.exec(message);
@@ -3445,6 +3522,7 @@ If a code was sent, recover the original submission without changing it.`,
         return storageConflictMessage(message, t);
       }
       if (reason.code === "SERVER_CREDENTIALS_BUSY") return t("connectionCredentialsBusy");
+      if (reason.code === "SERVER_CREDENTIALS_LOCK_DIRECTORY") return t("connectionCredentialsLockDirectory");
     }
     return reason instanceof Error ? reason.message : String(reason);
   }
@@ -3535,7 +3613,7 @@ If a code was sent, recover the original submission without changing it.`,
       );
       return React.createElement(
         "div",
-        { className: "dshRemoteSessionHeader", role: "status" },
+        { className: `dshRemoteSessionHeader${props.inline ? " dshRemoteHeaderSeat" : ""}`, role: "status" },
         React.createElement("svg", {
           viewBox: "0 0 24 24",
           fill: "none",
@@ -3678,9 +3756,9 @@ If a code was sent, recover the original submission without changing it.`,
     };
     inspect(document.body);
     let observer = new MutationObserver((records) => {
-      for (let record of records) {
-        record.type === "attributes" && inspect(record.target);
-        for (let node of Array.from(record.addedNodes))
+      for (let record2 of records) {
+        record2.type === "attributes" && inspect(record2.target);
+        for (let node of Array.from(record2.addedNodes))
           node instanceof Element && inspect(node);
       }
     });
@@ -3691,6 +3769,39 @@ If a code was sent, recover the original submission without changing it.`,
       attributeFilter: ["aria-label", "title", "data-tooltip"]
     }), () => {
       observer.disconnect(), document.querySelectorAll(`[${hiddenAttribute}]`).forEach((element) => element.removeAttribute(hiddenAttribute));
+    };
+  }
+
+  // packages/plugin/src/client/account-verification.ts
+  function useAccountVerification(React, scope) {
+    let [pending, setPending] = React.useState(void 0), [code, setCode] = React.useState(""), clear = () => {
+      setPending(void 0), setCode("");
+    };
+    return React.useEffect(clear, [scope]), {
+      pending: pending !== void 0,
+      ready: pending === void 0 || code.trim().length > 0,
+      verification: pending === void 0 ? void 0 : { ...pending, code },
+      clear,
+      handle(error) {
+        let failure = error;
+        return failure?.code === "TWO_FACTOR_EXPIRED" && clear(), failure?.code !== "TWO_FACTOR_REQUIRED" || typeof failure.details?.challenge != "string" || typeof failure.details.serverUrl != "string" ? !1 : (setPending({ challenge: failure.details.challenge, serverUrl: failure.details.serverUrl }), setCode(""), !0);
+      },
+      fields(t, busy, ...passwordFields) {
+        return pending === void 0 ? React.createElement(React.Fragment, null, ...passwordFields) : React.createElement(
+          React.Fragment,
+          null,
+          React.createElement("input", {
+            value: code,
+            disabled: busy,
+            autoComplete: "one-time-code",
+            maxLength: 64,
+            placeholder: t("twoFactorCode"),
+            "aria-label": t("twoFactorCode"),
+            onChange: (event) => setCode(event.target.value)
+          }),
+          React.createElement("button", { type: "button", disabled: busy, onClick: clear }, t("twoFactorRestart"))
+        );
+      }
     };
   }
 
@@ -3809,25 +3920,71 @@ If a code was sent, recover the original submission without changing it.`,
   var import_qrcode = __toESM(require_browser(), 1);
   function createHostPairingPanel(React) {
     return function(props) {
-      let { t } = props, [view, setView] = React.useState(void 0), [image, setImage] = React.useState(void 0), [now, setNow] = React.useState(Date.now()), [code, setCode] = React.useState(""), [busy, setBusy] = React.useState(!1), [locked, setLocked] = React.useState(!1), [error, setError] = React.useState(void 0), mounted = React.useRef(!1), flight = React.useRef(!1), attempts = React.useRef(/* @__PURE__ */ new Set()), completed = React.useRef(void 0), completion = React.useRef(props.onComplete);
+      let { t } = props, [view, setView] = React.useState(void 0), [image, setImage] = React.useState(void 0), [now, setNow] = React.useState(Date.now()), [code, setCode] = React.useState(""), [busy, setBusy] = React.useState(!1), [locked, setLocked] = React.useState(!1), [error, setError] = React.useState(void 0), mounted = React.useRef(!1), flight = React.useRef(!1), epoch = React.useRef(0), hydratedServer = React.useRef(void 0), prevServerUrl = React.useRef(props.serverUrl), attempts = React.useRef(/* @__PURE__ */ new Set()), completed = React.useRef(void 0), completing = React.useRef(void 0), completion = React.useRef(props.onComplete);
       completion.current = props.onComplete;
-      let apply = (next) => {
-        mounted.current && (next && !["created", "claimed", "approved"].includes(next.state) && attempts.current.delete(next.sessionId), setView(next), setLocked(next?.canRetry === !0 || next !== void 0 && attempts.current.has(next.sessionId)), next?.localSaved && completed.current !== next.sessionId && (completed.current = next.sessionId, completion.current()));
+      let runComplete = async () => {
+        let pending = completing.current ?? (async () => completion.current())();
+        completing.current = pending;
+        try {
+          await pending;
+        } finally {
+          completing.current === pending && (completing.current = void 0);
+        }
+      }, triggerComplete = async (sessionId) => {
+        if (completed.current === sessionId) return;
+        completed.current = sessionId;
+        let currentEpoch = epoch.current;
+        try {
+          await runComplete();
+        } catch (reason) {
+          completed.current === sessionId && (completed.current = void 0), mounted.current && currentEpoch === epoch.current && setError(messageOf(reason, t));
+        }
+      }, apply = (next) => {
+        mounted.current && (next && !["created", "claimed", "approved"].includes(next.state) && attempts.current.delete(next.sessionId), setView(next), setLocked(next?.canRetry === !0 || next !== void 0 && attempts.current.has(next.sessionId)), next?.localSaved && triggerComplete(next.sessionId));
       };
-      React.useEffect(() => {
-        mounted.current = !0;
-        let timer, poll = async () => {
-          if (!flight.current && !props.disabled && props.serverUrl)
+      React.useEffect(() => (mounted.current = !0, () => {
+        mounted.current = !1;
+      }), []), React.useEffect(() => {
+        prevServerUrl.current !== props.serverUrl && (prevServerUrl.current = props.serverUrl, hydratedServer.current = void 0, epoch.current += 1, completed.current = void 0, completing.current = void 0, attempts.current.clear(), setView(void 0), setLocked(!1), setCode(""), setError(void 0));
+      }, [props.serverUrl]), React.useEffect(() => {
+        if (props.disabled || !props.serverUrl || hydratedServer.current === props.serverUrl) return;
+        let cancelled = !1, currentEpoch = epoch.current;
+        return (async () => {
+          if (!flight.current)
             try {
-              apply(await props.control("host.pairing.status"));
+              let next = await props.control("host.pairing.status");
+              if (cancelled || !mounted.current || currentEpoch !== epoch.current) return;
+              hydratedServer.current = props.serverUrl, apply(next);
             } catch {
             }
-          mounted.current && (timer = setTimeout(() => void poll(), 2500));
+        })(), () => {
+          cancelled = !0;
         };
-        return poll(), () => {
-          mounted.current = !1, timer && clearTimeout(timer);
+      }, [props.serverUrl, props.disabled]);
+      let active = view !== void 0 && ["created", "claimed", "approved"].includes(view.state);
+      React.useEffect(() => {
+        if (!active || props.disabled || !props.serverUrl) return;
+        let cancelled = !1, timer, schedulePoll = () => {
+          cancelled || !mounted.current || (timer = setTimeout(() => {
+            poll();
+          }, 2500));
+        }, poll = async () => {
+          if (!(cancelled || !mounted.current)) {
+            if (!flight.current) {
+              let currentEpoch = epoch.current;
+              try {
+                let next = await props.control("host.pairing.status");
+                !cancelled && mounted.current && currentEpoch === epoch.current && apply(next);
+              } catch {
+              }
+            }
+            schedulePoll();
+          }
         };
-      }, [props.serverUrl, props.disabled]), React.useEffect(() => {
+        return schedulePoll(), () => {
+          cancelled = !0, timer !== void 0 && clearTimeout(timer);
+        };
+      }, [active, props.serverUrl, props.disabled]), React.useEffect(() => {
         let current = !0;
         return setImage(void 0), view?.qrPayload && import_qrcode.default.toDataURL(view.qrPayload, { width: 184, margin: 1, errorCorrectionLevel: "L" }).then((value) => {
           current && setImage(value);
@@ -3838,23 +3995,39 @@ If a code was sent, recover the original submission without changing it.`,
         };
       }, [view?.qrPayload]);
       let run = async (action, retry2 = !1) => {
-        if (!flight.current) {
-          flight.current = !0, setBusy(!0), setError(void 0), action === "confirm" && (view && attempts.current.add(view.sessionId), setLocked(!0), setCode(""));
-          try {
-            apply(await props.control("host.pairing." + action, action === "start" ? {} : {
-              sessionId: view?.sessionId,
-              ...action === "confirm" && !retry2 ? { verificationCode: code } : {}
-            }));
-          } catch (reason) {
-            if (mounted.current) {
-              let e = reason;
-              setError(t(e.code === "PAIRING_UNSUPPORTED" || e.details?.remoteCode === "PAIRING_UNSUPPORTED" ? "pairingUnsupported" : "pairingError"));
-            }
-          } finally {
-            flight.current = !1, mounted.current && setBusy(!1);
+        if (flight.current) return;
+        flight.current = !0;
+        let currentEpoch = ++epoch.current;
+        setBusy(!0), setError(void 0), action === "confirm" && (view && attempts.current.add(view.sessionId), setLocked(!0), setCode(""));
+        try {
+          let next = await props.control("host.pairing." + action, action === "start" ? {} : {
+            sessionId: view?.sessionId,
+            ...action === "confirm" && !retry2 ? { verificationCode: code } : {}
+          });
+          if (!mounted.current || currentEpoch !== epoch.current) return;
+          hydratedServer.current = props.serverUrl, apply(next);
+        } catch (reason) {
+          if (mounted.current && currentEpoch === epoch.current) {
+            let e = reason;
+            setError(t(e.code === "PAIRING_UNSUPPORTED" || e.details?.remoteCode === "PAIRING_UNSUPPORTED" ? "pairingUnsupported" : "pairingError"));
           }
+        } finally {
+          flight.current = !1, mounted.current && setBusy(!1);
         }
-      }, active = view !== void 0 && ["created", "claimed", "approved"].includes(view.state);
+      }, finish = async () => {
+        if (flight.current) return;
+        flight.current = !0;
+        let currentEpoch = ++epoch.current;
+        setBusy(!0), setError(void 0);
+        try {
+          if (await runComplete(), !mounted.current || currentEpoch !== epoch.current) return;
+          completed.current = void 0, setView(void 0), setLocked(!1), setCode("");
+        } catch (reason) {
+          mounted.current && currentEpoch === epoch.current && setError(messageOf(reason, t));
+        } finally {
+          flight.current = !1, mounted.current && setBusy(!1);
+        }
+      };
       React.useEffect(() => {
         if (!active) return;
         setNow(Date.now());
@@ -3917,6 +4090,12 @@ If a code was sent, recover the original submission without changing it.`,
             }
           }, t("pairingRetry")) : null,
           active && retry ? React.createElement("button", { type: "button", className: "dshRemoteDiscard", disabled: busy || props.disabled, onClick: () => void run("cancel") }, t("pairingCancel")) : null,
+          view?.state === "completed" ? React.createElement("button", {
+            type: "button",
+            className: "dshRemoteSave",
+            disabled: busy || props.disabled,
+            onClick: () => void finish()
+          }, t(busy ? "pairingBusy" : "pairingDone")) : null,
           active || view?.state === "completed" ? null : React.createElement("button", {
             type: "button",
             className: "dshRemoteSave",
@@ -3943,7 +4122,7 @@ If a code was sent, recover the original submission without changing it.`,
         subscribeStatus,
         getStatusSnapshot,
         getStatusSnapshot
-      ), [open, setOpen] = React.useState(props.view === "page"), [serverUrl, setServerUrl] = React.useState(""), [savingServer, setSavingServer] = React.useState(!1), [editingServer, setEditingServer] = React.useState(!1), serverDraftEdited = React.useRef(!1), [remoteToolsBusy, setRemoteToolsBusy] = React.useState(!1), [remoteToolsEnabled, setRemoteToolsEnabled] = React.useState(!0), [associations, setAssociations] = React.useState({}), [loaded, setLoaded] = React.useState(!1), [writable, setWritable] = React.useState(!1), [busy, setBusy] = React.useState(!1), [terminalEnabled, setTerminalEnabled] = React.useState(!1), [debugBusy, setDebugBusy] = React.useState(!1), [debugLogging, setDebugLogging] = React.useState(!1), [logsOpen, setLogsOpen] = React.useState(!1), [logsFilter, setLogsFilter] = React.useState("all"), [logsLoading, setLogsLoading] = React.useState(!1), [logsClearing, setLogsClearing] = React.useState(!1), [logsSnapshot, setLogsSnapshot] = React.useState(void 0), [logsError, setLogsError] = React.useState(void 0), [logsCopyState, setLogsCopyState] = React.useState("idle"), logsRequestRun = React.useRef(0), logsCopyTimer = React.useRef(void 0), logsViewportRef = React.useRef(null), [resetBusy, setResetBusy] = React.useState(!1), [retryStartupBusy, setRetryStartupBusy] = React.useState(!1), [terminalBusy, setTerminalBusy] = React.useState(!1), [sidebarEntry, setSidebarEntry] = React.useState(() => props.sidebarEntry?.read?.() ?? "standard"), [sidebarEntryBusy, setSidebarEntryBusy] = React.useState(!1), [acpBackends, setAcpBackends] = React.useState([]), [acpAvailability, setAcpAvailability] = React.useState({}), [acpChecking, setAcpChecking] = React.useState({}), [acpInstalling, setAcpInstalling] = React.useState({}), [acpCheckResults, setAcpCheckResults] = React.useState({}), [reconnectBusy, setReconnectBusy] = React.useState(!1), [hostStatus, setHostStatus] = React.useState(void 0), [hostName, setHostName] = React.useState(""), [hostDeviceId, setHostDeviceId] = React.useState(""), [notice, setNotice] = React.useState(void 0), [error, setError] = React.useState(void 0), [settingsView, setSettingsView] = React.useState(void 0), [signInOpen, setSignInOpen] = React.useState(!1), [loginEmail, setLoginEmail] = React.useState(""), [loginPassword, setLoginPassword] = React.useState(""), [loginMethod, setLoginMethod] = React.useState("password"), [oauthProviders, setOAuthProviders] = React.useState([]), [providersLoading, setProvidersLoading] = React.useState(!1), [providersFailed, setProvidersFailed] = React.useState(!1), [pairingServerUrl, setPairingServerUrl] = React.useState(void 0), [qrSession, setQrSession] = React.useState(void 0), [qrImage, setQrImage] = React.useState(void 0), [qrExpired, setQrExpired] = React.useState(!1), [qrFailed, setQrFailed] = React.useState(!1), [qrBusy, setQrBusy] = React.useState(!1), [qrCompleted, setQrCompleted] = React.useState(!1), [providerReload, setProviderReload] = React.useState(0), [completionReload, setCompletionReload] = React.useState(0), qrFlowRun = React.useRef(0), providerRequestRun = React.useRef(0), loginMethodManuallySelected = React.useRef(!1), associationReadRun = React.useRef(0), association = associations.client ?? associations.host;
+      ), [open, setOpen] = React.useState(props.view === "page"), [serverUrl, setServerUrl] = React.useState(""), [savingServer, setSavingServer] = React.useState(!1), [editingServer, setEditingServer] = React.useState(!1), serverDraftEdited = React.useRef(!1), [remoteToolsBusy, setRemoteToolsBusy] = React.useState(!1), [remoteToolsEnabled, setRemoteToolsEnabled] = React.useState(!0), [associations, setAssociations] = React.useState({}), [loaded, setLoaded] = React.useState(!1), [writable, setWritable] = React.useState(!1), [busy, setBusy] = React.useState(!1), [terminalEnabled, setTerminalEnabled] = React.useState(!1), [debugBusy, setDebugBusy] = React.useState(!1), [debugLogging, setDebugLogging] = React.useState(!1), [logsOpen, setLogsOpen] = React.useState(!1), [logsFilter, setLogsFilter] = React.useState("all"), [logsLoading, setLogsLoading] = React.useState(!1), [logsClearing, setLogsClearing] = React.useState(!1), [logsSnapshot, setLogsSnapshot] = React.useState(void 0), [logsError, setLogsError] = React.useState(void 0), [logsCopyState, setLogsCopyState] = React.useState("idle"), logsRequestRun = React.useRef(0), logsCopyTimer = React.useRef(void 0), logsViewportRef = React.useRef(null), [resetBusy, setResetBusy] = React.useState(!1), [retryStartupBusy, setRetryStartupBusy] = React.useState(!1), [terminalBusy, setTerminalBusy] = React.useState(!1), [sidebarEntry, setSidebarEntry] = React.useState(() => props.sidebarEntry?.read?.() ?? "standard"), [sidebarEntryBusy, setSidebarEntryBusy] = React.useState(!1), [acpBackends, setAcpBackends] = React.useState([]), [acpAvailability, setAcpAvailability] = React.useState({}), [acpDiagnostics, setAcpDiagnostics] = React.useState({}), [acpChecking, setAcpChecking] = React.useState({}), [acpInstalling, setAcpInstalling] = React.useState({}), [acpCheckResults, setAcpCheckResults] = React.useState({}), [newAcpId, setNewAcpId] = React.useState(""), [newAcpCommand, setNewAcpCommand] = React.useState(""), [newAcpArgs, setNewAcpArgs] = React.useState("acp"), [addingAcp, setAddingAcp] = React.useState(!1), [addAcpFormOpen, setAddAcpFormOpen] = React.useState(!1), [reconnectBusy, setReconnectBusy] = React.useState(!1), [hostStatus, setHostStatus] = React.useState(void 0), [hostName, setHostName] = React.useState(""), [hostDeviceId, setHostDeviceId] = React.useState(""), [notice, setNotice] = React.useState(void 0), [error, setError] = React.useState(void 0), [settingsView, setSettingsView] = React.useState(void 0), [signInOpen, setSignInOpen] = React.useState(!1), [loginEmail, setLoginEmail] = React.useState(""), [loginPassword, setLoginPassword] = React.useState(""), [loginMethod, setLoginMethod] = React.useState("password"), [oauthProviders, setOAuthProviders] = React.useState([]), [providersLoading, setProvidersLoading] = React.useState(!1), [providersFailed, setProvidersFailed] = React.useState(!1), [pairingServerUrl, setPairingServerUrl] = React.useState(void 0), [qrSession, setQrSession] = React.useState(void 0), [qrImage, setQrImage] = React.useState(void 0), [qrExpired, setQrExpired] = React.useState(!1), [qrFailed, setQrFailed] = React.useState(!1), [qrBusy, setQrBusy] = React.useState(!1), [qrCompleted, setQrCompleted] = React.useState(!1), [providerReload, setProviderReload] = React.useState(0), [completionReload, setCompletionReload] = React.useState(0), qrFlowRun = React.useRef(0), providerRequestRun = React.useRef(0), loginMethodManuallySelected = React.useRef(!1), associationReadRun = React.useRef(0), association = associations.client ?? associations.host;
       React.useEffect(() => {
         association !== void 0 && setSignInOpen(!1);
       }, [association]);
@@ -3954,7 +4133,7 @@ If a code was sent, recover the original submission without changing it.`,
       let applyAssociations = (view) => {
         setAssociations(view.associations ?? (view.association === void 0 ? {} : { host: view.association }));
       }, applyView = (view, updateAssociations = !0) => {
-        setSettingsView(view), serverDraftEdited.current || setServerUrl(view.config.serverUrl ?? "https://dsh.r2049.cn"), setTerminalEnabled(view.config.terminal?.enabled ?? !0), setDebugLogging(view.config.logLevel === "debug"), setRemoteToolsEnabled(view.config.remoteTools?.enabled ?? !0), setSidebarEntry(view.config.sidebar?.entry ?? "standard"), props.sidebarEntry?.publish(view.config.sidebar?.entry ?? "standard"), setAcpBackends((view.config.acp?.backends ?? []).map((item) => ({ id: item.id, enabled: item.enabled !== !1 }))), setAcpAvailability(view.acpAvailability ?? {}), updateAssociations && applyAssociations(view), setWritable(view.writable), setLoaded(!0);
+        setSettingsView(view), serverDraftEdited.current || setServerUrl(view.config.serverUrl ?? "https://dsh.r2049.cn"), setTerminalEnabled(view.config.terminal?.enabled ?? !0), setDebugLogging(view.config.logLevel === "debug"), setRemoteToolsEnabled(view.config.remoteTools?.enabled ?? !0), setSidebarEntry(view.config.sidebar?.entry ?? "standard"), props.sidebarEntry?.publish(view.config.sidebar?.entry ?? "standard"), setAcpBackends((view.config.acp?.backends ?? []).map((item) => ({ id: item.id, enabled: item.enabled !== !1 }))), setAcpAvailability(view.acpAvailability ?? {}), setAcpDiagnostics(view.acpDiagnostics ?? {}), updateAssociations && applyAssociations(view), setWritable(view.writable), setLoaded(!0);
       }, load = async () => {
         let run = ++associationReadRun.current, [view, status] = await Promise.all([
           props.control("settings.get"),
@@ -4063,19 +4242,20 @@ If a code was sent, recover the original submission without changing it.`,
             setSavingServer(!1), setBusy(!1);
           }
         }
-      }, signInClient = async () => {
-        if (!(savingServer || serverDirty || loginEmail.trim() === "" || loginPassword === "")) {
+      }, verification = useAccountVerification(React, signInOpen && loginMethod === "password" ? serverUrl : void 0), signInClient = async () => {
+        if (!(savingServer || serverDirty || (verification.pending ? !verification.ready : loginEmail.trim() === "" || loginPassword === ""))) {
           setBusy(!0), setError(void 0);
           try {
             let result = await props.control("settings.configure", {
               role: "client",
               serverUrl: serverUrl.trim() || "https://dsh.r2049.cn",
               email: loginEmail.trim(),
-              password: loginPassword
+              password: loginPassword,
+              verification: verification.verification
             });
-            applyView(result.settings), setSignInOpen(!1), setLoginPassword(""), setNotice({ key: "authorizationComplete" });
+            verification.clear(), applyView(result.settings), setSignInOpen(!1), setLoginPassword(""), setNotice({ key: "authorizationComplete" });
           } catch (reason) {
-            setError(messageOf(reason, t));
+            verification.handle(reason) ? setLoginPassword("") : setError(messageOf(reason, t));
           } finally {
             setBusy(!1);
           }
@@ -4169,6 +4349,19 @@ If a code was sent, recover the original submission without changing it.`,
           setError(messageOf(reason, t));
         } finally {
           setBusy(!1);
+        }
+      }, addCustomAcp = async () => {
+        let id = newAcpId.trim().toLowerCase(), command = newAcpCommand.trim(), args = newAcpArgs.trim() ? newAcpArgs.trim().split(/\s+/) : [];
+        if (!(!id || !command || addingAcp)) {
+          setAddingAcp(!0), setError(void 0);
+          try {
+            let view = await props.control("settings.acp.add", { id, command, args, enabled: !0 });
+            applyView(view), setNewAcpId(""), setNewAcpCommand(""), setNewAcpArgs("acp"), setAddAcpFormOpen(!1), setNotice({ key: "acpAddedNotice" });
+          } catch (reason) {
+            setError(messageOf(reason, t));
+          } finally {
+            setAddingAcp(!1);
+          }
         }
       }, installOrConfigureAcp = async (backend) => {
         if (!acpInstalling[backend]) {
@@ -4291,12 +4484,28 @@ If a code was sent, recover the original submission without changing it.`,
             React.createElement(
               "div",
               { className: "dshRemoteDebugLogControls" },
-              React.createElement("button", {
-                type: "button",
-                className: "dshRemoteLogToggleBtn",
-                "aria-expanded": logsOpen,
-                onClick: toggleLogsDrawer
-              }, logsOpen ? t("debugLogsToggleClose") + " \u25B4" : t("debugLogsToggleOpen") + " \u25BE"),
+              React.createElement(
+                "button",
+                {
+                  type: "button",
+                  className: "dshRemoteLogToggleBtn",
+                  "aria-expanded": logsOpen,
+                  onClick: toggleLogsDrawer
+                },
+                React.createElement("span", null, t(logsOpen ? "debugLogsToggleClose" : "debugLogsToggleOpen")),
+                React.createElement("svg", {
+                  className: "dshRemoteLogToggleChevron",
+                  viewBox: "0 0 16 16",
+                  width: 14,
+                  height: 14,
+                  fill: "none",
+                  stroke: "currentColor",
+                  strokeWidth: 1.75,
+                  strokeLinecap: "round",
+                  strokeLinejoin: "round",
+                  "aria-hidden": !0
+                }, React.createElement("path", { d: "M4 6l4 4 4-4" }))
+              ),
               React.createElement("input", {
                 type: "checkbox",
                 role: "switch",
@@ -4489,7 +4698,7 @@ If a code was sent, recover the original submission without changing it.`,
           disabled: sidebarEntryBusy || !writable,
           onClick: () => void setSidebarEntryStyle(choice.value)
         }, t(choice.label))))
-      ), acpSetting = React.createElement(
+      ), acpEnabledCount = settingsView?.config.acp?.enabled === !0 ? acpBackends.filter((item) => item.enabled && acpAvailability[item.id] === !0).length : 0, acpSummaryCount = acpBackends.length > 0 ? `${acpEnabledCount}/${acpBackends.length}` : void 0, acpDocEndPunctuation = t("acpHint").includes("\uFF0C") ? "\u3002" : ".", acpSetting = React.createElement(
         "details",
         { className: "dshRemoteAuthorizationSetting dshRemoteAcpSetting" },
         React.createElement(
@@ -4612,10 +4821,10 @@ If a code was sent, recover the original submission without changing it.`,
           loginMethod === "device_pairing" && pairingAvailable ? React.createElement(
             "div",
             { role: "tabpanel", id: "dsh-remote-settings-device-pairing-panel", "aria-labelledby": "dsh-remote-settings-device-pairing-tab" },
-            React.createElement(HostPairingPanel, { key: settingsView?.config.serverUrl ?? "", control: props.control, serverUrl: settingsView?.config.serverUrl ?? "", disabled: busy || !writable || serverDirty, t, onComplete: () => void props.control("settings.get").then((view) => {
+            React.createElement(HostPairingPanel, { key: settingsView?.config.serverUrl ?? "", control: props.control, serverUrl: settingsView?.config.serverUrl ?? "", disabled: busy || !writable || serverDirty, t, onComplete: async () => {
+              let view = await props.control("settings.get");
               applyView(view), setSignInOpen(!1), props.onSignIn?.();
-            }).catch(() => {
-            }) })
+            } })
           ) : passwordVisible ? React.createElement(
             "div",
             {
@@ -4624,27 +4833,31 @@ If a code was sent, recover the original submission without changing it.`,
               id: "dsh-remote-settings-password-panel",
               "aria-labelledby": "dsh-remote-settings-password-tab"
             },
-            React.createElement("input", {
-              type: "email",
-              value: loginEmail,
-              disabled: busy,
-              autoComplete: "username",
-              placeholder: t("account"),
-              "aria-label": t("account"),
-              onChange: (event) => setLoginEmail(event.target.value)
-            }),
-            React.createElement("input", {
-              type: "password",
-              value: loginPassword,
-              disabled: busy,
-              autoComplete: "current-password",
-              placeholder: t("password"),
-              "aria-label": t("password"),
-              onChange: (event) => setLoginPassword(event.target.value)
-            }),
+            verification.fields(
+              t,
+              busy,
+              React.createElement("input", {
+                type: "email",
+                value: loginEmail,
+                disabled: busy,
+                autoComplete: "username",
+                placeholder: t("account"),
+                "aria-label": t("account"),
+                onChange: (event) => setLoginEmail(event.target.value)
+              }),
+              React.createElement("input", {
+                type: "password",
+                value: loginPassword,
+                disabled: busy,
+                autoComplete: "current-password",
+                placeholder: t("password"),
+                "aria-label": t("password"),
+                onChange: (event) => setLoginPassword(event.target.value)
+              })
+            ),
             React.createElement("button", {
               type: "button",
-              disabled: busy || loginEmail.trim() === "" || loginPassword === "",
+              disabled: busy || (verification.pending ? !verification.ready : loginEmail.trim() === "" || loginPassword === ""),
               onClick: () => void signInClient()
             }, t(busy ? "signingIn" : "startSignIn")),
             React.createElement("p", { className: "dshRemotePasswordHint" }, t("passwordHint"))
@@ -5341,6 +5554,72 @@ If a code was sent, recover the original submission without changing it.`,
     };
   }
 
+  // packages/plugin/src/client/footer-lane.ts
+  var NO_FACTS = { row: null, lane: !1, wrapped: !1, count: 0, rowWidth: Number.NaN };
+  function footerRequiredWidth(count) {
+    return count <= 0 ? 0 : count * 112 + (count - 1) * 4 + 16;
+  }
+  function resolveFooterForm(count, rowWidth) {
+    return count <= 0 ? "label" : count > 2 || !Number.isFinite(rowWidth) ? "icon" : rowWidth >= footerRequiredWidth(count) ? "label" : "icon";
+  }
+  function occupiesFooterSeat(entry) {
+    return entry == null || entry.position === "fixed" || entry.position === "absolute" ? !1 : (entry.width ?? 0) > 0 && (entry.height ?? 0) > 0;
+  }
+  function measureFooterSeat(entry, view = globalThis) {
+    let styleOf = view !== void 0 && typeof view.getComputedStyle == "function" ? view.getComputedStyle.bind(view) : null;
+    if (entry == null || styleOf === null) return { ...NO_FACTS };
+    let node = entry;
+    for (; node !== null && node.parentElement != null; ) {
+      let row = node.parentElement, style = styleOf(row);
+      if (style.display === "contents") {
+        node = row;
+        continue;
+      }
+      if (style.display !== "flex" && style.display !== "inline-flex") {
+        if (row.children.length === 1) {
+          node = row;
+          continue;
+        }
+        return { ...NO_FACTS };
+      }
+      let facts = {
+        row,
+        lane: style.flexDirection.startsWith("row"),
+        wrapped: style.flexWrap !== "nowrap",
+        count: 1,
+        rowWidth: row.clientWidth
+      };
+      if (!facts.lane) return facts;
+      let collect = (container) => {
+        for (let child of Array.from(container.children)) {
+          let childStyle = styleOf(child);
+          if (childStyle.display === "contents") {
+            collect(child);
+            continue;
+          }
+          if (child.contains(entry)) continue;
+          let rect = typeof child.getBoundingClientRect == "function" ? child.getBoundingClientRect() : { width: 0, height: 0 };
+          occupiesFooterSeat({ position: childStyle.position, width: rect.width, height: rect.height }) && (facts.count += 1);
+        }
+      };
+      return collect(row), facts;
+    }
+    return { ...NO_FACTS };
+  }
+  function footerFormFor(facts, wide) {
+    return wide ? facts.row === null || !facts.lane || facts.wrapped ? "label" : resolveFooterForm(facts.count, facts.rowWidth) : "icon";
+  }
+  function watchFooterLane(entry, wide, onForm, view = globalThis) {
+    let reported, row = null, resize, mutation, disposed = !1, sync = () => {
+      if (disposed) return;
+      let facts = measureFooterSeat(entry, view), nextForm = footerFormFor(facts, wide());
+      nextForm !== reported && (reported = nextForm, onForm(nextForm)), facts.row !== row && (resize?.disconnect(), mutation?.disconnect(), resize = void 0, mutation = void 0, row = facts.row, row !== null && (typeof ResizeObserver == "function" && (resize = new ResizeObserver(sync), resize.observe(row), resize.observe(entry)), typeof MutationObserver == "function" && (mutation = new MutationObserver(sync), mutation.observe(row, { childList: !0, subtree: !0, attributes: !0, attributeFilter: ["style", "class", "hidden"] }))));
+    };
+    return sync(), typeof window < "u" && window.addEventListener("resize", sync), () => {
+      disposed = !0, resize?.disconnect(), mutation?.disconnect(), typeof window < "u" && window.removeEventListener("resize", sync);
+    };
+  }
+
   // packages/plugin/src/client/workspaces.ts
   var import_qrcode3 = __toESM(require_browser(), 1);
 
@@ -5534,7 +5813,7 @@ If a code was sent, recover the original submission without changing it.`,
   var whaleMarkViewBox = "0 0 23.5 17.2", whaleMarkPath = "M22.9168 1.43018c-0.2455-0.12-0.351 0.109-0.4945 0.22501-0.049 0.0375-0.0905 0.0865-0.132 0.1315-0.3586 0.38301-0.7776 0.63452-1.3246 0.60452-0.8-0.045-1.483 0.2065-2.087 0.81852-0.1285-0.75452-0.5551-1.20503-1.2041-1.49404-0.3395-0.15001-0.683-0.30051-0.921-0.62702-0.166-0.23251-0.2115-0.49152-0.2945-0.74702-0.053-0.154-0.1055-0.31151-0.283-0.33801-0.1925-0.03-0.268 0.1315-0.3435 0.26651-0.302 0.55202-0.419 1.16003-0.4075 1.77605 0.0265 1.38554 0.6115 2.48907 1.774 3.2741 0.132 0.09 0.166 0.18 0.1245 0.31151-0.0795 0.2705-0.1735 0.53301-0.2565 0.80352-0.053 0.17251-0.132 0.21051-0.317 0.135-0.638-0.2665-1.189-0.66102-1.6761-1.13753-0.8265-0.79952-1.574-1.68205-2.506-2.37307-0.219-0.16151-0.438-0.31151-0.6646-0.45451-0.951-0.92353 0.1246-1.68206 0.3736-1.77206 0.2605-0.094 0.0905-0.41701-0.7511-0.41301-0.8415 0.0035-1.61151 0.28551-2.59304 0.66102-0.14351 0.0565-0.29451 0.0975-0.44902 0.1315-0.89052-0.169-1.81555-0.2065-2.78158-0.0975-1.81905 0.20251-3.2721 1.06253-4.34013 2.53058-1.28304 1.76455-1.58505 3.76961-1.21553 5.86067 0.38851 2.20408 1.51354 4.02858 3.24209 5.45518 1.79256 1.479 3.85712 2.2041 6.21269 2.065 1.43052-0.0825 3.02312-0.274 4.81962-1.7945 0.453 0.2255 0.9286 0.3155 1.7171 0.383 0.6075 0.0565 1.1925-0.03 1.6455-0.124 0.7095-0.15 0.6605-0.807 0.404-0.9275-2.0795-0.9686-1.623-0.5745-2.038-0.8936 1.0565-1.25 2.6706-3.4721 3.1686-6.49765 0.049-0.33401 0.1115-0.80452 0.104-1.07503-0.004-0.16501 0.034-0.22901 0.2225-0.24801 0.521-0.06 1.0265-0.2025 1.491-0.45801 1.3476-0.73602 1.8911-1.94506 2.0191-3.3941 0.019-0.22151-0.004-0.45052-0.238-0.56702z m-11.7419 13.04342c-2.01554-1.5846-2.99306-2.1061-3.39658-2.0836-0.37751 0.0225-0.30951 0.4545-0.2265 0.736 0.087 0.278 0.2 0.4695 0.35851 0.7136 0.1095 0.1615 0.185 0.4015-0.1095 0.582-0.64902 0.4015-1.77756-0.135-1.83056-0.1615-1.31354-0.7736-2.41157-1.7946-3.1856-3.1911-0.74752-1.34407-1.18153-2.78611-1.25303-4.32516-0.019-0.37151 0.0905-0.50302 0.46051-0.57052 0.48701-0.09 0.98903-0.109 1.47554-0.0375 2.05707 0.30051 3.80812 1.22004 5.27616 2.67708 0.83803 0.82953 1.47205 1.8211 2.12505 2.7896 0.6945 1.0285 1.4416 2.0085 2.3931 2.8121 0.336 0.2815 0.604 0.4955 0.8605 0.6535-0.7735 0.0865-2.0645 0.105-2.9476-0.5935l0-0.001z m0.9661-6.21372c0-0.165 0.132-0.2965 0.298-0.2965 0.0375 0 0.0715 0.0075 0.102 0.0185 0.0415 0.015 0.0795 0.0375 0.1095 0.0715 0.053 0.0525 0.083 0.1275 0.083 0.2065 0 0.16501-0.132 0.29651-0.298 0.29651-0.166 0-0.2945-0.1315-0.2945-0.29651z m3.0005 1.53905c-0.1925 0.079-0.385 0.14651-0.57 0.15401-0.287 0.015-0.6-0.10151-0.77-0.24401-0.264-0.22151-0.453-0.34551-0.532-0.73202-0.034-0.16501-0.015-0.42052 0.015-0.56702 0.068-0.31551-0.0075-0.51802-0.23-0.70202-0.181-0.15001-0.4115-0.19151-0.6645-0.19151-0.0945 0-0.181-0.0415-0.2455-0.075-0.1055-0.0525-0.1926-0.18401-0.1095-0.34551 0.0265-0.0525 0.155-0.18001 0.185-0.20251 0.3435-0.1955 0.7395-0.1315 1.106 0.015 0.3395 0.13901 0.5965 0.39402 0.966 0.75453 0.3775 0.43551 0.4455 0.55551 0.6605 0.88252 0.17 0.25551 0.3245 0.51802 0.4306 0.81853 0.064 0.1875-0.019 0.34101-0.2416 0.43501z";
 
   // packages/plugin/src/client/icons.ts
-  var gptWorkspaceIcon = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAMAAACdt4HsAAAAclBMVEX////v7+++wMf////s7O3k5OTExcrX2Ny6vMTv8PPW19yXmqRqboJmaHd3eoaqrLPs7fGMjpfb3eKlpq1eYXOxs7pWWWd+gY5HSVdRVGVub3k+QU74+Pg4OkcvMT1ISlUoKjUiIy4fICueoKkaGyUSFB21Bp+qAAAAAXRSTlMAQObYZgAABChJREFUWMPtl916qjoQhlsdEwIECEgMYCBxx/u/xT1DrFUL1LO1DtY8LSLJvPnmB4gfH//sr7TPDfvdebf/xXZbkE/4zZ0MVhGHd9zJDsv+7F3//Z69tT5wljAu3tXw+TIlzXKJlhflYmJ+5uF5WpWhb54X+C/zZCmT2wJA4dJZwus0UYjIGqWyMhVbEp4yKNRRqlv0opW5PJLJ4rFJXvP4JKDRMqturBZjkMVJFYjR6iHQDQDI4+k2k51wZbWrqwp4mR/1CVYATyko9TFGxBUqL5IvMbXSWt0T8bkGgFLqgqZBI/Uxbx5UAxLaNcCNLBpttM7wbCc1pmJOpWAsDtey68UaQMyrFgb9uxLPjqg3+nGluyKN0XUdWw0BJ0NvTFFqgzpr9J+Dh4w0Ga1qkqBNswagxdRgFPAbgHRQG5jumGWyMxrTIaRRa4AzFs0YrNMXgI4MJWnsKYFhGNMnIh/mBOPsV8CZBFjN9w8ArowxnZzDr5IcvxTaKpxJCVsoI3SWysz1UM4AqQdzlCgho1IKrK+x1mKFzisANtgEU8E7GwHDgOqxe4w9tnM166wbaA2xBMBLrTWcAGYGdCiYVUJUrMCF+7l6gklrW1RwPi8ByjuActANqhKzVWoYrFGcCFzbDgNaBrTWpncFQMcI2DfWoAiDqRCiHcYM/ZdCEKkZqfR8spj4F0CiJjv2gHL6URNoCQDaYacL6O1oFDO2eQDUFP7AKdCRdC4CRDZaNifbjA41l/uYb/SZMAFNTBGzY7sG4J2jTsJgToOzIzXF3HZqBpSOAGduXbkGEKV1OqVGqRJpRxtvwbSw5IqAiUJItwBCOT9R32FCGo3nCkAN3t0UTBRC6zDONcBeOee9pr4T+ASbnDOdc5OmtREwEEB5w8Wqgt4bOV5c7Lt9iiK8zdP/IsBbutUGX4gNwEVCqd3FUt/xYnRWt7BvPBYQjwjAGXa3ASguHVAZ/WXKlA3eZDX1wRegFsr7E2wAlB9xFbx/7MV70kFT8aqNgLL3F8nFBmA3hrn/IJHjKJOK2oj1WI4Z4FzwN/81AOhgYD6v2xbIvaZIurLC9AfvB1WLTYAoXejF1xeBL5cpBIyEbmxkZymIXwDQh1BAfOrhI1lfwtgz8tozF5T4ttf3+32AyxC6klwAgw/YVTHpoK82xYt3wLP/Bw4AAI4D7/01TLKXBj9NEz2wEuGiKpoy68S/FwCLMQAZ3gXhihaCa25vQo6RyToOz9PE6wYjJgGi1YnqZX8qMIK+TDlnargGzSv4NvFjlwXf/nfLLMrAB4O/Xl3BH0d+RIASFgDA8IYMIXgr2+cBsbDdPSwAAHjSZFmb3txETCKIxc0uWwI8rxsLJcTiVndNwyMgKljbbNN2/zcEAja2+4RgIDYN2Bu/WtAOaEodnu2dnzz/7I/Y/w/LaEcX/MdfAAAAAElFTkSuQmCC";
+  var deepSeekWorkspaceIcon = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAMAAACdt4HsAAAACVBMVEUAAADy8vXx8fUsA3vyAAAAAXRSTlMAQObYZgAAAOxJREFUWMPtlsEOwyAMQxP+/6OnTZMGxHGcot3wDYgfhkJbs6urprzveGtu9d1NgEdto8w93GuA7zPS2RFg7ynsCOAokbtAmLr2YaeKgJ6fxpT8jCAC0qSqPyNoO5DXdvyouj4ClFAdYaDxK09uiBDCIYBf6CxLesnR0uF2pG+JmhCqrUb0AOvjjoQaYDTCEAAgMg5grhAeAQIB+/M15IcKlnUIp4CkTCd0AKb4zVsRSJVGYEVzT0agK107IMGMEurvromEpaX4wzk/IKw378kq4LafED6Oowxfk7AP2q8W16EdM3p29Eyvrv6vF0WIBfBziKyCAAAAAElFTkSuQmCC", gptWorkspaceIcon = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAMAAACdt4HsAAAAclBMVEX////v7+++wMf////s7O3k5OTExcrX2Ny6vMTv8PPW19yXmqRqboJmaHd3eoaqrLPs7fGMjpfb3eKlpq1eYXOxs7pWWWd+gY5HSVdRVGVub3k+QU74+Pg4OkcvMT1ISlUoKjUiIy4fICueoKkaGyUSFB21Bp+qAAAAAXRSTlMAQObYZgAABChJREFUWMPtl916qjoQhlsdEwIECEgMYCBxx/u/xT1DrFUL1LO1DtY8LSLJvPnmB4gfH//sr7TPDfvdebf/xXZbkE/4zZ0MVhGHd9zJDsv+7F3//Z69tT5wljAu3tXw+TIlzXKJlhflYmJ+5uF5WpWhb54X+C/zZCmT2wJA4dJZwus0UYjIGqWyMhVbEp4yKNRRqlv0opW5PJLJ4rFJXvP4JKDRMqturBZjkMVJFYjR6iHQDQDI4+k2k51wZbWrqwp4mR/1CVYATyko9TFGxBUqL5IvMbXSWt0T8bkGgFLqgqZBI/Uxbx5UAxLaNcCNLBpttM7wbCc1pmJOpWAsDtey68UaQMyrFgb9uxLPjqg3+nGluyKN0XUdWw0BJ0NvTFFqgzpr9J+Dh4w0Ga1qkqBNswagxdRgFPAbgHRQG5jumGWyMxrTIaRRa4AzFs0YrNMXgI4MJWnsKYFhGNMnIh/mBOPsV8CZBFjN9w8ArowxnZzDr5IcvxTaKpxJCVsoI3SWysz1UM4AqQdzlCgho1IKrK+x1mKFzisANtgEU8E7GwHDgOqxe4w9tnM166wbaA2xBMBLrTWcAGYGdCiYVUJUrMCF+7l6gklrW1RwPi8ByjuActANqhKzVWoYrFGcCFzbDgNaBrTWpncFQMcI2DfWoAiDqRCiHcYM/ZdCEKkZqfR8spj4F0CiJjv2gHL6URNoCQDaYacL6O1oFDO2eQDUFP7AKdCRdC4CRDZaNifbjA41l/uYb/SZMAFNTBGzY7sG4J2jTsJgToOzIzXF3HZqBpSOAGduXbkGEKV1OqVGqRJpRxtvwbSw5IqAiUJItwBCOT9R32FCGo3nCkAN3t0UTBRC6zDONcBeOee9pr4T+ASbnDOdc5OmtREwEEB5w8Wqgt4bOV5c7Lt9iiK8zdP/IsBbutUGX4gNwEVCqd3FUt/xYnRWt7BvPBYQjwjAGXa3ASguHVAZ/WXKlA3eZDX1wRegFsr7E2wAlB9xFbx/7MV70kFT8aqNgLL3F8nFBmA3hrn/IJHjKJOK2oj1WI4Z4FzwN/81AOhgYD6v2xbIvaZIurLC9AfvB1WLTYAoXejF1xeBL5cpBIyEbmxkZymIXwDQh1BAfOrhI1lfwtgz8tozF5T4ttf3+32AyxC6klwAgw/YVTHpoK82xYt3wLP/Bw4AAI4D7/01TLKXBj9NEz2wEuGiKpoy68S/FwCLMQAZ3gXhihaCa25vQo6RyToOz9PE6wYjJgGi1YnqZX8qMIK+TDlnargGzSv4NvFjlwXf/nfLLMrAB4O/Xl3BH0d+RIASFgDA8IYMIXgr2+cBsbDdPSwAAHjSZFmb3txETCKIxc0uWwI8rxsLJcTiVndNwyMgKljbbNN2/zcEAja2+4RgIDYN2Bu/WtAOaEodnu2dnzz/7I/Y/w/LaEcX/MdfAAAAAElFTkSuQmCC";
 
   // packages/plugin/src/client/workspaces.ts
   var HOST_PRESENCE_POLL_INTERVAL_MS = 5e3, HOST_PRESENCE_NOTICE_MS = 6e3;
@@ -5570,6 +5849,13 @@ If a code was sent, recover the original submission without changing it.`,
   }
   function createRemoteWorkspaceAction(React, portal) {
     let ServerNotice = createServerNotice(React), HostPairingPanel = createHostPairingPanel(React), RemoteProgressView = createRemoteProgressView(React);
+    function useFooterLane(wide) {
+      let [form, setForm] = React.useState(wide ? "label" : "icon"), [node, setNode] = React.useState(null);
+      return React.useEffect(() => {
+        if (node !== null)
+          return watchFooterLane(node, () => wide, (next) => setForm((previous) => previous === next ? previous : next));
+      }, [wide, node]), [setNode, wide ? form : "icon"];
+    }
     function RemoteAccountEntry(props) {
       let [container, setContainer] = React.useState(null), { portal: portal2 } = props;
       if (React.useEffect(() => {
@@ -5595,13 +5881,13 @@ If a code was sent, recover the original submission without changing it.`,
       }
     }
     function RemoteWorkspaceAction(props) {
-      let { t } = props, connectionErrorMessageFor = (reason, translate) => {
+      let { t } = props, [attachEntry, entryForm] = useFooterLane(props.wide), connectionErrorMessageFor = (reason, translate) => {
         if (typeof reason == "object" && reason !== null && "code" in reason) {
           let code = reason.code;
           if (typeof code == "string") return connectionErrorMessage(code, translate);
         }
         return messageOf(reason, translate);
-      }, [open, setOpen] = React.useState(!1), [status, setStatus] = React.useState(void 0), [devices, setDevices] = React.useState([]), [hostFilter, setHostFilter] = React.useState("all"), [hostFilterOpen, setHostFilterOpen] = React.useState(!1), [accountMenuOpen, setAccountMenuOpen] = React.useState(!1), [workspaceSearch, setWorkspaceSearch] = React.useState(""), [discoveryUnavailable, setDiscoveryUnavailable] = React.useState(!1), [selectedHost, setSelectedHost] = React.useState(void 0), [connectingHost, setConnectingHost] = React.useState(void 0), [workspaces, setWorkspaces] = React.useState([]), [codexWorkspaces, setCodexWorkspaces] = React.useState([]), [cursorWorkspaces, setCursorWorkspaces] = React.useState([]), [antigravityWorkspaces, setAntigravityWorkspaces] = React.useState([]), [piWorkspaces, setPiWorkspaces] = React.useState([]), [opencodeWorkspaces, setOpencodeWorkspaces] = React.useState([]), [claudeWorkspaces, setClaudeWorkspaces] = React.useState([]), [hermesWorkspaces, setHermesWorkspaces] = React.useState([]), [workspaceBackend, setWorkspaceBackend] = React.useState("harness"), [codexWorkspaceId, setCodexWorkspaceId] = React.useState(void 0), [cursorWorkspaceId, setCursorWorkspaceId] = React.useState(void 0), [antigravityWorkspaceId, setAntigravityWorkspaceId] = React.useState(void 0), [piWorkspaceId, setPiWorkspaceId] = React.useState(void 0), [opencodeWorkspaceId, setOpencodeWorkspaceId] = React.useState(void 0), [claudeWorkspaceId, setClaudeWorkspaceId] = React.useState(void 0), [hermesWorkspaceId, setHermesWorkspaceId] = React.useState(void 0), [directory, setDirectory] = React.useState(void 0), [path, setPath] = React.useState(""), [pickedDirectoryPath, setPickedDirectoryPath] = React.useState(void 0), [addingWorkspace, setAddingWorkspace] = React.useState(!1), [showAllWorkspaces, setShowAllWorkspaces] = React.useState(!1), [showAllCodexWorkspaces, setShowAllCodexWorkspaces] = React.useState(!1), [devicesOpen, setDevicesOpen] = React.useState(!1), [restartingHost, setRestartingHost] = React.useState(void 0), [showAllCursorWorkspaces, setShowAllCursorWorkspaces] = React.useState(!1), [showAllAntigravityWorkspaces, setShowAllAntigravityWorkspaces] = React.useState(!1), [showAllPiWorkspaces, setShowAllPiWorkspaces] = React.useState(!1), [showAllOpencodeWorkspaces, setShowAllOpencodeWorkspaces] = React.useState(!1), [showAllClaudeWorkspaces, setShowAllClaudeWorkspaces] = React.useState(!1), [showAllHermesWorkspaces, setShowAllHermesWorkspaces] = React.useState(!1), workspaceListId = "dsh-remote-workspace-list", codexWorkspaceHeadingId = "dsh-remote-codex-workspace-heading", codexWorkspaceListId = "dsh-remote-codex-workspace-list", cursorWorkspaceHeadingId = "dsh-remote-cursor-workspace-heading", cursorWorkspaceListId = "dsh-remote-cursor-workspace-list", antigravityWorkspaceHeadingId = "dsh-remote-antigravity-workspace-heading", piWorkspaceHeadingId = "dsh-remote-pi-workspace-heading", opencodeWorkspaceHeadingId = "dsh-remote-opencode-workspace-heading", claudeWorkspaceHeadingId = "dsh-remote-claude-workspace-heading", hermesWorkspaceHeadingId = "dsh-remote-hermes-workspace-heading", antigravityWorkspaceListId = "dsh-remote-antigravity-workspace-list", piWorkspaceListId = "dsh-remote-pi-workspace-list", opencodeWorkspaceListId = "dsh-remote-opencode-workspace-list", claudeWorkspaceListId = "dsh-remote-claude-workspace-list", hermesWorkspaceListId = "dsh-remote-hermes-workspace-list", [busy, setBusy] = React.useState(!1), [needsAuthorization, setNeedsAuthorization] = React.useState(void 0), [email, setEmail] = React.useState(""), [password, setPassword] = React.useState(""), [loginServerUrl, setLoginServerUrl] = React.useState("https://remote.gaolin.ink"), [editingServer, setEditingServer] = React.useState(!1), [savingServer, setSavingServer] = React.useState(!1), serverDirty = loginServerUrl.trim() !== (status?.serverUrl ?? ""), [loginMethod, setLoginMethod] = React.useState("password"), loginMethodManuallySelected = React.useRef(!1), [oauthProviders, setOAuthProviders] = React.useState([]), [providersLoading, setProvidersLoading] = React.useState(!1), [providersFailed, setProvidersFailed] = React.useState(!1), [pairingServerUrl, setPairingServerUrl] = React.useState(void 0), pairingAvailable = pairingServerUrl !== void 0 && pairingServerUrl === status?.serverUrl, [providerReload, setProviderReload] = React.useState(0), providerRequestRun = React.useRef(0), [qrSession, setQrSession] = React.useState(void 0), [qrImage, setQrImage] = React.useState(void 0), [qrExpired, setQrExpired] = React.useState(!1), [hostEmail, setHostEmail] = React.useState(""), [hostPassword, setHostPassword] = React.useState(""), [hostRegistrationCode, setHostRegistrationCode] = React.useState(""), [progress, setProgress] = React.useState(void 0), progressRun = React.useRef(0), qrFlowRun = React.useRef(0), pageRef = React.useRef(null), hostFilterMenuRef = React.useRef(null), hostFilterTriggerRef = React.useRef(null), accountMenuPanelRef = React.useRef(null);
+      }, [open, setOpen] = React.useState(!1), [status, setStatus] = React.useState(void 0), [devices, setDevices] = React.useState([]), [hostFilter, setHostFilter] = React.useState("all"), [hostFilterOpen, setHostFilterOpen] = React.useState(!1), [accountMenuOpen, setAccountMenuOpen] = React.useState(!1), [workspaceSearch, setWorkspaceSearch] = React.useState(""), [discoveryUnavailable, setDiscoveryUnavailable] = React.useState(!1), [selectedHost, setSelectedHost] = React.useState(void 0), [connectingHost, setConnectingHost] = React.useState(void 0), [workspaces, setWorkspaces] = React.useState([]), [codexWorkspaces, setCodexWorkspaces] = React.useState([]), [cursorWorkspaces, setCursorWorkspaces] = React.useState([]), [antigravityWorkspaces, setAntigravityWorkspaces] = React.useState([]), [piWorkspaces, setPiWorkspaces] = React.useState([]), [opencodeWorkspaces, setOpencodeWorkspaces] = React.useState([]), [claudeWorkspaces, setClaudeWorkspaces] = React.useState([]), [hermesWorkspaces, setHermesWorkspaces] = React.useState([]), [customAcpWorkspaces, setCustomAcpWorkspaces] = React.useState({}), [workspaceBackend, setWorkspaceBackend] = React.useState("harness"), [codexWorkspaceId, setCodexWorkspaceId] = React.useState(void 0), [cursorWorkspaceId, setCursorWorkspaceId] = React.useState(void 0), [antigravityWorkspaceId, setAntigravityWorkspaceId] = React.useState(void 0), [piWorkspaceId, setPiWorkspaceId] = React.useState(void 0), [opencodeWorkspaceId, setOpencodeWorkspaceId] = React.useState(void 0), [claudeWorkspaceId, setClaudeWorkspaceId] = React.useState(void 0), [hermesWorkspaceId, setHermesWorkspaceId] = React.useState(void 0), [customAcpWorkspaceIds, setCustomAcpWorkspaceIds] = React.useState({}), [directory, setDirectory] = React.useState(void 0), [path, setPath] = React.useState(""), [pickedDirectoryPath, setPickedDirectoryPath] = React.useState(void 0), [addingWorkspace, setAddingWorkspace] = React.useState(!1), [showAllWorkspaces, setShowAllWorkspaces] = React.useState(!1), [showAllCodexWorkspaces, setShowAllCodexWorkspaces] = React.useState(!1), [devicesOpen, setDevicesOpen] = React.useState(!1), [restartingHost, setRestartingHost] = React.useState(void 0), [showAllCursorWorkspaces, setShowAllCursorWorkspaces] = React.useState(!1), [showAllAntigravityWorkspaces, setShowAllAntigravityWorkspaces] = React.useState(!1), [showAllPiWorkspaces, setShowAllPiWorkspaces] = React.useState(!1), [showAllOpencodeWorkspaces, setShowAllOpencodeWorkspaces] = React.useState(!1), [showAllClaudeWorkspaces, setShowAllClaudeWorkspaces] = React.useState(!1), [showAllHermesWorkspaces, setShowAllHermesWorkspaces] = React.useState(!1), [showAllCustomAcpWorkspaces, setShowAllCustomAcpWorkspaces] = React.useState({}), workspaceListId = "dsh-remote-workspace-list", codexWorkspaceHeadingId = "dsh-remote-codex-workspace-heading", codexWorkspaceListId = "dsh-remote-codex-workspace-list", cursorWorkspaceHeadingId = "dsh-remote-cursor-workspace-heading", cursorWorkspaceListId = "dsh-remote-cursor-workspace-list", antigravityWorkspaceHeadingId = "dsh-remote-antigravity-workspace-heading", piWorkspaceHeadingId = "dsh-remote-pi-workspace-heading", opencodeWorkspaceHeadingId = "dsh-remote-opencode-workspace-heading", claudeWorkspaceHeadingId = "dsh-remote-claude-workspace-heading", hermesWorkspaceHeadingId = "dsh-remote-hermes-workspace-heading", antigravityWorkspaceListId = "dsh-remote-antigravity-workspace-list", piWorkspaceListId = "dsh-remote-pi-workspace-list", opencodeWorkspaceListId = "dsh-remote-opencode-workspace-list", claudeWorkspaceListId = "dsh-remote-claude-workspace-list", hermesWorkspaceListId = "dsh-remote-hermes-workspace-list", [busy, setBusy] = React.useState(!1), [needsAuthorization, setNeedsAuthorization] = React.useState(void 0), [email, setEmail] = React.useState(""), [password, setPassword] = React.useState(""), [loginServerUrl, setLoginServerUrl] = React.useState("https://remote.gaolin.ink"), [editingServer, setEditingServer] = React.useState(!1), [savingServer, setSavingServer] = React.useState(!1), serverDirty = loginServerUrl.trim() !== (status?.serverUrl ?? ""), [loginMethod, setLoginMethod] = React.useState("password"), loginMethodManuallySelected = React.useRef(!1), [oauthProviders, setOAuthProviders] = React.useState([]), [providersLoading, setProvidersLoading] = React.useState(!1), [providersFailed, setProvidersFailed] = React.useState(!1), [pairingServerUrl, setPairingServerUrl] = React.useState(void 0), pairingAvailable = pairingServerUrl !== void 0 && pairingServerUrl === status?.serverUrl, [providerReload, setProviderReload] = React.useState(0), providerRequestRun = React.useRef(0), [qrSession, setQrSession] = React.useState(void 0), [qrImage, setQrImage] = React.useState(void 0), [qrExpired, setQrExpired] = React.useState(!1), [hostEmail, setHostEmail] = React.useState(""), [hostPassword, setHostPassword] = React.useState(""), [hostRegistrationCode, setHostRegistrationCode] = React.useState(""), [progress, setProgress] = React.useState(void 0), progressRun = React.useRef(0), qrFlowRun = React.useRef(0), pageRef = React.useRef(null), hostFilterMenuRef = React.useRef(null), hostFilterTriggerRef = React.useRef(null), accountMenuPanelRef = React.useRef(null);
       React.useEffect(() => {
         if (!hostFilterOpen) return;
         let frame = window.requestAnimationFrame(() => {
@@ -5773,7 +6059,7 @@ If a code was sent, recover the original submission without changing it.`,
         disabled: busy,
         onClick: () => selectLoginMethod(`oauth:${provider.id}`)
       }, t("providerLogin", { provider: provider.displayName })), selectHost = async (host) => {
-        setWorkspaceSearch(""), setBusy(!0), setError(void 0), setNotice(void 0), setConnectingHost(host), setCodexWorkspaces([]), setCursorWorkspaces([]), setAntigravityWorkspaces([]), setPiWorkspaces([]), setOpencodeWorkspaces([]), setClaudeWorkspaces([]), setHermesWorkspaces([]), setShowAllWorkspaces(!1), setShowAllCodexWorkspaces(!1), setShowAllCursorWorkspaces(!1), setShowAllAntigravityWorkspaces(!1), setShowAllPiWorkspaces(!1), setShowAllOpencodeWorkspaces(!1), setShowAllClaudeWorkspaces(!1), setShowAllHermesWorkspaces(!1);
+        setWorkspaceSearch(""), setBusy(!0), setError(void 0), setNotice(void 0), setConnectingHost(host), setCodexWorkspaces([]), setCursorWorkspaces([]), setAntigravityWorkspaces([]), setPiWorkspaces([]), setOpencodeWorkspaces([]), setClaudeWorkspaces([]), setHermesWorkspaces([]), setCustomAcpWorkspaces({}), setShowAllWorkspaces(!1), setShowAllCodexWorkspaces(!1), setShowAllCursorWorkspaces(!1), setShowAllAntigravityWorkspaces(!1), setShowAllPiWorkspaces(!1), setShowAllOpencodeWorkspaces(!1), setShowAllClaudeWorkspaces(!1), setShowAllHermesWorkspaces(!1), setShowAllCustomAcpWorkspaces({});
         try {
           let result = await runConnectHostProgress(
             status?.preferredTransports,
@@ -5804,7 +6090,10 @@ If a code was sent, recover the original submission without changing it.`,
                 props.control("hermes.workspaces.list", { targetDeviceId: host.deviceId }).catch(() => []),
                 props.control("status").catch(() => {
                 })
-              ]);
+              ]), builtinIds = /* @__PURE__ */ new Set(["harness", "codex", "cursor", "antigravity", "pi", "opencode", "claude", "hermes"]), customTypes = (nextStatus?.remoteFeatures?.workspaceTypes ?? []).filter((w) => w.available && !builtinIds.has(w.id)), nextCustomEntries = await Promise.all(customTypes.map(async (wt) => {
+                let items = await props.control("acp.workspaces.list", { targetDeviceId: host.deviceId, backend: wt.id }).catch(() => []);
+                return [wt.id, items];
+              }));
               return nextStatus !== void 0 && setStatus(nextStatus), {
                 workspaces: nextWorkspaces,
                 codexWorkspaces: nextCodexWorkspaces,
@@ -5814,12 +6103,13 @@ If a code was sent, recover the original submission without changing it.`,
                 opencodeWorkspaces: nextOpencodeWorkspaces,
                 claudeWorkspaces: nextClaudeWorkspaces,
                 hermesWorkspaces: nextHermesWorkspaces,
+                customAcpWorkspaces: Object.fromEntries(nextCustomEntries),
                 status: nextStatus
               };
             },
             (result2) => connectedProgress(result2.status)
           );
-          setWorkspaces(result.workspaces), setCodexWorkspaces(result.codexWorkspaces), setCursorWorkspaces(result.cursorWorkspaces), setAntigravityWorkspaces(result.antigravityWorkspaces), setPiWorkspaces(result.piWorkspaces), setOpencodeWorkspaces(result.opencodeWorkspaces), setClaudeWorkspaces(result.claudeWorkspaces), setHermesWorkspaces(result.hermesWorkspaces), setWorkspaceBackend("harness"), setCodexWorkspaceId(void 0), setCursorWorkspaceId(void 0), setAntigravityWorkspaceId(void 0), setPiWorkspaceId(void 0), setOpencodeWorkspaceId(void 0), setClaudeWorkspaceId(void 0), setHermesWorkspaceId(void 0), setSelectedHost(host), setPath(""), setAddingWorkspace(!1), setDirectory(void 0);
+          setWorkspaces(result.workspaces), setCodexWorkspaces(result.codexWorkspaces), setCursorWorkspaces(result.cursorWorkspaces), setAntigravityWorkspaces(result.antigravityWorkspaces), setPiWorkspaces(result.piWorkspaces), setOpencodeWorkspaces(result.opencodeWorkspaces), setClaudeWorkspaces(result.claudeWorkspaces), setHermesWorkspaces(result.hermesWorkspaces), setCustomAcpWorkspaces(result.customAcpWorkspaces), setWorkspaceBackend("harness"), setCodexWorkspaceId(void 0), setCursorWorkspaceId(void 0), setAntigravityWorkspaceId(void 0), setPiWorkspaceId(void 0), setOpencodeWorkspaceId(void 0), setClaudeWorkspaceId(void 0), setHermesWorkspaceId(void 0), setCustomAcpWorkspaceIds({}), setSelectedHost(host), setPath(""), setAddingWorkspace(!1), setDirectory(void 0);
         } catch (reason) {
           setError(connectionErrorMessageFor(reason, t));
         } finally {
@@ -5833,7 +6123,7 @@ If a code was sent, recover the original submission without changing it.`,
               targetDeviceId: selectedHost.deviceId,
               ...nextPath === void 0 ? {} : { path: nextPath }
             });
-            setDirectory(listing), setCodexWorkspaceId(void 0), setCursorWorkspaceId(void 0), setAntigravityWorkspaceId(void 0), setPiWorkspaceId(void 0), setOpencodeWorkspaceId(void 0), setClaudeWorkspaceId(void 0), setHermesWorkspaceId(void 0), setPickedDirectoryPath(void 0), setPath(listing.path);
+            setDirectory(listing), setCodexWorkspaceId(void 0), setCursorWorkspaceId(void 0), setAntigravityWorkspaceId(void 0), setPiWorkspaceId(void 0), setOpencodeWorkspaceId(void 0), setClaudeWorkspaceId(void 0), setHermesWorkspaceId(void 0), setPickedDirectoryPath(void 0), setCustomAcpWorkspaceIds({}), setPath(listing.path);
           } catch (reason) {
             setError(connectionErrorMessageFor(reason, t));
           } finally {
@@ -5841,9 +6131,9 @@ If a code was sent, recover the original submission without changing it.`,
           }
         }
       }, startAddingWorkspace = (backend) => {
-        setAddingWorkspace(!0), setWorkspaceBackend(backend), setCodexWorkspaceId(void 0), setCursorWorkspaceId(void 0), setAntigravityWorkspaceId(void 0), setPiWorkspaceId(void 0), setOpencodeWorkspaceId(void 0), setClaudeWorkspaceId(void 0), setHermesWorkspaceId(void 0), setShowAllWorkspaces(!1), setShowAllCodexWorkspaces(!1), setShowAllCursorWorkspaces(!1), setShowAllAntigravityWorkspaces(!1), setShowAllPiWorkspaces(!1), setShowAllOpencodeWorkspaces(!1), setShowAllClaudeWorkspaces(!1), setShowAllHermesWorkspaces(!1), setDirectory(void 0), setPickedDirectoryPath(void 0), setPath(""), browseDirectory();
+        setAddingWorkspace(!0), setWorkspaceBackend(backend), setCodexWorkspaceId(void 0), setCursorWorkspaceId(void 0), setAntigravityWorkspaceId(void 0), setPiWorkspaceId(void 0), setOpencodeWorkspaceId(void 0), setClaudeWorkspaceId(void 0), setHermesWorkspaceId(void 0), setCustomAcpWorkspaceIds({}), setShowAllWorkspaces(!1), setShowAllCodexWorkspaces(!1), setShowAllCursorWorkspaces(!1), setShowAllAntigravityWorkspaces(!1), setShowAllPiWorkspaces(!1), setShowAllOpencodeWorkspaces(!1), setShowAllClaudeWorkspaces(!1), setShowAllHermesWorkspaces(!1), setShowAllCustomAcpWorkspaces({}), setDirectory(void 0), setPickedDirectoryPath(void 0), setPath(""), browseDirectory();
       }, cancelAddingWorkspace = () => {
-        setAddingWorkspace(!1), setWorkspaceBackend("harness"), setCodexWorkspaceId(void 0), setCursorWorkspaceId(void 0), setAntigravityWorkspaceId(void 0), setPiWorkspaceId(void 0), setOpencodeWorkspaceId(void 0), setClaudeWorkspaceId(void 0), setHermesWorkspaceId(void 0), setDirectory(void 0), setPickedDirectoryPath(void 0), setPath("");
+        setAddingWorkspace(!1), setWorkspaceBackend("harness"), setCodexWorkspaceId(void 0), setCursorWorkspaceId(void 0), setAntigravityWorkspaceId(void 0), setPiWorkspaceId(void 0), setOpencodeWorkspaceId(void 0), setClaudeWorkspaceId(void 0), setHermesWorkspaceId(void 0), setCustomAcpWorkspaceIds({}), setDirectory(void 0), setPickedDirectoryPath(void 0), setPath("");
       }, refreshRemote = async () => {
         setBusy(!0), setNotice(void 0), setError(void 0);
         try {
@@ -5924,7 +6214,7 @@ If a code was sent, recover the original submission without changing it.`,
         if (!open || needsAuthorization !== !1) return;
         let disposed = !1, timer, reading = !1, known = new Map(devicesRef.current.map((device) => [device.deviceId, device.online]));
         function schedule() {
-          disposed || (timer = window.setTimeout(() => {
+          disposed || (timer = globalThis.setTimeout(() => {
             read();
           }, HOST_PRESENCE_POLL_INTERVAL_MS));
         }
@@ -5948,7 +6238,7 @@ If a code was sent, recover the original submission without changing it.`,
           }
         }
         return schedule(), () => {
-          disposed = !0, timer !== void 0 && window.clearTimeout(timer);
+          disposed = !0, timer !== void 0 && globalThis.clearTimeout(timer);
         };
       }, [open, needsAuthorization]), React.useEffect(() => {
         if (presenceNotice === void 0) return;
@@ -5976,29 +6266,30 @@ If a code was sent, recover the original submission without changing it.`,
             setSavingServer(!1), setBusy(!1);
           }
         }
-      }, signInClient = async () => {
-        if (!(serverDirty || savingServer || email.trim() === "" || password === "" || loginServerUrl.trim() === "")) {
+      }, clientVerification = useAccountVerification(React, open && loginMethod === "password" ? loginServerUrl : void 0), hostVerification = useAccountVerification(React, open ? status?.serverUrl : void 0), signInClient = async () => {
+        if (!(serverDirty || savingServer || loginServerUrl.trim() === "" || (clientVerification.pending ? !clientVerification.ready : email.trim() === "" || password === ""))) {
           setBusy(!0), setError(void 0);
           try {
-            status?.clientAuthRequired ? await props.control("client.account.login", { email: email.trim(), password }) : await props.control("settings.configure", {
+            status?.clientAuthRequired ? await props.control("client.account.login", { email: email.trim(), password, verification: clientVerification.verification }) : await props.control("settings.configure", {
               role: "client",
               serverUrl: loginServerUrl.trim(),
               email: email.trim(),
-              password
-            }), setDevices(await props.control("devices")), setStatus(await props.control("status")), setNeedsAuthorization(!1), setPassword("");
+              password,
+              verification: clientVerification.verification
+            }), clientVerification.clear(), setDevices(await props.control("devices")), setStatus(await props.control("status")), setNeedsAuthorization(!1), setPassword("");
           } catch (reason) {
-            setError(connectionErrorMessageFor(reason, t));
+            clientVerification.handle(reason) ? setPassword("") : setError(connectionErrorMessageFor(reason, t));
           } finally {
             setBusy(!1);
           }
         }
       }, authorizeHost = async (kind) => {
-        if (!(kind === "account" && (hostEmail.trim() === "" || hostPassword === "")) && !(kind === "code" && hostRegistrationCode.trim() === "")) {
+        if (!(kind === "account" && (hostVerification.pending ? !hostVerification.ready : hostEmail.trim() === "" || hostPassword === "")) && !(kind === "code" && hostRegistrationCode.trim() === "")) {
           setBusy(!0), setError(void 0);
           try {
-            kind === "account" ? (await props.control("host.account.login", { email: hostEmail.trim(), password: hostPassword }), setHostPassword("")) : (await props.control("host.registration-code.submit", { code: hostRegistrationCode.trim() }), setHostRegistrationCode("")), setStatus(await props.control("status"));
+            kind === "account" ? (await props.control("host.account.login", { email: hostEmail.trim(), password: hostPassword, verification: hostVerification.verification }), hostVerification.clear(), setHostPassword("")) : (await props.control("host.registration-code.submit", { code: hostRegistrationCode.trim() }), setHostRegistrationCode("")), setStatus(await props.control("status"));
           } catch (reason) {
-            setError(connectionErrorMessageFor(reason, t));
+            kind === "account" && hostVerification.handle(reason) ? setHostPassword("") : setError(connectionErrorMessageFor(reason, t));
           } finally {
             setBusy(!1);
           }
@@ -6047,8 +6338,8 @@ If a code was sent, recover the original submission without changing it.`,
                 opencode: targetOpencodeWorkspaceId,
                 claude: targetClaudeWorkspaceId,
                 hermes: targetHermesWorkspaceId
-              }[targetBackend];
-              return createWorkspace || workspaceId === void 0 ? props.control(`${targetBackend}.workspace.create`, { targetDeviceId: selectedHost.deviceId, path: targetPath }) : props.control(`${targetBackend}.workspace.open`, { targetDeviceId: selectedHost.deviceId, workspaceId });
+              }[targetBackend] ?? selection?.workspaceId ?? (selection === void 0 ? customAcpWorkspaceIds[targetBackend] : void 0);
+              return ["cursor", "antigravity", "pi", "opencode", "claude", "hermes"].includes(targetBackend) ? createWorkspace || workspaceId === void 0 ? props.control(`${targetBackend}.workspace.create`, { targetDeviceId: selectedHost.deviceId, path: targetPath }) : props.control(`${targetBackend}.workspace.open`, { targetDeviceId: selectedHost.deviceId, workspaceId }) : createWorkspace || workspaceId === void 0 ? props.control("acp.workspace.create", { targetDeviceId: selectedHost.deviceId, backend: targetBackend, path: targetPath }) : props.control("acp.workspace.open", { targetDeviceId: selectedHost.deviceId, backend: targetBackend, workspaceId });
             })() : props.control("workspace.open", {
               targetDeviceId: selectedHost.deviceId,
               path: targetPath
@@ -6059,7 +6350,7 @@ If a code was sent, recover the original submission without changing it.`,
           }
         }
       }, reauth = status?.clientAuthRequired === !0, remoteLabel = reauth ? t("clientSignInAgain") : status?.mode === "remote" ? t("activeRemote", { name: status.target?.name ?? t("host") }) : t("remoteEntry"), remoteActionLabel = !reauth && status?.mode === "remote" ? `${remoteLabel} \xB7 ${t("exitRemote")}` : remoteLabel, query = workspaceSearch.trim().toLocaleLowerCase(), matchingWorkspaces = (rows, expanded) => query !== "" ? rows.filter((row) => `${row.title}
-${row.path}`.toLocaleLowerCase().includes(query)) : expanded ? rows : rows.slice(0, 3), visibleWorkspaces = matchingWorkspaces(workspaces, showAllWorkspaces), visibleCodexWorkspaces = matchingWorkspaces(codexWorkspaces, showAllCodexWorkspaces), visibleCursorWorkspaces = matchingWorkspaces(cursorWorkspaces, showAllCursorWorkspaces), visibleAntigravityWorkspaces = matchingWorkspaces(antigravityWorkspaces, showAllAntigravityWorkspaces), visiblePiWorkspaces = matchingWorkspaces(piWorkspaces, showAllPiWorkspaces), visibleOpencodeWorkspaces = matchingWorkspaces(opencodeWorkspaces, showAllOpencodeWorkspaces), visibleClaudeWorkspaces = matchingWorkspaces(claudeWorkspaces, showAllClaudeWorkspaces), visibleHermesWorkspaces = matchingWorkspaces(hermesWorkspaces, showAllHermesWorkspaces), codexAvailable = status?.remoteFeatures?.codex === !0, cursorAvailable = status?.remoteFeatures?.cursor === !0, antigravityAvailable = status?.remoteFeatures?.antigravity === !0, piAvailable = status?.remoteFeatures?.pi === !0, opencodeAvailable = status?.remoteFeatures?.opencode === !0, claudeAvailable = status?.remoteFeatures?.claude === !0, hermesAvailable = status?.remoteFeatures?.hermes === !0, rawUpdate = status?.update, updateInfo = rawUpdate !== void 0 && typeof rawUpdate.currentVersion == "string" && typeof rawUpdate.latestVersion == "string" ? rawUpdate : void 0, localUpdateAvailable = updateInfo !== void 0 && compareVersions(updateInfo.currentVersion, updateInfo.latestVersion) < 0, updateNotice = updateInfo !== void 0 && localUpdateAvailable ? t("updateAvailable", { latest: updateInfo.latestVersion, current: updateInfo.currentVersion }) : void 0, deviceUpdateAvailable = (device) => updateInfo !== void 0 && device.clientVersion !== void 0 && compareVersions(device.clientVersion, updateInfo.latestVersion) < 0, connectedClients = status?.host?.connectedClients ?? [], connectedCount = connectedClients.length, connectedCountLabel = t("connectedClientCount", { count: connectedCount }), connectedMenu = !needsAuthorization && status?.hostAuthorizationAvailable === !0 ? React.createElement(
+${row.path}`.toLocaleLowerCase().includes(query)) : expanded ? rows : rows.slice(0, 3), visibleWorkspaces = matchingWorkspaces(workspaces, showAllWorkspaces), visibleCodexWorkspaces = matchingWorkspaces(codexWorkspaces, showAllCodexWorkspaces), visibleCursorWorkspaces = matchingWorkspaces(cursorWorkspaces, showAllCursorWorkspaces), visibleAntigravityWorkspaces = matchingWorkspaces(antigravityWorkspaces, showAllAntigravityWorkspaces), visiblePiWorkspaces = matchingWorkspaces(piWorkspaces, showAllPiWorkspaces), visibleOpencodeWorkspaces = matchingWorkspaces(opencodeWorkspaces, showAllOpencodeWorkspaces), visibleClaudeWorkspaces = matchingWorkspaces(claudeWorkspaces, showAllClaudeWorkspaces), visibleHermesWorkspaces = matchingWorkspaces(hermesWorkspaces, showAllHermesWorkspaces), codexAvailable = status?.remoteFeatures?.codex === !0, cursorAvailable = status?.remoteFeatures?.cursor === !0, antigravityAvailable = status?.remoteFeatures?.antigravity === !0, piAvailable = status?.remoteFeatures?.pi === !0, opencodeAvailable = status?.remoteFeatures?.opencode === !0, claudeAvailable = status?.remoteFeatures?.claude === !0, hermesAvailable = status?.remoteFeatures?.hermes === !0, customAcpBackends = (status?.remoteFeatures?.workspaceTypes ?? []).filter((wt) => wt.available && !["harness", "codex", "cursor", "antigravity", "pi", "opencode", "claude", "hermes"].includes(wt.id)), rawUpdate = status?.update, updateInfo = rawUpdate !== void 0 && typeof rawUpdate.currentVersion == "string" && typeof rawUpdate.latestVersion == "string" ? rawUpdate : void 0, localUpdateAvailable = updateInfo !== void 0 && compareVersions(updateInfo.currentVersion, updateInfo.latestVersion) < 0, updateNotice = updateInfo !== void 0 && localUpdateAvailable ? t("updateAvailable", { latest: updateInfo.latestVersion, current: updateInfo.currentVersion }) : void 0, deviceUpdateAvailable = (device) => updateInfo !== void 0 && device.clientVersion !== void 0 && compareVersions(device.clientVersion, updateInfo.latestVersion) < 0, connectedClients = status?.host?.connectedClients ?? [], connectedCount = connectedClients.length, connectedCountLabel = t("connectedClientCount", { count: connectedCount }), connectedMenu = !needsAuthorization && status?.hostAuthorizationAvailable === !0 ? React.createElement(
         "div",
         {
           className: `dshRemoteConnectedMenu${devicesOpen ? " isOpen" : ""}`
@@ -6422,9 +6713,7 @@ ${row.path}`.toLocaleLowerCase().includes(query)) : expanded ? rows : rows.slice
                       serverUrl: status.serverUrl ?? "",
                       disabled: busy || savingServer || serverDirty,
                       t,
-                      onComplete: () => {
-                        refreshRemote();
-                      }
+                      onComplete: () => refreshRemote()
                     })
                   ) : passwordVisible ? React.createElement(
                     "div",
@@ -6434,25 +6723,29 @@ ${row.path}`.toLocaleLowerCase().includes(query)) : expanded ? rows : rows.slice
                       id: "dsh-remote-password-panel",
                       "aria-labelledby": "dsh-remote-password-tab"
                     },
-                    React.createElement("input", {
-                      type: "email",
-                      value: email,
-                      disabled: busy,
-                      autoComplete: "username",
-                      placeholder: t("account"),
-                      "aria-label": t("account"),
-                      onChange: (event) => setEmail(event.target.value)
-                    }),
-                    React.createElement("input", {
-                      type: "password",
-                      value: password,
-                      disabled: busy,
-                      autoComplete: "current-password",
-                      placeholder: t("password"),
-                      "aria-label": t("password"),
-                      onChange: (event) => setPassword(event.target.value)
-                    }),
-                    React.createElement("button", { type: "button", disabled: busy || savingServer || serverDirty || loginServerUrl.trim() === "" || email.trim() === "" || password === "", onClick: () => void signInClient() }, t(busy ? "signingIn" : "startSignIn")),
+                    clientVerification.fields(
+                      t,
+                      busy,
+                      React.createElement("input", {
+                        type: "email",
+                        value: email,
+                        disabled: busy,
+                        autoComplete: "username",
+                        placeholder: t("account"),
+                        "aria-label": t("account"),
+                        onChange: (event) => setEmail(event.target.value)
+                      }),
+                      React.createElement("input", {
+                        type: "password",
+                        value: password,
+                        disabled: busy,
+                        autoComplete: "current-password",
+                        placeholder: t("password"),
+                        "aria-label": t("password"),
+                        onChange: (event) => setPassword(event.target.value)
+                      })
+                    ),
+                    React.createElement("button", { type: "button", disabled: busy || savingServer || serverDirty || loginServerUrl.trim() === "" || (clientVerification.pending ? !clientVerification.ready : email.trim() === "" || password === ""), onClick: () => void signInClient() }, t(busy ? "signingIn" : "startSignIn")),
                     React.createElement("p", { className: "dshRemotePasswordHint" }, t("passwordHint"))
                   ) : selectedProvider !== void 0 ? React.createElement(
                     "div",
@@ -6578,9 +6871,13 @@ ${row.path}`.toLocaleLowerCase().includes(query)) : expanded ? rows : rows.slice
                     React.createElement(
                       "div",
                       { className: "dshRemoteLogin" },
-                      React.createElement("input", { type: "email", value: hostEmail, disabled: busy, autoComplete: "username", placeholder: t("serverAccountEmail"), "aria-label": t("serverAccountEmail"), onChange: (event) => setHostEmail(event.target.value) }),
-                      React.createElement("input", { type: "password", value: hostPassword, disabled: busy, autoComplete: "current-password", placeholder: t("serverAccountPassword"), "aria-label": t("serverAccountPassword"), onChange: (event) => setHostPassword(event.target.value) }),
-                      React.createElement("button", { type: "button", disabled: busy || hostEmail.trim() === "" || hostPassword === "", onClick: () => void authorizeHost("account") }, t(busy ? "signingIn" : "signInRegisterHost")),
+                      hostVerification.fields(
+                        t,
+                        busy,
+                        React.createElement("input", { type: "email", value: hostEmail, disabled: busy, autoComplete: "username", placeholder: t("serverAccountEmail"), "aria-label": t("serverAccountEmail"), onChange: (event) => setHostEmail(event.target.value) }),
+                        React.createElement("input", { type: "password", value: hostPassword, disabled: busy, autoComplete: "current-password", placeholder: t("serverAccountPassword"), "aria-label": t("serverAccountPassword"), onChange: (event) => setHostPassword(event.target.value) })
+                      ),
+                      React.createElement("button", { type: "button", disabled: busy || (hostVerification.pending ? !hostVerification.ready : hostEmail.trim() === "" || hostPassword === ""), onClick: () => void authorizeHost("account") }, t(busy ? "signingIn" : "signInRegisterHost")),
                       React.createElement("input", { value: hostRegistrationCode, disabled: busy, autoComplete: "one-time-code", placeholder: t("hostRegistrationCode"), "aria-label": t("hostRegistrationCode"), onChange: (event) => setHostRegistrationCode(event.target.value) }),
                       React.createElement("button", { type: "button", disabled: busy || hostRegistrationCode.trim() === "", onClick: () => void authorizeHost("code") }, t(busy ? "registering" : "useRegistrationCode"))
                     )
@@ -7322,7 +7619,64 @@ ${row.path}`.toLocaleLowerCase().includes(query)) : expanded ? rows : rows.slice
                           "aria-label": t("showAllClaudeWorkspaces"),
                           onClick: () => setShowAllClaudeWorkspaces(!0)
                         }, React.createElement("span", { "aria-hidden": !0 }, "\u2026"))
-                      ) : null
+                      ) : null,
+                      ...customAcpBackends.map((customBackend) => {
+                        let list = customAcpWorkspaces[customBackend.id] ?? [], showAll = showAllCustomAcpWorkspaces[customBackend.id] === !0, visible = showAll ? list : list.slice(0, 3), selectedCustomId = customAcpWorkspaceIds[customBackend.id], headingId = `dsh-remote-${customBackend.id}-workspace-heading`, listId = `dsh-remote-${customBackend.id}-workspace-list`;
+                        return React.createElement(
+                          "section",
+                          { key: customBackend.id, className: "dshRemoteCodexWorkspaceGroup" },
+                          React.createElement(
+                            "div",
+                            { id: headingId, className: "dshRemoteWorkspaceSourceHeading" },
+                            React.createElement("span", { className: "dshRemoteWorkspaceSourceText" }, React.createElement("strong", null, t("customAcpWorkspaces", { name: customBackend.name }))),
+                            React.createElement("button", {
+                              type: "button",
+                              className: "dshRemoteAddWorkspace",
+                              disabled: busy,
+                              title: t("addCustomAcpWorkspace", { name: customBackend.name }),
+                              "aria-label": t("addCustomAcpWorkspace", { name: customBackend.name }),
+                              onClick: () => startAddingWorkspace(customBackend.id)
+                            }, React.createElement("svg", {
+                              className: "dshRemoteAddWorkspaceIcon",
+                              viewBox: "0 0 16 16",
+                              "aria-hidden": !0,
+                              focusable: !1
+                            }, React.createElement("path", { d: "M8 3v10M3 8h10", fill: "none", stroke: "currentColor", strokeWidth: 1.5, strokeLinecap: "round" })))
+                          ),
+                          React.createElement("div", {
+                            id: listId,
+                            className: "dshRemoteDirectoryList dshRemoteCodexWorkspaceList",
+                            "aria-labelledby": headingId
+                          }, visible.length === 0 ? React.createElement("p", null, t("noCustomAcpWorkspaces", { name: customBackend.name })) : visible.map((workspace) => React.createElement(
+                            "button",
+                            {
+                              type: "button",
+                              key: workspace.workspaceId,
+                              disabled: busy,
+                              className: workspaceBackend === customBackend.id && selectedCustomId === workspace.workspaceId ? "isSelected" : "",
+                              "aria-pressed": workspaceBackend === customBackend.id && selectedCustomId === workspace.workspaceId,
+                              onClick: () => {
+                                setWorkspaceBackend(customBackend.id), setCustomAcpWorkspaceIds({ [customBackend.id]: workspace.workspaceId }), setClaudeWorkspaceId(void 0), setHermesWorkspaceId(void 0), setPiWorkspaceId(void 0), setOpencodeWorkspaceId(void 0), setAntigravityWorkspaceId(void 0), setCodexWorkspaceId(void 0), setCursorWorkspaceId(void 0), setPath(workspace.path);
+                              },
+                              onDoubleClick: () => void openWorkspace({
+                                backend: customBackend.id,
+                                path: workspace.path,
+                                workspaceId: workspace.workspaceId
+                              })
+                            },
+                            React.createElement("img", { className: "dshRemoteWorkspaceIcon", src: deepSeekWorkspaceIcon, alt: "", "aria-hidden": !0 }),
+                            React.createElement("span", null, workspace.title),
+                            React.createElement("small", null, `${workspace.path} \xB7 ${workspace.sessionCount}`)
+                          ))),
+                          list.length <= 3 || showAll ? null : React.createElement("button", {
+                            type: "button",
+                            className: "dshRemoteWorkspaceMore",
+                            disabled: busy,
+                            "aria-controls": listId,
+                            onClick: () => setShowAllCustomAcpWorkspaces((prev) => ({ ...prev, [customBackend.id]: !0 }))
+                          }, React.createElement("span", { "aria-hidden": !0 }, "\u2026"))
+                        );
+                      })
                     ),
                     React.createElement(
                       "footer",
@@ -7430,7 +7784,7 @@ ${row.path}`.toLocaleLowerCase().includes(query)) : expanded ? rows : rows.slice
       if ((init?.method ?? (input instanceof Request ? input.method : "GET")).toUpperCase() !== "POST" || requestUrl.href !== routeUrl.href) return original(input, init);
       let lifetime = (init?.signal !== void 0 ? init.signal ?? void 0 : input instanceof Request ? input.signal : void 0) ?? AbortSignal.timeout(45e3);
       try {
-        lifetime.throwIfAborted();
+        if (lifetime.throwIfAborted(), options.isLanWeb && await options.isLanWeb(lifetime)) return original(input, init);
         let status, probeTimeout = AbortSignal.timeout(1e4), probeSignal = AbortSignal.any([lifetime, probeTimeout]);
         try {
           status = await control("status", {}, probeSignal);
@@ -7554,6 +7908,8 @@ ${row.path}`.toLocaleLowerCase().includes(query)) : expanded ? rows : rows.slice
       case "remove-agent":
       case "goal-draft":
       case "goal-control":
+      case "task-note":
+      case "task-cancel":
         roster();
         break;
       case "create-bot":
@@ -7715,6 +8071,63 @@ ${row.path}`.toLocaleLowerCase().includes(query)) : expanded ? rows : rows.slice
     };
   }
 
+  // packages/plugin/src/message-file-attachment.ts
+  var PREFIX = ".dsh-remote-message-file/", attachmentIdPattern = /^sha256:[a-f0-9]{64}$/;
+  function record(value) {
+    return typeof value == "object" && value !== null ? value : void 0;
+  }
+  function messageFileAttachment(block) {
+    let value = record(block), ref = value?.type === "file" ? record(value.attachment) : void 0;
+    if (!(typeof ref?.attachmentId != "string" || !attachmentIdPattern.test(ref.attachmentId) || typeof ref.name != "string" || ref.name.length === 0 || ref.name.length > 255 || ref.name === "." || ref.name === ".." || /[\\/\x00-\x1f]/u.test(ref.name) || typeof ref.bytes != "number" || !Number.isSafeInteger(ref.bytes) || ref.bytes < 0))
+      return { attachmentId: ref.attachmentId, name: ref.name, bytes: ref.bytes };
+  }
+  function messageFilePath(ref) {
+    return `${PREFIX}${ref.attachmentId}/${ref.name}`;
+  }
+
+  // packages/plugin/src/client/message-file-preview.ts
+  var cardSelector = "[data-message-attachments] > span[title]", actionable = "data-dsh-remote-message-file";
+  function fileAddress(card, conversation) {
+    let sessionId = card.closest("[data-conversation-session]")?.getAttribute("data-conversation-session"), nodeKey = card.closest("[data-chat-node-key]")?.getAttribute("data-chat-node-key");
+    if (!sessionId || !nodeKey || !card.parentElement) return;
+    let node;
+    try {
+      node = conversation.binding(sessionId).target("chat").getSnapshot()?.nodes.get(nodeKey);
+    } catch {
+      return;
+    }
+    if (node?.kind !== "user" && node?.kind !== "steering" || !Array.isArray(node.data.content)) return;
+    let attachments = node.data.content.map(messageFileAttachment).filter((ref2) => ref2 !== void 0), cards = Array.from(card.parentElement.querySelectorAll(":scope > span[title]"));
+    if (cards.length !== attachments.length) return;
+    let ref = attachments[cards.indexOf(card)];
+    if (ref === void 0 || ref.name !== card.getAttribute("title")) return;
+    let path = messageFilePath(ref).split("/").map(encodeURIComponent).join("/");
+    return `dsh-resource://file/session/${encodeURIComponent(sessionId)}/${path}`;
+  }
+  function installMessageFilePreview(feed, conversation, sidebar) {
+    let active = !1, refresh = () => {
+      for (let card of Array.from(document.querySelectorAll(`${cardSelector}, [${actionable}]`))) {
+        let enabled = active && card.matches(cardSelector) && fileAddress(card, conversation) !== void 0;
+        enabled && !card.hasAttribute(actionable) ? (card.setAttribute(actionable, ""), card.setAttribute("role", "button"), card.setAttribute("tabindex", "0")) : !enabled && card.hasAttribute(actionable) && (card.removeAttribute(actionable), card.removeAttribute("role"), card.removeAttribute("tabindex"));
+      }
+    }, observer = new MutationObserver(refresh), unsubscribe = feed.subscribe((status) => {
+      let enabled = status.mode === "remote" && status.connected === !0 && status.backend === "harness";
+      enabled !== active && (active = enabled, active ? observer.observe(document.body, {
+        childList: !0,
+        subtree: !0,
+        attributes: !0,
+        attributeFilter: ["data-chat-node-key", "data-conversation-session", "title"]
+      }) : observer.disconnect(), refresh());
+    }), open = (event) => {
+      if (!active || !(event.target instanceof Element) || event instanceof KeyboardEvent && (event.repeat || event.key !== "Enter" && event.key !== " ")) return;
+      let card = event.target.closest(cardSelector), address = card === null ? void 0 : fileAddress(card, conversation);
+      address !== void 0 && (event.preventDefault(), sidebar.openResource(address));
+    };
+    return document.addEventListener("click", open), document.addEventListener("keydown", open), () => {
+      unsubscribe(), observer.disconnect(), active = !1, refresh(), document.removeEventListener("click", open), document.removeEventListener("keydown", open);
+    };
+  }
+
   // packages/plugin/src/client-recovery.ts
   function subscribeRemoteRecovery(feed, reconnect) {
     let previous;
@@ -7729,10 +8142,19 @@ ${row.path}`.toLocaleLowerCase().includes(query)) : expanded ? rows : rows.slice
     constructor(message) {
       super(message), this.name = "ControlRouteUnavailableError";
     }
-  }, originalPluginFetch = window.fetch, readyPluginSessions, pluginSessions = new Promise((resolve) => {
+  }, isHostcTunnel = /\.(?:hostc|tun|tun-test)\.4ba\.io\.?$/.test(window.location?.hostname ?? ""), originalPluginFetch = window.fetch, lanOrigin = window.location?.protocol === "http:" && /^(?:[\d.]+|\[[0-9a-f:]+\])$/i.test(window.location.hostname), verifiedLanOrigin = !1, readyPluginSessions, pluginSessions = new Promise((resolve) => {
     readyPluginSessions = resolve;
-  }), pluginRouteFetch = typeof originalPluginFetch == "function" && typeof document < "u" ? createPluginRouteFetch(originalPluginFetch.bind(window), document.baseURI, {
-    beforeResponse: createPluginRouteCatalogGuard(() => pluginSessions)
+  }), pluginRouteFetch = !isHostcTunnel && typeof originalPluginFetch == "function" && typeof document < "u" ? createPluginRouteFetch(originalPluginFetch.bind(window), document.baseURI, {
+    beforeResponse: createPluginRouteCatalogGuard(() => pluginSessions),
+    isLanWeb: lanOrigin ? async (signal) => {
+      if (verifiedLanOrigin) return !0;
+      let response = await originalPluginFetch(new URL("/__remote/lan-status", window.location.origin), {
+        credentials: "same-origin",
+        signal
+      }).catch(() => {
+      });
+      return verifiedLanOrigin = response?.status === 204 && response.headers.get("x-dsh-web-lan") === "1", verifiedLanOrigin;
+    } : void 0
   }) : void 0;
   pluginRouteFetch !== void 0 && (window.fetch = pluginRouteFetch);
   var uploadGlobal = globalThis, previousUploadHook = uploadGlobal.__DSH_FILE_UPLOAD__, remoteUploadHook = typeof originalPluginFetch == "function" && typeof document < "u" ? { fetch: createRemoteUploadFetch(previousUploadHook?.fetch ?? originalPluginFetch.bind(window), document.baseURI) } : void 0;
@@ -7783,7 +8205,7 @@ ${row.path}`.toLocaleLowerCase().includes(query)) : expanded ? rows : rows.slice
         "sessions"
       ];
       function RemoteModeAction(props) {
-        let { t } = props, [open, setOpen] = React.useState(!1), [status, setStatus] = React.useState(void 0), [devices, setDevices] = React.useState([]), [hostRegistrationCode, setHostRegistrationCode] = React.useState(""), [email, setEmail] = React.useState(""), [password, setPassword] = React.useState(""), [busy, setBusy] = React.useState(!1), [progress, setProgress] = React.useState(void 0), progressRun = React.useRef(0), [error, setError] = React.useState(void 0), [supported, setSupported] = React.useState(!0), refresh = async () => {
+        let { t } = props, [open, setOpen] = React.useState(!1), [status, setStatus] = React.useState(void 0), [devices, setDevices] = React.useState([]), [hostRegistrationCode, setHostRegistrationCode] = React.useState(""), [email, setEmail] = React.useState(""), [password, setPassword] = React.useState(""), hostVerification = useAccountVerification(React, status?.serverUrl), [busy, setBusy] = React.useState(!1), [progress, setProgress] = React.useState(void 0), progressRun = React.useRef(0), [error, setError] = React.useState(void 0), [supported, setSupported] = React.useState(!0), refresh = async () => {
           let [nextStatus, nextDevices] = await Promise.all([
             props.control("status"),
             props.control("devices").catch(() => [])
@@ -7818,12 +8240,12 @@ ${row.path}`.toLocaleLowerCase().includes(query)) : expanded ? rows : rows.slice
             setError(messageOf(reason, t)), setBusy(!1);
           }
         }, loginHost = async () => {
-          if (!(email.trim() === "" || password === "")) {
+          if (!(hostVerification.pending ? !hostVerification.ready : email.trim() === "" || password === "")) {
             setBusy(!0), setError(void 0);
             try {
-              await props.control("host.account.login", { email: email.trim(), password }), await refreshStatus();
+              await props.control("host.account.login", { email: email.trim(), password, verification: hostVerification.verification }), hostVerification.clear(), await refreshStatus();
             } catch (reason) {
-              setError(messageOf(reason, t));
+              hostVerification.handle(reason) || setError(messageOf(reason, t));
             } finally {
               setPassword(""), setBusy(!1);
             }
@@ -7889,27 +8311,31 @@ ${row.path}`.toLocaleLowerCase().includes(query)) : expanded ? rows : rows.slice
                 status.host.accountRequired ? React.createElement(
                   "div",
                   { className: "dshRemoteLogin" },
-                  React.createElement("input", {
-                    type: "email",
-                    value: email,
-                    disabled: busy,
-                    autoComplete: "username",
-                    placeholder: t("serverAccountEmail"),
-                    "aria-label": t("serverAccountEmail"),
-                    onChange: (event) => setEmail(event.target.value)
-                  }),
-                  React.createElement("input", {
-                    type: "password",
-                    value: password,
-                    disabled: busy,
-                    autoComplete: "current-password",
-                    placeholder: t("password"),
-                    "aria-label": t("serverAccountPassword"),
-                    onChange: (event) => setPassword(event.target.value)
-                  }),
+                  hostVerification.fields(
+                    t,
+                    busy,
+                    React.createElement("input", {
+                      type: "email",
+                      value: email,
+                      disabled: busy,
+                      autoComplete: "username",
+                      placeholder: t("serverAccountEmail"),
+                      "aria-label": t("serverAccountEmail"),
+                      onChange: (event) => setEmail(event.target.value)
+                    }),
+                    React.createElement("input", {
+                      type: "password",
+                      value: password,
+                      disabled: busy,
+                      autoComplete: "current-password",
+                      placeholder: t("password"),
+                      "aria-label": t("serverAccountPassword"),
+                      onChange: (event) => setPassword(event.target.value)
+                    })
+                  ),
                   React.createElement("button", {
                     type: "button",
-                    disabled: busy || email.trim() === "" || password === "",
+                    disabled: busy || (hostVerification.pending ? !hostVerification.ready : email.trim() === "" || password === ""),
                     onClick: () => void loginHost()
                   }, t(busy ? "signingIn" : "signInRegisterHost")),
                   React.createElement("input", {
@@ -7970,7 +8396,7 @@ ${row.path}`.toLocaleLowerCase().includes(query)) : expanded ? rows : rows.slice
             }
           }
         }, controlRouteRetryAfter = 0, controlRouteBackoffIndex = 0, control = async (endpoint, payload = {}) => {
-          if (endpoint === "status" && Date.now() < controlRouteRetryAfter)
+          if (endpoint === "status" && (isHostcTunnel || Date.now() < controlRouteRetryAfter))
             return controlRouteUnavailableStatus();
           let result;
           try {
@@ -7982,7 +8408,10 @@ ${row.path}`.toLocaleLowerCase().includes(query)) : expanded ? rows : rows.slice
             throw new ControlRouteUnavailableError(t("remoteControlUnavailable"));
           }
           return unwrapControlResult(result, t("remoteRequestFailed"));
-        }, statusFeed = createStatusFeed({
+        }, statusFeed = isHostcTunnel ? { getSnapshot: () => {
+        }, subscribe: () => () => {
+        }, close: () => {
+        } } : createStatusFeed({
           url: STATUS_STREAM_PATH.slice(1),
           readStatus: () => control("status"),
           onFallback: (reason) => {
@@ -7996,7 +8425,10 @@ ${row.path}`.toLocaleLowerCase().includes(query)) : expanded ? rows : rows.slice
           return () => {
             unsubscribe(), document.documentElement.classList.remove("dshRemoteBrowserUnavailable");
           };
-        }, "ds-harness-remote: hide local browser entry in remote mode"), ctx.effect(() => subscribeRemoteRecovery(statusFeed, () => ctx.connection.reconnect?.()), "ds-harness-remote: carrier recovery"), ctx.effect(() => {
+        }, "ds-harness-remote: hide local browser entry in remote mode"), ctx.effect(() => subscribeRemoteRecovery(statusFeed, () => ctx.connection.reconnect?.()), "ds-harness-remote: carrier recovery"), ctx.inject(["uiConversation", "sidebarRight"], (previewContext) => {
+          let conversation = previewContext.get("uiConversation"), sidebar = previewContext.get("sidebarRight");
+          typeof conversation?.binding != "function" || typeof sidebar?.openResource != "function" || previewContext.effect(() => installMessageFilePreview(statusFeed, conversation, sidebar), "ds-harness-remote: message file preview");
+        }), ctx.effect(() => {
           let disposed = !1, unsubscribeWorkspaces, unsubscribeSessions, selection, opening = !1, reconcile = () => {
             if (disposed || opening || selection === void 0) return;
             let pending = selection, workspaceSnapshot = ctx.workspaces.list.getSnapshot();
@@ -8061,7 +8493,7 @@ ${row.path}`.toLocaleLowerCase().includes(query)) : expanded ? rows : rows.slice
           React.createElement("rect", { x: 3, y: 4, width: 18, height: 13, rx: 2 }),
           React.createElement("path", { d: "M8 21h8M12 17v4" })
         );
-        ctx.inject(["inputTriggers"], (inputContext) => {
+        if (ctx.inject(["inputTriggers"], (inputContext) => {
           let hostCache = /* @__PURE__ */ new Map();
           inputContext.effect(() => {
             let inputTriggers = inputContext.inputTriggers, source = {
@@ -8106,16 +8538,70 @@ ${row.path}`.toLocaleLowerCase().includes(query)) : expanded ? rows : rows.slice
               document.removeEventListener("click", stopHostFileOpen, !0), unregister();
             };
           }, "ds-harness-remote: host mention source");
-        }), ctx.effect(() => ctx.locale.register(localeNamespace, { zh, en, ru, uk }), "ds-harness-remote: dictionaries"), ctx.effect(() => installStyle(clientModuleId), "ds-harness-remote: client styles"), ctx.effect(() => installTerminalAvailabilityNotice(statusFeed, t), "ds-harness-remote: terminal availability notice"), ctx.slots.inject("shell.overlay", () => ctx.slots.register({
-          name: "shell.overlay",
+        }), ctx.effect(() => ctx.locale.register(localeNamespace, { zh, en, ru, uk }), "ds-harness-remote: dictionaries"), ctx.effect(() => installStyle(clientModuleId), "ds-harness-remote: client styles"), ctx.effect(() => installTerminalAvailabilityNotice(statusFeed, t), "ds-harness-remote: terminal availability notice"), isHostcTunnel) {
+          let WebFooter2 = function() {
+            let [dismissed, setDismissed] = React.useState(() => {
+              try {
+                if (document.cookie.split(";").some((value) => value.trim() === dismissedCookie)) return !0;
+              } catch {
+              }
+              try {
+                let stored = window.localStorage.getItem(dismissedKey);
+                return stored === "1" || Number(stored) > Date.now();
+              } catch {
+                return !1;
+              }
+            });
+            if (dismissed) return null;
+            let dismiss = () => {
+              setDismissed(!0);
+              try {
+                document.cookie = `${dismissedCookie}; Domain=4ba.io; Path=/; Max-Age=${dismissalSeconds}; Secure; SameSite=Strict`;
+              } catch {
+              }
+              try {
+                window.localStorage.setItem(dismissedKey, String(Date.now() + dismissalSeconds * 1e3));
+              } catch {
+              }
+            };
+            return renderBodyPortal(portal, React.createElement(
+              "footer",
+              { className: "dshRemoteWebFooter" },
+              React.createElement("a", { ...linkProps, href: "https://github.com/liguobao/ds-harness-remote" }, "ds-harness-remote"),
+              " \xB7 ",
+              React.createElement("a", { ...linkProps, href: "https://dsh.r2049.cn" }, "\u4F1A\u5458\u8BA1\u5212"),
+              React.createElement(
+                "button",
+                { type: "button", onClick: dismiss, "aria-label": t("close") },
+                React.createElement(
+                  "svg",
+                  { width: 10, height: 10, viewBox: "0 0 12 12", "aria-hidden": !0 },
+                  React.createElement("path", { d: "M3 3l6 6m0-6L3 9", fill: "none", stroke: "currentColor", strokeWidth: 1.4, strokeLinecap: "round" })
+                )
+              )
+            ));
+          };
+          var WebFooter = WebFooter2;
+          let linkProps = { target: "_blank", rel: "noopener noreferrer" }, dismissedKey = "ds-harness-remote.web-footer.dismissed", dismissedCookie = "__Secure-dsh-remote-web-footer-dismissed=1", dismissalSeconds = 4320 * 60;
+          ctx.slots.inject("shell.overlay", () => ctx.slots.register({
+            name: "shell.overlay",
+            id: "ds-harness-remote-web-footer"
+          }, WebFooter2));
+        }
+        let nativeTitlebar = document.documentElement.hasAttribute("data-windows-titlebar") || document.documentElement.dataset.platform === "darwin", headerSlot = nativeTitlebar ? "shell.overlay" : "conversation.session.header.utilities";
+        ctx.slots.inject(headerSlot, () => ctx.slots.register({
+          name: headerSlot,
           id: "ds-harness-remote-global-context",
           order: 20,
           locale: localeNamespace,
-          inject: () => ({ control, statusFeed, onSignIn: openRemote })
+          inject: () => ({ control, statusFeed, onSignIn: openRemote, inline: !nativeTitlebar })
         }, RemoteSessionHeaderAction)), ctx.slots.inject("sidebar.footer.action", () => ctx.slots.register({
           name: "sidebar.footer.action",
           id: "ds-harness-remote-workspace",
-          order: -20,
+          // Shared footer ordering: integrations (chat import 20) and device
+          // entries (mobile 40) sort after this workspace entry, which stays the
+          // leftmost seat of the row.
+          order: 0,
           locale: localeNamespace,
           inject: () => ({
             control,
